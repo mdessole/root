@@ -16,7 +16,7 @@
 #include "RLoopManager.hxx"
 #include "RVariationBase.hxx"
 
-#include <string_view>
+#include <ROOT/RStringView.hxx>
 #include <ROOT/TypeTraits.hxx>
 #include <Rtypes.h> // R__CLING_PTRCHECK, Long64_t
 
@@ -53,35 +53,33 @@ bool ResultsSizeEq(const T &results, std::size_t expected, std::size_t nColumns,
 }
 
 template <typename T>
-std::size_t GetNVariations(const RVec<RVec<T>> &results)
+std::size_t GetNVariations(const RVec<T> &results)
 {
    return results.size();
 }
 
 template <typename T>
-void ResizeResults(ROOT::RVec<T> &results, std::size_t /*nCols*/, std::size_t nVariations, std::size_t maxBulkSize)
+void ResizeResults(ROOT::RVec<T> &results, std::size_t /*nCols*/, std::size_t nVariations)
 {
    results.resize(nVariations);
-   for (auto &bulkVec : results)
-      bulkVec.resize(maxBulkSize);
 }
 
 /// Assign into fLastResults[slot] without changing the addresses of its elements (we gave those addresses away in
 /// GetValuePtr)
 /// The callee is responsible of making sure that `resStorage` has the correct size.
 template <typename T>
-void AssignResults(ROOT::RVec<ROOT::RVec<T>> &resStorage, ROOT::RVec<T> &&tmpResults, std::size_t bulkIdx)
+void AssignResults(ROOT::RVec<T> &resStorage, ROOT::RVec<T> &&tmpResults)
 {
    const auto nVariations = resStorage.size(); // we have already checked that tmpResults has the same size
 
    for (auto i = 0u; i < nVariations; ++i)
-      resStorage[i][bulkIdx] = std::move(tmpResults[i]);
+      resStorage[i] = std::move(tmpResults[i]);
 }
 
 template <typename T>
-void *GetValuePtrHelper(ROOT::RVec<ROOT::RVec<T>> &v, std::size_t /*colIdx*/, std::size_t varIdx)
+void *GetValuePtrHelper(ROOT::RVec<T> &v, std::size_t /*colIdx*/, std::size_t varIdx)
 {
-   return static_cast<void *>(&v[varIdx][0]);
+   return static_cast<void *>(&v[varIdx]);
 }
 ///@}
 
@@ -95,40 +93,35 @@ bool ResultsSizeEq(const T &results, std::size_t expected, std::size_t /*nColumn
 }
 
 template <typename T>
-std::size_t GetNVariations(const std::vector<RVec<ROOT::RVec<T>>> &results)
+std::size_t GetNVariations(const std::vector<RVec<T>> &results)
 {
    assert(!results.empty());
    return results[0].size();
 }
 
 template <typename T>
-void ResizeResults(std::vector<ROOT::RVec<T>> &results, std::size_t nCols, std::size_t nVariations,
-                   std::size_t maxBulkSize)
+void ResizeResults(std::vector<ROOT::RVec<T>> &results, std::size_t nCols, std::size_t nVariations)
 {
    results.resize(nCols);
-   for (auto &rvecOverVariations : results) {
+   for (auto &rvecOverVariations : results)
       rvecOverVariations.resize(nVariations);
-      for (auto &rvecOverBulk : rvecOverVariations)
-         rvecOverBulk.resize(maxBulkSize);
-   }
 }
 
 // The callee is responsible of making sure that `resStorage` has the correct outer and inner sizes.
 template <typename T>
-void AssignResults(std::vector<ROOT::RVec<ROOT::RVec<T>>> &resStorage, ROOT::RVec<ROOT::RVec<T>> &&tmpResults,
-                   std::size_t bulkIdx)
+void AssignResults(std::vector<ROOT::RVec<T>> &resStorage, ROOT::RVec<ROOT::RVec<T>> &&tmpResults)
 {
    const auto nCols = resStorage.size();
    const auto nVariations = resStorage[0].size();
    for (auto colIdx = 0u; colIdx < nCols; ++colIdx)
       for (auto varIdx = 0u; varIdx < nVariations; ++varIdx)
-         resStorage[colIdx][varIdx][bulkIdx] = std::move(tmpResults[colIdx][varIdx]);
+         resStorage[colIdx][varIdx] = std::move(tmpResults[colIdx][varIdx]);
 }
 
 template <typename T>
-void *GetValuePtrHelper(std::vector<ROOT::RVec<ROOT::RVec<T>>> &v, std::size_t colIdx, std::size_t varIdx)
+void *GetValuePtrHelper(std::vector<ROOT::RVec<T>> &v, std::size_t colIdx, std::size_t varIdx)
 {
-   return static_cast<void *>(&v[colIdx][varIdx][0]);
+   return static_cast<void *>(&v[colIdx][varIdx]);
 }
 ///@}
 
@@ -157,27 +150,21 @@ class R__CLING_PTRCHECK(off) RVariation final : public RVariationBase {
    using TypeInd_t = std::make_index_sequence<ColumnTypes_t::list_size>;
    using Ret_t = typename CallableTraits<F>::ret_type;
    using VariedCol_t = ColumnType_t<IsSingleColumn, Ret_t>;
-   using Result_t = std::conditional_t<IsSingleColumn, ROOT::RVec<ROOT::RVec<VariedCol_t>>,
-                                       std::vector<ROOT::RVec<ROOT::RVec<VariedCol_t>>>>;
+   using Result_t = std::conditional_t<IsSingleColumn, ROOT::RVec<VariedCol_t>, std::vector<ROOT::RVec<VariedCol_t>>>;
 
    F fExpression;
    /// Per-slot storage for varied column values (for one or multiple columns depending on IsSingleColumn).
-   /// Dimensions from inner to outer: bulk idx, variation idx[, column idx], slot idx.
    std::vector<Result_t> fLastResults;
 
    /// Column readers per slot and per input column
-   std::vector<std::array<RColumnReaderBase *, ColumnTypes_t::list_size>> fValueReaders;
-
-   /// Arrays of type-erased raw pointers to the beginning of bulks of column values, one per slot.
-   std::vector<std::array<void *, ColumnTypes_t::list_size>> fValuePtrs;
+   std::vector<std::array<RColumnReaderBase *, ColumnTypes_t::list_size>> fValues;
 
    template <typename... ColTypes, std::size_t... S>
    void UpdateHelper(unsigned int slot, std::size_t idx, TypeList<ColTypes...>, std::index_sequence<S...>)
    {
       // fExpression must return an RVec<T>
-      auto &&results = fExpression(*(static_cast<ColTypes *>(fValuePtrs[slot][S]) + idx)...);
+      auto &&results = fExpression(fValues[slot][S]->template Get<ColTypes>(idx)...);
 
-      /* FIXME this is expensive, can we do something different?
       if (!ResultsSizeEq(results, fVariationNames.size(), fColNames.size(),
                          std::integral_constant<bool, IsSingleColumn>{})) {
          std::string variationName = fVariationNames[0].substr(0, fVariationNames[0].find_first_of(':'));
@@ -185,9 +172,8 @@ class R__CLING_PTRCHECK(off) RVariation final : public RVariationBase {
                                   "\" resulted in " + std::to_string(GetNVariations(results)) + " values, but " +
                                   std::to_string(fVariationNames.size()) + " were expected.");
       }
-      */
 
-      AssignResults(fLastResults[slot * CacheLineStep<Result_t>()], std::move(results), idx);
+      AssignResults(fLastResults[slot * CacheLineStep<Result_t>()], std::move(results));
       (void)idx; // avoid unused parameter warnings (gcc 12.2)
    }
 
@@ -197,13 +183,12 @@ public:
               RLoopManager &lm, const ColumnNames_t &inputColNames)
       : RVariationBase(colNames, variationName, variationTags, type, defines, lm, inputColNames),
         fExpression(std::move(expression)), fLastResults(lm.GetNSlots() * RDFInternal::CacheLineStep<Result_t>()),
-        fValueReaders(lm.GetNSlots()), fValuePtrs(lm.GetNSlots())
+        fValues(lm.GetNSlots())
    {
       fLoopManager->Register(this);
 
       for (auto i = 0u; i < lm.GetNSlots(); ++i)
-         ResizeResults(fLastResults[i * RDFInternal::CacheLineStep<Result_t>()], colNames.size(), variationTags.size(),
-                       fLoopManager->GetMaxEventsPerBulk());
+         ResizeResults(fLastResults[i * RDFInternal::CacheLineStep<Result_t>()], colNames.size(), variationTags.size());
    }
 
    RVariation(const RVariation &) = delete;
@@ -213,8 +198,8 @@ public:
    void InitSlot(TTreeReader *r, unsigned int slot) final
    {
       RColumnReadersInfo info{fInputColumns, fColumnRegister, fIsDefine.data(), *fLoopManager};
-      fValueReaders[slot] = GetColumnReaders(slot, r, ColumnTypes_t{}, info);
-      fMask[slot].SetFirstEntry(-1ll);
+      fValues[slot] = GetColumnReaders(slot, r, ColumnTypes_t{}, info);
+      fLastCheckedEntry[slot * CacheLineStep<Long64_t>()] = -1;
    }
 
    /// Return the (type-erased) address of the value for the given processing slot.
@@ -232,29 +217,14 @@ public:
    }
 
    /// Update the value at the address returned by GetValuePtr with the content corresponding to the given entry
-   void Update(unsigned int slot, const RMaskedEntryRange &requestedMask, std::size_t bulkSize) final
+   void Update(unsigned int slot, Long64_t entry, bool mask) final
    {
-      auto &valueMask = fMask[slot * RDFInternal::CacheLineStep<RDFInternal::RMaskedEntryRange>()];
-      // Index of the first entry in the bulk for which we do not already have a value
-      std::size_t firstNewIdx = std::numeric_limits<std::size_t>::max();
-      if (valueMask.FirstEntry() != requestedMask.FirstEntry()) { // new bulk
-         // if it turns out that we do these two operations together very often, maybe it's worth having a ad-hoc method
-         valueMask.SetAll(false);
-         valueMask.SetFirstEntry(requestedMask.FirstEntry());
-         firstNewIdx = 0u;
-      } else if ((firstNewIdx = valueMask.Contains(requestedMask, bulkSize)) == std::numeric_limits<std::size_t>::max()) {
-         // this is a common occurrence: it happens when the same Vary result is used multiple times downstream of the
-         // same Filters -- nothing to do.
-         return;
-      }
-
-      std::transform(fValueReaders[slot].begin(), fValueReaders[slot].end(), fValuePtrs[slot].begin(),
-                     [&requestedMask, &bulkSize](auto *v) { return v->Load(requestedMask, bulkSize); });
-
-      for (std::size_t i = firstNewIdx; i < bulkSize; ++i) {
-         if (requestedMask[i] && !valueMask[i]) { // we don't have a value for this entry yet
-            UpdateHelper(slot, i, ColumnTypes_t{}, TypeInd_t{});
-            valueMask[i] = true;
+      if (entry != fLastCheckedEntry[slot * CacheLineStep<Long64_t>()]) {
+         // evaluate this filter, cache the result
+         std::for_each(fValues[slot].begin(), fValues[slot].end(), [entry, mask](auto *v) { v->Load(entry, mask); });
+         if (mask) {
+            UpdateHelper(slot, /*idx=*/0u, ColumnTypes_t{}, TypeInd_t{});
+            fLastCheckedEntry[slot * CacheLineStep<Long64_t>()] = entry;
          }
       }
    }
@@ -262,7 +232,7 @@ public:
    const std::type_info &GetTypeId() const final { return typeid(VariedCol_t); }
 
    /// Clean-up operations to be performed at the end of a task.
-   void FinalizeSlot(unsigned int slot) final { fValueReaders[slot].fill(nullptr); }
+   void FinalizeSlot(unsigned int slot) final { fValues[slot].fill(nullptr); }
 };
 
 } // namespace RDF

@@ -33,7 +33,8 @@ namespace RDFDetail = ROOT::Detail::RDF;
 namespace RDFGraphDrawing = ROOT::Internal::RDF::GraphDrawing;
 
 namespace GraphDrawing {
-std::shared_ptr<GraphNode> AddDefinesToGraph(std::shared_ptr<GraphNode> node, const RColumnRegister &colRegister,
+std::shared_ptr<GraphNode> AddDefinesToGraph(std::shared_ptr<GraphNode> node,
+                                             const RDFInternal::RColumnRegister &colRegister,
                                              const std::vector<std::string> &prevNodeDefines,
                                              std::unordered_map<void *, std::shared_ptr<GraphNode>> &visitedMap);
 } // namespace GraphDrawing
@@ -56,11 +57,8 @@ class R__CLING_PTRCHECK(off) RAction : public RActionBase {
    Helper fHelper;
    const std::shared_ptr<PrevNode> fPrevNodePtr;
    PrevNode &fPrevNode;
-   /// Column readers per slot and per input column.
-   std::vector<std::array<RColumnReaderBase *, ColumnTypes_t::list_size>> fValueReaders;
-
-   /// Arrays of type-erased raw pointers to the beginning of bulks of column values, one per slot.
-   std::vector<std::array<void *, ColumnTypes_t::list_size>> fValuePtrs;
+   /// Column readers per slot and per input column
+   std::vector<std::array<RColumnReaderBase *, ColumnTypes_t::list_size>> fValues;
 
    /// The nth flag signals whether the nth input column is a custom column or not.
    std::array<bool, ColumnTypes_t::list_size> fIsDefine;
@@ -68,8 +66,7 @@ class R__CLING_PTRCHECK(off) RAction : public RActionBase {
 public:
    RAction(Helper &&h, const ColumnNames_t &columns, std::shared_ptr<PrevNode> pd, const RColumnRegister &colRegister)
       : RActionBase(pd->GetLoopManagerUnchecked(), columns, colRegister, pd->GetVariations()),
-        fHelper(std::forward<Helper>(h)), fPrevNodePtr(std::move(pd)), fPrevNode(*fPrevNodePtr),
-        fValueReaders(GetNSlots()), fValuePtrs(GetNSlots())
+        fHelper(std::forward<Helper>(h)), fPrevNodePtr(std::move(pd)), fPrevNode(*fPrevNodePtr), fValues(GetNSlots())
    {
       fLoopManager->Register(this);
 
@@ -98,28 +95,24 @@ public:
    {
       RDFInternal::RColumnReadersInfo info{RActionBase::GetColumnNames(), RActionBase::GetColRegister(),
                                            fIsDefine.data(), *fLoopManager};
-      fValueReaders[slot] = RDFInternal::GetColumnReaders(slot, r, ColumnTypes_t{}, info);
+      fValues[slot] = RDFInternal::GetColumnReaders(slot, r, ColumnTypes_t{}, info);
       fHelper.InitTask(r, slot);
    }
 
    template <typename... ColTypes, std::size_t... S>
    void CallExec(unsigned int slot, std::size_t idx, TypeList<ColTypes...>, std::index_sequence<S...>)
    {
-      fHelper.Exec(slot, *(static_cast<ColTypes *>(fValuePtrs[slot][S]) + idx)...);
+      fHelper.Exec(slot, fValues[slot][S]->template Get<ColTypes>(idx)...);
       (void)idx; // avoid unused parameter warning (gcc 12.1)
    }
 
-   void Run(unsigned int slot, Long64_t entry, std::size_t bulkSize) final
+   void Run(unsigned int slot, Long64_t entry) final
    {
-      const auto &mask = fPrevNode.CheckFilters(slot, entry, bulkSize);
+      const auto mask = fPrevNode.CheckFilters(slot, entry);
+      std::for_each(fValues[slot].begin(), fValues[slot].end(), [entry, mask](auto *v) { v->Load(entry, mask); });
 
-      std::transform(fValueReaders[slot].begin(), fValueReaders[slot].end(), fValuePtrs[slot].begin(),
-                     [&mask, &bulkSize](auto *v) { return v->Load(mask, bulkSize); });
-
-      for (std::size_t i = 0ul; i < bulkSize; ++i) {
-         if (mask[i])
-            CallExec(slot, i, ColumnTypes_t{}, TypeInd_t{});
-      }
+      if (mask)
+         CallExec(slot, /*idx=*/0u, ColumnTypes_t{}, TypeInd_t{});
    }
 
    void TriggerChildrenCount() final { fPrevNode.IncrChildrenCount(); }
@@ -127,7 +120,7 @@ public:
    /// Clean-up operations to be performed at the end of a task.
    void FinalizeSlot(unsigned int slot) final
    {
-      fValueReaders[slot].fill(nullptr);
+      fValues[slot].fill(nullptr);
       fHelper.CallFinalizeTask(slot);
    }
 
@@ -177,19 +170,8 @@ public:
          std::move(helpers), GetColumnNames(), fPrevNodePtr, GetColRegister()});
    }
 
-   /**
-    * \brief Returns a new action with a cloned helper.
-    *
-    * \param[in] newResult The result to be filled by the new action (needed to clone the helper).
-    * \return A unique pointer to the new action.
-    */
-   std::unique_ptr<RActionBase> CloneAction(void *newResult) final
-   {
-      return std::make_unique<RAction>(fHelper.CallMakeNew(newResult), GetColumnNames(), fPrevNodePtr,
-                                       GetColRegister());
-   }
-
 private:
+
    ROOT::RDF::SampleCallback_t GetSampleCallback() final { return fHelper.GetSampleCallback(); }
 };
 

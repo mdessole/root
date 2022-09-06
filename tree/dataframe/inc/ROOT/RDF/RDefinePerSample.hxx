@@ -58,7 +58,7 @@ public:
       return static_cast<void *>(&fLastResults[slot * RDFInternal::CacheLineStep<RetType_t>()]);
    }
 
-   void Update(unsigned int, const RDFInternal::RMaskedEntryRange &, std::size_t) final
+   void Update(unsigned int, Long64_t, bool) final
    {
       // no-op
    }
@@ -83,10 +83,6 @@ public:
       R__ASSERT(false && "This should never be called");
       return *this;
    }
-
-   std::size_t GetTypeSize() const final { return sizeof(RetType_t); }
-
-   bool IsDefinePerSample() const final { return true; }
 };
 
 } // namespace RDF

@@ -13,13 +13,12 @@
 
 #include <ROOT/RDF/RMaskedEntryRange.hxx>
 
+#include <cassert> // FIXME delete me
 #include <Rtypes.h>
 
 namespace ROOT {
 namespace Detail {
 namespace RDF {
-
-namespace RDFInternal = ROOT::Internal::RDF;
 
 /**
 \class ROOT::Internal::RDF::RColumnReaderBase
@@ -30,21 +29,37 @@ This pure virtual class provides a common base class for the different column re
 RDSColumnReader.
 **/
 class R__CLING_PTRCHECK(off) RColumnReaderBase {
+   Long64_t fLoadedEntry = -1;
+
 public:
    virtual ~RColumnReaderBase() = default;
 
-   /// Load the column values for the given bulk of entries.
+   /// Load the column value for the given entry.
    /// \param entry The entry number to load.
    /// \param mask The entry mask. Values will be loaded only for entries for which the mask equals true.
-   /// \return A pointer to the beginning of a contiguous array of column values for the bulk.
-   void *Load(const RDFInternal::RMaskedEntryRange &mask, std::size_t bulkSize)
+   void Load(Long64_t entry, bool mask)
    {
-      return this->LoadImpl(mask, bulkSize);
+      // For now, as `mask` is just a single boolean, as an optimization we can return early here if `mask == false`.
+      if (mask) {
+         fLoadedEntry = entry;
+         this->LoadImpl(entry, mask);
+      }
+   }
+
+   /// Return the column value for the given entry.
+   /// \tparam T The column type
+   /// \param idx The index of the value to load with respect to the beginning of the last entry mask passed to Load().
+   template <typename T>
+   T &Get(std::size_t idx)
+   {
+      assert(idx == 0); // FIXME delete me
+      return *static_cast<T *>(GetImpl(idx));
    }
 
 private:
-   /// A type-erased version of Load(). To be implemented by concrete column readers.
-   virtual void *LoadImpl(const Internal::RDF::RMaskedEntryRange &mask, std::size_t bulkSize) = 0;
+   virtual void *GetImpl(std::size_t idx) = 0;
+   // TODO remove the default implementation when all readers will be required to do something non-trivial at load time
+   virtual void LoadImpl(Long64_t /*entry*/, bool /*mask*/) {}
 };
 
 } // namespace RDF

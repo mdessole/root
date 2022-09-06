@@ -14,7 +14,7 @@
 #include "ROOT/RDF/RDefineBase.hxx"
 #include "ROOT/RDF/RSampleInfo.hxx"
 #include "ROOT/RDF/Utils.hxx" // TypeName2TypeID
-#include <string_view>
+#include "ROOT/RStringView.hxx"
 #include "RtypesCore.h"
 
 #include <memory>
@@ -58,13 +58,11 @@ public:
    void InitSlot(TTreeReader *r, unsigned int slot) final;
    void *GetValuePtr(unsigned int slot) final;
    const std::type_info &GetTypeId() const final;
-   void Update(unsigned int slot, const RDFInternal::RMaskedEntryRange &m, std::size_t bulkSize) final;
+   void Update(unsigned int slot, Long64_t entry, bool mask) final;
    void Update(unsigned int slot, const ROOT::RDF::RSampleInfo &id) final;
    void FinalizeSlot(unsigned int slot) final;
    void MakeVariations(const std::vector<std::string> &variations) final;
    RDefineBase &GetVariedDefine(const std::string &variationName) final;
-   std::size_t GetTypeSize() const final;
-   bool IsDefinePerSample() const final;
 };
 
 } // ns RDF

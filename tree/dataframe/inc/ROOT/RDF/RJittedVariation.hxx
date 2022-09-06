@@ -12,7 +12,7 @@
 #define ROOT_RJITTEDVARIATION
 
 #include "ROOT/RDF/RVariationBase.hxx"
-#include <string_view>
+#include "ROOT/RStringView.hxx"
 
 #include <memory>
 
@@ -43,7 +43,7 @@ public:
    void InitSlot(TTreeReader *r, unsigned int slot) final;
    void *GetValuePtr(unsigned int slot, const std::string &column, const std::string &variation) final;
    const std::type_info &GetTypeId() const final;
-   void Update(unsigned int slot, const RMaskedEntryRange &m, std::size_t bulkSize) final;
+   void Update(unsigned int slot, Long64_t entry, bool mask) final;
    void FinalizeSlot(unsigned int slot) final;
 };
 

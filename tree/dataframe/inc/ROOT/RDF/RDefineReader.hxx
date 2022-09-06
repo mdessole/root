@@ -29,17 +29,15 @@ class R__CLING_PTRCHECK(off) RDefineReader final : public ROOT::Detail::RDF::RCo
    /// Non-owning reference to the node responsible for the defined column.
    RDFDetail::RDefineBase &fDefine;
 
-   /// Non-owning ptr to the beginning of a contiguous array of values.
+   /// Non-owning ptr to the defined value.
    void *fValuePtr = nullptr;
 
    /// The slot this value belongs to.
    unsigned int fSlot = std::numeric_limits<unsigned int>::max();
 
-   void *LoadImpl(const RMaskedEntryRange &mask, std::size_t bulkSize) final
-   {
-      fDefine.Update(fSlot, mask, bulkSize);
-      return fValuePtr;
-   }
+   void *GetImpl(std::size_t /*idx*/) final { return fValuePtr; }
+
+   void LoadImpl(Long64_t entry, bool mask) final { fDefine.Update(fSlot, entry, mask); }
 
 public:
    RDefineReader(unsigned int slot, RDFDetail::RDefineBase &define)

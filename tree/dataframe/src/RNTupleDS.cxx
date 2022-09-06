@@ -16,12 +16,13 @@
 
 #include <ROOT/RDF/RColumnReaderBase.hxx>
 #include <ROOT/RField.hxx>
+#include <ROOT/RFieldValue.hxx>
 #include <ROOT/RNTuple.hxx>
 #include <ROOT/RNTupleDescriptor.hxx>
 #include <ROOT/RNTupleDS.hxx>
 #include <ROOT/RNTupleUtil.hxx>
 #include <ROOT/RPageStorage.hxx>
-#include <string_view>
+#include <ROOT/RStringView.hxx>
 
 #include <TError.h>
 
@@ -61,7 +62,6 @@ protected:
    {
       return std::make_unique<RRDFCardinalityField>();
    }
-   void GenerateValue(void *where) const final { *static_cast<std::size_t *>(where) = 0; }
 
 public:
    static std::string TypeName() { return "std::size_t"; }
@@ -87,35 +87,46 @@ public:
          ROOT::Experimental::Detail::RColumn::Create<ClusterSize_t>(RColumnModel(onDiskTypes[0]), 0));
    }
 
+   ROOT::Experimental::Detail::RFieldValue GenerateValue(void *where) final
+   {
+      return ROOT::Experimental::Detail::RFieldValue(this, static_cast<std::size_t *>(where));
+   }
+   ROOT::Experimental::Detail::RFieldValue CaptureValue(void *where) final
+   {
+      return ROOT::Experimental::Detail::RFieldValue(true /* captureFlag */, this, where);
+   }
    size_t GetValueSize() const final { return sizeof(std::size_t); }
    size_t GetAlignment() const final { return alignof(std::size_t); }
 
    /// Get the number of elements of the collection identified by globalIndex
-   void ReadGlobalImpl(ROOT::Experimental::NTupleSize_t globalIndex, void *to) final
+   void
+   ReadGlobalImpl(ROOT::Experimental::NTupleSize_t globalIndex, ROOT::Experimental::Detail::RFieldValue *value) final
    {
       RClusterIndex collectionStart;
       ClusterSize_t size;
       fPrincipalColumn->GetCollectionInfo(globalIndex, &collectionStart, &size);
-      *static_cast<std::size_t *>(to) = size;
+      *value->Get<std::size_t>() = size;
    }
 
    /// Get the number of elements of the collection identified by clusterIndex
-   void ReadInClusterImpl(const ROOT::Experimental::RClusterIndex &clusterIndex, void *to) final
+   void ReadInClusterImpl(const ROOT::Experimental::RClusterIndex &clusterIndex,
+                          ROOT::Experimental::Detail::RFieldValue *value) final
    {
       RClusterIndex collectionStart;
       ClusterSize_t size;
       fPrincipalColumn->GetCollectionInfo(clusterIndex, &collectionStart, &size);
-      *static_cast<std::size_t *>(to) = size;
+      *value->Get<std::size_t>() = size;
    }
 };
 
 /// Every RDF column is represented by exactly one RNTuple field
 class RNTupleColumnReader : public ROOT::Detail::RDF::RColumnReaderBase {
    using RFieldBase = ROOT::Experimental::Detail::RFieldBase;
+   using RFieldValue = ROOT::Experimental::Detail::RFieldValue;
    using RPageSource = ROOT::Experimental::Detail::RPageSource;
 
    std::unique_ptr<RFieldBase> fField; ///< The field backing the RDF column
-   RFieldBase::RValue fValue;          ///< The memory location used to read from fField
+   RFieldValue fValue;                 ///< The memory location used to read from fField
    Long64_t fLastEntry;                ///< Last entry number that was read
 
 public:
@@ -123,7 +134,7 @@ public:
       : fField(std::move(f)), fValue(fField->GenerateValue()), fLastEntry(-1)
    {
    }
-   ~RNTupleColumnReader() = default;
+   ~RNTupleColumnReader() { fField->DestroyValue(fValue); }
 
    /// Column readers are created as prototype and then cloned for every slot
    std::unique_ptr<RNTupleColumnReader> Clone()
@@ -139,16 +150,14 @@ public:
          f.ConnectPageSource(source);
    }
 
-   void *LoadImpl(const ROOT::Internal::RDF::RMaskedEntryRange &mask, std::size_t /*bulkSize*/) final
-   {
-      // TODO remove assumption that bulk has size 1
-      const auto firstEntry = mask.FirstEntry();
-      if (firstEntry != fLastEntry && mask[0]) {
-         fField->Read(mask.FirstEntry(), &fValue);
-         fLastEntry = firstEntry;
-      }
+   void *GetImpl(std::size_t /*idx*/) final { return fValue.GetRawPtr(); }
 
-      return fValue.GetRawPtr();
+   void LoadImpl(Long64_t entry, bool mask) final
+   {
+      if (entry != fLastEntry && mask) {
+         fField->Read(entry, &fValue);
+         fLastEntry = entry;
+      }
    }
 };
 
@@ -230,14 +239,11 @@ void RNTupleDS::AddField(const RNTupleDescriptor &desc, std::string_view colName
 
    // The fieldID could be the root field or the class of fieldId might not be loaded.
    // In these cases, only the inner fields are exposed as RDF columns.
-   auto fieldOrException = Detail::RFieldBase::Create(fieldDesc.GetFieldName(), fieldDesc.GetTypeName());
+   auto fieldOrException = Detail::RFieldBase::Create("", fieldDesc.GetTypeName());
    if (!fieldOrException)
       return;
    auto valueField = fieldOrException.Unwrap();
    valueField->SetOnDiskId(fieldId);
-   for (auto &f : *valueField) {
-      f.SetOnDiskId(desc.FindFieldId(f.GetName(), f.GetParent()->GetOnDiskId()));
-   }
    std::unique_ptr<Detail::RFieldBase> cardinalityField;
    // Collections get the additional "number of" RDF column (e.g. "R_rdf_sizeof_tracks")
    if (!skeinIDs.empty()) {
@@ -303,40 +309,25 @@ bool RNTupleDS::SetEntry(unsigned int, ULong64_t)
 
 std::vector<std::pair<ULong64_t, ULong64_t>> RNTupleDS::GetEntryRanges()
 {
-   std::vector<std::pair<ULong64_t, ULong64_t>> rangesBySlot;
+   // TODO(jblomer): use cluster boundaries for the entry ranges
+   std::vector<std::pair<ULong64_t, ULong64_t>> ranges;
    if (fHasSeenAllRanges)
-      return rangesBySlot;
+      return ranges;
 
-   std::vector<std::pair<ULong64_t, ULong64_t>> rangesByCluster;
-   {
-      auto descriptorGuard = fSources[0]->GetSharedDescriptorGuard();
-      auto clusterId = descriptorGuard->FindClusterId(0, 0);
-      while (clusterId != kInvalidDescriptorId) {
-         const auto &clusterDesc = descriptorGuard->GetClusterDescriptor(clusterId);
-         rangesByCluster.emplace_back(std::make_pair<ULong64_t, ULong64_t>(
-            clusterDesc.GetFirstEntryIndex(), clusterDesc.GetFirstEntryIndex() + clusterDesc.GetNEntries()));
-         clusterId = descriptorGuard->FindNextClusterId(clusterId);
-      }
+   auto nEntries = fSources[0]->GetNEntries();
+   const auto chunkSize = nEntries / fNSlots;
+   const auto reminder = 1U == fNSlots ? 0 : nEntries % fNSlots;
+   auto start = 0UL;
+   auto end = 0UL;
+   for (auto i : ROOT::TSeqU(fNSlots)) {
+      start = end;
+      end += chunkSize;
+      ranges.emplace_back(start, end);
+      (void)i;
    }
-
-   // Distribute slots equidistantly over the entry range, aligned on cluster boundaries
-   const unsigned int nRangesByCluster = rangesByCluster.size();
-   const auto chunkSize = nRangesByCluster / fNSlots;
-   const auto remainder = nRangesByCluster % fNSlots;
-   std::size_t iRange = 0;
-   const unsigned int N = std::min(fNSlots, nRangesByCluster);
-   for (unsigned int i = 0; i < N; ++i) {
-      auto start = rangesByCluster[iRange].first;
-      iRange += chunkSize + static_cast<int>(i < remainder);
-      R__ASSERT(iRange > 0);
-      auto end = rangesByCluster[iRange - 1].second;
-      rangesBySlot.emplace_back(start, end);
-
-      fSources[i]->SetEntryRange({start, end - start});
-   }
-
+   ranges.back().second += reminder;
    fHasSeenAllRanges = true;
-   return rangesBySlot;
+   return ranges;
 }
 
 std::string RNTupleDS::GetTypeName(std::string_view colName) const
