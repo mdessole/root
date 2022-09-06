@@ -34,10 +34,10 @@ const std::type_info &RJittedVariation::GetTypeId() const
    return fConcreteVariation->GetTypeId();
 }
 
-void RJittedVariation::Update(unsigned int slot, const RMaskedEntryRange &m, std::size_t bulkSize)
+void RJittedVariation::Update(unsigned int slot, Long64_t entry, bool mask)
 {
    assert(fConcreteVariation != nullptr);
-   fConcreteVariation->Update(slot, m, bulkSize);
+   fConcreteVariation->Update(slot, entry, mask);
 }
 
 void RJittedVariation::FinalizeSlot(unsigned int slot)

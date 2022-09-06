@@ -16,7 +16,6 @@
 #include "ROOT/RDF/RDefineBase.hxx"
 #include "ROOT/RDF/RLoopManager.hxx"
 #include "ROOT/RDF/Utils.hxx"
-#include "ROOT/RDF/REventMask.hxx"
 #include "ROOT/RStringView.hxx"
 #include "ROOT/TypeTraits.hxx"
 #include "RtypesCore.h"
@@ -43,55 +42,6 @@ struct SlotAndEntry{};
 }
 // clang-format on
 
-template <typename T>
-struct ReturnTypeForBulkExpr {
-   using type = void;
-};
-
-template <typename U, typename... Ts>
-struct ReturnTypeForBulkExpr<TypeList<ROOT::RDF::Experimental::REventMask, ROOT::RVec<U>, Ts...>> {
-   // take the inner type of the second argument to the expression (the result array)
-   using type = U;
-};
-
-template <typename T>
-using ReturnTypeForBulkExpr_t = typename ReturnTypeForBulkExpr<T>::type;
-
-template <bool IsUsingBulkAPI, typename ExtraArgsTag, typename FunArgTypes>
-struct ExtractColumnTypes {
-   using type = FunArgTypes; // default case, should be IsUsingBulkAPI == false and ExtraArgsTag == None
-};
-
-template <typename FunArgTypes>
-struct ExtractColumnTypes</*IsUsingBulkAPI*/false, ExtraArgsForDefine::Slot, FunArgTypes> {
-   using type = RemoveFirstParameter_t<FunArgTypes>;
-};
-
-template <typename FunArgTypes>
-struct ExtractColumnTypes</*IsUsingBulkAPI*/false, ExtraArgsForDefine::SlotAndEntry, FunArgTypes> {
-   using type = RemoveFirstParameter_t<RemoveFirstParameter_t<FunArgTypes>>;
-};
-
-template <typename ExtraArgsTag, typename FunArgTypes>
-struct ExtractColumnTypes</*IsUsingBulkAPI*/true, ExtraArgsTag, FunArgTypes> {
-
-   template <typename T>
-   struct ValueTypes {};
-
-   template <typename... Inners>
-   struct ValueTypes<TypeList<ROOT::RVec<Inners>...>> {
-      using type = TypeList<Inners...>;
-   };
-
-   template <typename TypeList>
-   using ValueTypes_t = typename ValueTypes<TypeList>::type;
-
-   using type = ValueTypes_t<RemoveFirstParameter_t<RemoveFirstParameter_t<FunArgTypes>>>;
-};
-
-template <bool IsUsingBulkAPI, typename ExtraArgsTag, typename FunArgTypes>
-using ExtractColumnTypes_t = typename ExtractColumnTypes<IsUsingBulkAPI, ExtraArgsTag, FunArgTypes>::type;
-
 template <typename F, typename ExtraArgsTag = ExtraArgsForDefine::None>
 class R__CLING_PTRCHECK(off) RDefine final : public RDefineBase {
    // shortcuts
@@ -100,123 +50,60 @@ class R__CLING_PTRCHECK(off) RDefine final : public RDefineBase {
    using SlotAndEntryTag = ExtraArgsForDefine::SlotAndEntry;
    // other types
    using FunParamTypes_t = typename CallableTraits<F>::arg_types;
-   constexpr static auto kUsingBulkAPI =
-      std::is_same<TakeFirstParameter_t<FunParamTypes_t>, ROOT::RDF::Experimental::REventMask>::value;
-
-public:
-   using ColumnTypes_t = ExtractColumnTypes_t<kUsingBulkAPI, ExtraArgsTag, FunParamTypes_t>;
+   using ColumnTypesTmp_t =
+      RDFInternal::RemoveFirstParameterIf_t<std::is_same<ExtraArgsTag, SlotTag>::value, FunParamTypes_t>;
+   using ColumnTypes_t =
+      RDFInternal::RemoveFirstTwoParametersIf_t<std::is_same<ExtraArgsTag, SlotAndEntryTag>::value, ColumnTypesTmp_t>;
    using TypeInd_t = std::make_index_sequence<ColumnTypes_t::list_size>;
-   using RetType_t = std::conditional_t<kUsingBulkAPI, RDFInternal::ReturnTypeForBulkExpr_t<FunParamTypes_t>,
-                                        // ret_type is simply the return type of the expression
-                                        typename CallableTraits<F>::ret_type>;
-
-private:
+   using ret_type = typename CallableTraits<F>::ret_type;
    // Avoid instantiating vector<bool> as `operator[]` returns temporaries in that case. Use std::deque instead.
-   using ValuesPerSlot_t = std::vector<ROOT::RVec<RetType_t>>;
+   using ValuesPerSlot_t =
+      std::conditional_t<std::is_same<ret_type, bool>::value, std::deque<ret_type>, std::vector<ret_type>>;
 
    F fExpression;
    ValuesPerSlot_t fLastResults;
 
    /// Column readers per slot and per input column
-   std::vector<std::array<RColumnReaderBase *, ColumnTypes_t::list_size>> fValueReaders;
-
-   /// Arrays of type-erased raw pointers to the beginning of bulks of column values, one per slot.
-   std::vector<std::array<void *, ColumnTypes_t::list_size>> fValuePtrs;
+   std::vector<std::array<RColumnReaderBase *, ColumnTypes_t::list_size>> fValues;
 
    /// Define objects corresponding to systematic variations other than nominal for this defined column.
    /// The map key is the full variation name, e.g. "pt:up".
    std::unordered_map<std::string, std::unique_ptr<RDefineBase>> fVariedDefines;
 
    template <typename... ColTypes, std::size_t... S>
-   auto EvalExpr(unsigned int slot, std::size_t idx, Long64_t /*entry*/, TypeList<ColTypes...>,
-                 std::index_sequence<S...>, NoneTag)
+   void UpdateHelper(unsigned int slot, std::size_t idx, Long64_t /*entry*/, TypeList<ColTypes...>,
+                     std::index_sequence<S...>, NoneTag)
    {
-      // counting on copy elision
-      return fExpression(*(static_cast<ColTypes *>(fValuePtrs[slot][S]) + idx)...);
-      // avoid unused variable warnings (gcc 12)
-      (void)slot;
-      (void)idx;
+      fLastResults[slot * RDFInternal::CacheLineStep<ret_type>()] =
+         fExpression(fValues[slot][S]->template Get<ColTypes>(idx)...);
+      (void)idx; // avoid unused parameter warning (gcc 12.1)
    }
 
    template <typename... ColTypes, std::size_t... S>
-   auto EvalExpr(unsigned int slot, std::size_t idx, Long64_t /*entry*/, TypeList<ColTypes...>,
-                 std::index_sequence<S...>, SlotTag)
+   void UpdateHelper(unsigned int slot, std::size_t idx, Long64_t /*entry*/, TypeList<ColTypes...>,
+                     std::index_sequence<S...>, SlotTag)
    {
-      // counting on copy elision
-      return fExpression(slot, *(static_cast<ColTypes *>(fValuePtrs[slot][S]) + idx)...);
-      (void)idx; // avoid unused variable warnings (gcc 12)
+      fLastResults[slot * RDFInternal::CacheLineStep<ret_type>()] =
+         fExpression(slot, fValues[slot][S]->template Get<ColTypes>(idx)...);
+      (void)idx; // avoid unused parameter warning (gcc 12.1)
    }
 
    template <typename... ColTypes, std::size_t... S>
-   auto EvalExpr(unsigned int slot, std::size_t idx, Long64_t entry, TypeList<ColTypes...>, std::index_sequence<S...>,
-                 SlotAndEntryTag)
+   void UpdateHelper(unsigned int slot, std::size_t idx, Long64_t batchFirstEntry, TypeList<ColTypes...>,
+                     std::index_sequence<S...>, SlotAndEntryTag)
    {
-      // counting on copy elision
-      return fExpression(slot, entry, *(static_cast<ColTypes *>(fValuePtrs[slot][S]) + idx)...);
-      (void)idx; // avoid unused variable warnings (gcc 12)
-   }
-
-   // non-bulk overload, calls EvalExpr in a loop
-   template <typename FirstInputCol>
-   void UpdateHelper(FirstInputCol *, unsigned int slot, const Internal::RDF::RMaskedEntryRange &requestedMask,
-                     std::size_t bulkSize, std::size_t firstNewIdx)
-   {
-      auto &results = fLastResults[slot * RDFInternal::CacheLineStep<RetType_t>()];
-      auto &valueMask = fMask[slot * RDFInternal::CacheLineStep<RDFInternal::RMaskedEntryRange>()];
-      const auto rdfentry_start = fLoopManager->GetUniqueRDFEntry(slot);
-      if (firstNewIdx == 0u) {
-         for (std::size_t i = 0u; i < bulkSize; ++i) {
-            if (requestedMask[i]) // we don't have a value for this entry yet
-               results[i] = EvalExpr(slot, i, rdfentry_start + i, ColumnTypes_t{}, TypeInd_t{}, ExtraArgsTag{});
-         }
-         valueMask = requestedMask;
-      } else {
-         // not a new bulk and requestedMask != valueMask (we checked before)
-         results[firstNewIdx] =
-            EvalExpr(slot, firstNewIdx, rdfentry_start + firstNewIdx, ColumnTypes_t{}, TypeInd_t{}, ExtraArgsTag{});
-         ++firstNewIdx;
-
-         for (std::size_t i = firstNewIdx; i < bulkSize; ++i) {
-            if (requestedMask[i] && !valueMask[i]) { // we don't have a value for this entry yet
-               results[i] = EvalExpr(slot, i, rdfentry_start + i, ColumnTypes_t{}, TypeInd_t{}, ExtraArgsTag{});
-               valueMask[i] = true;
-            }
-         }
-      }
-   }
-
-   template <typename... ColTypes, std::size_t... S>
-   auto EvalBulkExpr(const ROOT::RDF::Experimental::REventMask &m, unsigned int slot, TypeList<ColTypes...>,
-                     std::index_sequence<S...>)
-   {
-      auto &results = fLastResults[slot * RDFInternal::CacheLineStep<RetType_t>()];
-      const auto bulkSize = m.Size();
-      fExpression(m, results, ROOT::RVec<ColTypes>(static_cast<ColTypes *>(fValuePtrs[slot][S]), bulkSize)...);
-   }
-
-   // bulk overload (first input column is a REventMask)
-   void UpdateHelper(ROOT::RDF::Experimental::REventMask *, unsigned int slot,
-                     const Internal::RDF::RMaskedEntryRange &requestedMask, std::size_t bulkSize,
-                     std::size_t /*firstNewIdx*/)
-   {
-      const auto eventMask = ROOT::RDF::Experimental::REventMask(requestedMask, bulkSize);
-      EvalBulkExpr(eventMask, slot, ColumnTypes_t{}, TypeInd_t{});
-      auto &valueMask = fMask[slot * RDFInternal::CacheLineStep<RDFInternal::RMaskedEntryRange>()];
-      valueMask = requestedMask;
+      fLastResults[slot * RDFInternal::CacheLineStep<ret_type>()] =
+         fExpression(slot, batchFirstEntry + idx, fValues[slot][S]->template Get<ColTypes>(idx)...);
+      (void)idx; // avoid unused parameter warning (gcc 12.1)
    }
 
 public:
    RDefine(std::string_view name, std::string_view type, F expression, const ROOT::RDF::ColumnNames_t &columns,
            const RDFInternal::RColumnRegister &colRegister, RLoopManager &lm,
            const std::string &variationName = "nominal")
-      : RDefineBase(name, type, colRegister, lm, columns, variationName),
-        fExpression(std::move(expression)),
-        fLastResults(lm.GetNSlots() * RDFInternal::CacheLineStep<RetType_t>()),
-        fValueReaders(lm.GetNSlots()),
-        fValuePtrs(lm.GetNSlots())
+      : RDefineBase(name, type, colRegister, lm, columns, variationName), fExpression(std::move(expression)),
+        fLastResults(lm.GetNSlots() * RDFInternal::CacheLineStep<ret_type>()), fValues(lm.GetNSlots())
    {
-      for (auto &r : fLastResults)
-         r.resize(fLoopManager->GetMaxEventsPerBulk());
       fLoopManager->Register(this);
    }
 
@@ -227,50 +114,37 @@ public:
    void InitSlot(TTreeReader *r, unsigned int slot) final
    {
       RDFInternal::RColumnReadersInfo info{fColumnNames, fColRegister, fIsDefine.data(), *fLoopManager};
-      fValueReaders[slot] = RDFInternal::GetColumnReaders(slot, r, ColumnTypes_t{}, info, fVariation);
-      fMask[slot * RDFInternal::CacheLineStep<RDFInternal::RMaskedEntryRange>()].SetFirstEntry(-1ll);
+      fValues[slot] = RDFInternal::GetColumnReaders(slot, r, ColumnTypes_t{}, info, fVariation);
+      fLastCheckedEntry[slot * RDFInternal::CacheLineStep<Long64_t>()] = -1;
    }
 
    /// Return the (type-erased) address of the Define'd value for the given processing slot.
    void *GetValuePtr(unsigned int slot) final
    {
-      return static_cast<void *>(fLastResults[slot * RDFInternal::CacheLineStep<RetType_t>()].data());
+      return static_cast<void *>(&fLastResults[slot * RDFInternal::CacheLineStep<ret_type>()]);
    }
 
    /// Update the value at the address returned by GetValuePtr with the content corresponding to the given entry
-   void Update(unsigned int slot, const Internal::RDF::RMaskedEntryRange &requestedMask, std::size_t bulkSize) final
+   void Update(unsigned int slot, Long64_t entry, bool mask) final
    {
-      auto &valueMask = fMask[slot * RDFInternal::CacheLineStep<RDFInternal::RMaskedEntryRange>()];
-      // Index of the first entry in the bulk for which we do not already have a value
-      std::size_t firstNewIdx = std::numeric_limits<std::size_t>::max();
-      if (valueMask.FirstEntry() != requestedMask.FirstEntry()) { // new bulk
-         // if it turns out that we do these two operations together very often, maybe it's worth having a ad-hoc method
-         valueMask.SetAll(false);
-         valueMask.SetFirstEntry(requestedMask.FirstEntry());
-         firstNewIdx = 0u;
-      } else if ((firstNewIdx = valueMask.Contains(requestedMask, bulkSize)) ==
-                 std::numeric_limits<std::size_t>::max()) {
-         // this is a common occurrence: it happens when the same Define is used multiple times downstream of the same
-         // Filters -- nothing to do.
-         return;
+      if (entry != fLastCheckedEntry[slot * RDFInternal::CacheLineStep<Long64_t>()]) {
+         // evaluate this define expression, cache the result
+         std::for_each(fValues[slot].begin(), fValues[slot].end(), [entry, mask](auto *v) { v->Load(entry, mask); });
+         if (mask) {
+            UpdateHelper(slot, /*idx=*/0u, entry, ColumnTypes_t{}, TypeInd_t{}, ExtraArgsTag{});
+            fLastCheckedEntry[slot * RDFInternal::CacheLineStep<Long64_t>()] = entry;
+         }
       }
-
-      std::transform(fValueReaders[slot].begin(), fValueReaders[slot].end(), fValuePtrs[slot].begin(),
-                     [&requestedMask, &bulkSize](auto *v) { return v->Load(requestedMask, bulkSize); });
-
-      // dispatch either to the bulk version or to the event-by-event version based on the type of the first input col
-      using FirstArg_t = TakeFirstParameter_t<FunParamTypes_t>;
-      UpdateHelper((FirstArg_t *)nullptr, slot, requestedMask, bulkSize, firstNewIdx);
    }
 
-   void Update(unsigned int /*slot*/, const ROOT::RDF::RSampleInfo & /*id*/) final {}
+   void Update(unsigned int /*slot*/, const ROOT::RDF::RSampleInfo &/*id*/) final {}
 
-   const std::type_info &GetTypeId() const final { return typeid(RetType_t); }
+   const std::type_info &GetTypeId() const final { return typeid(ret_type); }
 
    /// Clean-up operations to be performed at the end of a task.
    void FinalizeSlot(unsigned int slot) final
    {
-      fValueReaders[slot].fill(nullptr);
+      fValues[slot].fill(nullptr);
 
       for (auto &e : fVariedDefines)
          e.second->FinalizeSlot(slot);
@@ -309,14 +183,10 @@ public:
 
       return *(it->second);
    }
-
-   std::size_t GetTypeSize() const final { return sizeof(RetType_t); }
-
-   bool IsDefinePerSample() const final { return false; }
 };
 
-} // namespace RDF
-} // namespace Detail
-} // namespace ROOT
+} // ns RDF
+} // ns Detail
+} // ns ROOT
 
 #endif // ROOT_RDF_RDEFINE

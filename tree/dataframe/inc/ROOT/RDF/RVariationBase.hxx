@@ -12,7 +12,6 @@
 #define ROOT_RVARIATIONBASE
 
 #include <ROOT/RDF/RColumnRegister.hxx>
-#include <ROOT/RDF/RMaskedEntryRange.hxx>
 #include <ROOT/RDF/Utils.hxx> // ColumnNames_t
 #include <ROOT/RVec.hxx>
 
@@ -42,7 +41,7 @@ protected:
    std::vector<std::string> fColNames;       ///< The names of the varied columns.
    std::vector<std::string> fVariationNames; ///< The names of the systematic variation.
    std::string fType;                        ///< The type of the custom column as a text string.
-   std::vector<RMaskedEntryRange> fMask; ///< Entries for which we already computed values will be unmasked, per slot.
+   std::vector<Long64_t> fLastCheckedEntry;
    RColumnRegister fColumnRegister;
    RLoopManager *fLoopManager;
    ColumnNames_t fInputColumns;
@@ -69,7 +68,7 @@ public:
    const std::vector<std::string> &GetVariationNames() const;
    std::string GetTypeName() const;
    /// Update the value at the address returned by GetValuePtr with the content corresponding to the given entry
-   virtual void Update(unsigned int slot, const RMaskedEntryRange &m, std::size_t bulkSize) = 0;
+   virtual void Update(unsigned int slot, Long64_t entry, bool mask) = 0;
    /// Clean-up operations to be performed at the end of a task.
    virtual void FinalizeSlot(unsigned int slot) = 0;
 };

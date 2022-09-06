@@ -17,9 +17,8 @@
 #include "RColumnReaderBase.hxx"
 #include "RLoopManager.hxx"
 #include "RJittedFilter.hxx"
-#include "ROOT/RDF/REventMask.hxx"
-#include "RMaskedEntryRange.hxx"
 #include "ROOT/RDF/RMergeableValue.hxx"
+#include "ROOT/RDF/RSampleInfo.hxx"
 
 #include <Rtypes.h> // R__CLING_PTRCHECK
 #include <ROOT/TypeTraits.hxx>
@@ -36,28 +35,29 @@ namespace RDF {
 
 namespace RDFGraphDrawing = ROOT::Internal::RDF::GraphDrawing;
 
-/// Just like an RAction, but it has N action helpers (one per variation + nominal) and N previous nodes.
+/// Just like an RAction, but it has N action helpers and N previous nodes (N is the number of variations).
 template <typename Helper, typename PrevNode, typename ColumnTypes_t>
 class R__CLING_PTRCHECK(off) RVariedAction final : public RActionBase {
    using TypeInd_t = std::make_index_sequence<ColumnTypes_t::list_size>;
    // If the PrevNode is a RJittedFilter, our collection of previous nodes will have to use the RNodeBase type:
    // we'll have a RJittedFilter for the nominal case, but the others will be concrete filters.
    using PrevNodeType = std::conditional_t<std::is_same<PrevNode, RJittedFilter>::value, RFilterBase, PrevNode>;
-   static constexpr bool kUseBulkAPI = IsBulkHelper<Helper>;
 
    std::vector<Helper> fHelpers; ///< Action helpers per variation.
-   /// Owning pointers to upstream nodes for each systematic variation (with the "nominal" at index 0).
+   /// Owning pointers to upstream nodes for each systematic variation.
    std::vector<std::shared_ptr<PrevNodeType>> fPrevNodes;
 
    /// Column readers per slot (outer dimension), per variation and per input column (inner dimension, std::array).
-   std::vector<std::vector<std::array<RColumnReaderBase *, ColumnTypes_t::list_size>>> fValueReaders;
-
-   /// Arrays of type-erased raw pointers to the beginning of bulks of column values, per slot and per variation.
-   std::vector<std::vector<std::array<void *, ColumnTypes_t::list_size>>> fValuePtrs;
+   std::vector<std::vector<std::array<RColumnReaderBase *, ColumnTypes_t::list_size>>> fInputValues;
 
    /// The nth flag signals whether the nth input column is a custom column or not.
    std::array<bool, ColumnTypes_t::list_size> fIsDefine;
 
+   /// \brief Creates new filter nodes, one per variation, from the upstream nominal one.
+   /// \param nominal The nominal filter
+   /// \return The varied filters
+   ///
+   /// The nominal filter is not included in the return value.
    std::vector<std::shared_ptr<PrevNodeType>> MakePrevFilters(std::shared_ptr<PrevNode> nominal) const
    {
       const auto &variations = GetVariations();
@@ -81,21 +81,42 @@ class R__CLING_PTRCHECK(off) RVariedAction final : public RActionBase {
       return prevFilters;
    }
 
-public:
-   RVariedAction(std::vector<Helper> &&helpers, const ColumnNames_t &columns, std::shared_ptr<PrevNode> prevNode,
-                 const RColumnRegister &colRegister)
-      : RActionBase(prevNode->GetLoopManagerUnchecked(), columns, colRegister, prevNode->GetVariations()),
-        fHelpers(std::move(helpers)), fPrevNodes(MakePrevFilters(prevNode)), fValueReaders(GetNSlots()),
-        fValuePtrs(GetNSlots(), std::vector<std::array<void *, ColumnTypes_t::list_size>>(GetVariations().size()))
+   void SetupClass()
    {
+      // The column register and names are private members of RActionBase
+      const auto &colRegister = GetColRegister();
+      const auto &columnNames = GetColumnNames();
+
       fLoopManager->Register(this);
 
-      for (auto i = 0u; i < columns.size(); ++i) {
-         auto *define = colRegister.GetDefine(columns[i]);
+      for (auto i = 0u; i < columnNames.size(); ++i) {
+         auto *define = colRegister.GetDefine(columnNames[i]);
          fIsDefine[i] = define != nullptr;
          if (fIsDefine[i])
             define->MakeVariations(GetVariations());
       }
+   }
+
+   /// This constructor takes in input a vector of previous nodes, motivated by the CloneAction logic.
+   RVariedAction(std::vector<Helper> &&helpers, const ColumnNames_t &columns,
+                 const std::vector<std::shared_ptr<PrevNodeType>> &prevNodes, const RColumnRegister &colRegister)
+      : RActionBase(prevNodes[0]->GetLoopManagerUnchecked(), columns, colRegister, prevNodes[0]->GetVariations()),
+        fHelpers(std::move(helpers)),
+        fPrevNodes(prevNodes),
+        fInputValues(GetNSlots())
+   {
+      SetupClass();
+   }
+
+public:
+   RVariedAction(std::vector<Helper> &&helpers, const ColumnNames_t &columns, std::shared_ptr<PrevNode> prevNode,
+                 const RColumnRegister &colRegister)
+      : RActionBase(prevNode->GetLoopManagerUnchecked(), columns, colRegister, prevNode->GetVariations()),
+        fHelpers(std::move(helpers)),
+        fPrevNodes(MakePrevFilters(prevNode)),
+        fInputValues(GetNSlots())
+   {
+      SetupClass();
    }
 
    RVariedAction(const RVariedAction &) = delete;
@@ -110,39 +131,32 @@ public:
 
    void InitSlot(TTreeReader *r, unsigned int slot) final
    {
-      RDFInternal::RColumnReadersInfo info{GetColumnNames(), GetColRegister(), fIsDefine.data(), *fLoopManager};
+      RColumnReadersInfo info{GetColumnNames(), GetColRegister(), fIsDefine.data(), *fLoopManager};
 
       // get readers for each systematic variation
       for (const auto &variation : GetVariations())
-         fValueReaders[slot].emplace_back(GetColumnReaders(slot, r, ColumnTypes_t{}, info, variation));
+         fInputValues[slot].emplace_back(GetColumnReaders(slot, r, ColumnTypes_t{}, info, variation));
 
       std::for_each(fHelpers.begin(), fHelpers.end(), [=](Helper &h) { h.InitTask(r, slot); });
    }
 
    template <typename... ColTypes, std::size_t... S>
    void
-   CallExec(unsigned int slot, unsigned int varIdx, const RMaskedEntryRange & mask, std::size_t bulkSize, TypeList<ColTypes...>, std::index_sequence<S...>)
+   CallExec(unsigned int slot, unsigned int varIdx, std::size_t idx, TypeList<ColTypes...>, std::index_sequence<S...>)
    {
-      if constexpr (kUseBulkAPI) {
-         const auto eventMask = ROOT::RDF::Experimental::REventMask(mask, bulkSize);
-         fHelpers[varIdx].Exec(eventMask, ROOT::RVec<ColTypes>(static_cast<ColTypes *>(fValuePtrs[slot][varIdx][S]), bulkSize)...);
-      } else {
-         for (std::size_t i = 0ul; i < bulkSize; ++i)
-            if (mask[i])
-               fHelpers[varIdx].Exec(slot, *(static_cast<ColTypes *>(fValuePtrs[slot][varIdx][S]) + i)...);
-      }
+      fHelpers[varIdx].Exec(slot, fInputValues[slot][varIdx][S]->template Get<ColTypes>(idx)...);
+      (void)idx;
    }
 
-   void Run(unsigned int slot, Long64_t entry, std::size_t bulkSize) final
+   void Run(unsigned int slot, Long64_t entry) final
    {
       for (auto varIdx = 0u; varIdx < GetVariations().size(); ++varIdx) {
-         const auto &mask = fPrevNodes[varIdx]->CheckFilters(slot, entry, bulkSize);
+         const auto mask = fPrevNodes[varIdx]->CheckFilters(slot, entry);
+         std::for_each(fInputValues[slot][varIdx].begin(), fInputValues[slot][varIdx].end(),
+                       [entry, mask](auto *v) { v->Load(entry, mask); });
 
-         std::transform(fValueReaders[slot][varIdx].begin(), fValueReaders[slot][varIdx].end(),
-                        fValuePtrs[slot][varIdx].begin(),
-                        [&mask, &bulkSize](auto *v) { return v->Load(mask, bulkSize); });
-
-         CallExec(slot, varIdx, mask, bulkSize, ColumnTypes_t{}, TypeInd_t{});
+         if (mask)
+            CallExec(slot, varIdx, /*idx=*/0u, ColumnTypes_t{}, TypeInd_t{});
       }
    }
 
@@ -154,7 +168,7 @@ public:
    /// Clean-up operations to be performed at the end of a task.
    void FinalizeSlot(unsigned int slot) final
    {
-      fValueReaders[slot].clear();
+      fInputValues[slot].clear();
       std::for_each(fHelpers.begin(), fHelpers.end(), [=](Helper &h) { h.CallFinalizeTask(slot); });
    }
 
@@ -166,11 +180,27 @@ public:
       SetHasRun();
    }
 
-   /// Return the partially-updated value connected to the nominal result.
+   /// Return the partially-updated value connected to the first variation.
    void *PartialUpdate(unsigned int slot) final { return PartialUpdateImpl(slot); }
 
-   /// Return the per-sample callback connected to the nominal result.
-   ROOT::RDF::SampleCallback_t GetSampleCallback() final { return fHelpers[0].GetSampleCallback(); }
+   /// Return a callback that in turn runs the callbacks of each variation's helper.
+   ROOT::RDF::SampleCallback_t GetSampleCallback() final
+   {
+      if (fHelpers[0].GetSampleCallback()) {
+         std::vector<ROOT::RDF::SampleCallback_t> callbacks;
+         for (auto &h : fHelpers)
+            callbacks.push_back(h.GetSampleCallback());
+
+         auto callEachCallback = [cs = std::move(callbacks)](unsigned int slot, const RSampleInfo &info) {
+            for (auto &c : cs)
+               c(slot, info);
+         };
+
+         return callEachCallback;
+      }
+
+      return {};
+   }
 
    std::shared_ptr<RDFGraphDrawing::GraphNode>
    GetGraph(std::unordered_map<void *, std::shared_ptr<RDFGraphDrawing::GraphNode>> &visitedMap) final
@@ -210,6 +240,22 @@ public:
    [[noreturn]] std::unique_ptr<RActionBase> MakeVariedAction(std::vector<void *> &&) final
    {
       throw std::logic_error("Cannot produce a varied action from a varied action.");
+   }
+
+   std::unique_ptr<RActionBase> CloneAction(void *typeErasedResults) final
+   {
+      const auto &vectorOfTypeErasedResults = *reinterpret_cast<const std::vector<void *> *>(typeErasedResults);
+      assert(vectorOfTypeErasedResults.size() == fHelpers.size() &&
+             "The number of results and the number of helpers are not the same!");
+
+      std::vector<Helper> clonedHelpers;
+      clonedHelpers.reserve(fHelpers.size());
+      for (std::size_t i = 0; i < fHelpers.size(); i++) {
+         clonedHelpers.emplace_back(fHelpers[i].CallMakeNew(vectorOfTypeErasedResults[i]));
+      }
+
+      return std::unique_ptr<RVariedAction>(
+         new RVariedAction(std::move(clonedHelpers), GetColumnNames(), fPrevNodes, GetColRegister()));
    }
 
 private:

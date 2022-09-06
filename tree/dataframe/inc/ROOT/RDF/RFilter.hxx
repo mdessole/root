@@ -17,7 +17,6 @@
 #include "ROOT/RDF/Utils.hxx"
 #include "ROOT/RDF/RFilterBase.hxx"
 #include "ROOT/RDF/RLoopManager.hxx"
-#include "ROOT/RDF/RMaskedEntryRange.hxx"
 #include "ROOT/TypeTraits.hxx"
 #include "RtypesCore.h"
 
@@ -40,8 +39,7 @@ namespace GraphDrawing {
 std::shared_ptr<GraphNode>
 CreateFilterNode(const RFilterBase *filterPtr, std::unordered_map<void *, std::shared_ptr<GraphNode>> &visitedMap);
 
-std::shared_ptr<GraphNode> AddDefinesToGraph(std::shared_ptr<GraphNode> node,
-                                             const RDFInternal::RColumnRegister &colRegister,
+std::shared_ptr<GraphNode> AddDefinesToGraph(std::shared_ptr<GraphNode> node, const RColumnRegister &colRegister,
                                              const std::vector<std::string> &prevNodeDefines,
                                              std::unordered_map<void *, std::shared_ptr<GraphNode>> &visitedMap);
 } // ns GraphDrawing
@@ -66,9 +64,7 @@ class R__CLING_PTRCHECK(off) RFilter final : public RFilterBase {
 
    FilterF fFilter;
    /// Column readers per slot and per input column
-   std::vector<std::array<RColumnReaderBase *, ColumnTypes_t::list_size>> fValueReaders;
-   /// Arrays of type-erased raw pointers to the beginning of bulks of column values, one per slot.
-   std::vector<std::array<void *, ColumnTypes_t::list_size>> fValuePtrs;
+   std::vector<std::array<RColumnReaderBase *, ColumnTypes_t::list_size>> fValues;
    const std::shared_ptr<PrevNode_t> fPrevNodePtr;
    PrevNode_t &fPrevNode;
 
@@ -78,8 +74,8 @@ public:
            const std::string &variationName = "nominal")
       : RFilterBase(pd->GetLoopManagerUnchecked(), name, pd->GetLoopManagerUnchecked()->GetNSlots(), colRegister,
                     columns, pd->GetVariations(), variationName),
-        fFilter(std::move(f)), fValueReaders(fLoopManager->GetNSlots()), fValuePtrs(fLoopManager->GetNSlots()),
-        fPrevNodePtr(std::move(pd)), fPrevNode(*fPrevNodePtr)
+        fFilter(std::move(f)), fValues(pd->GetLoopManagerUnchecked()->GetNSlots()), fPrevNodePtr(std::move(pd)),
+        fPrevNode(*fPrevNodePtr)
    {
       fLoopManager->Register(this);
    }
@@ -92,45 +88,42 @@ public:
       fLoopManager->Deregister(this);
    }
 
-   const RDFInternal::RMaskedEntryRange &CheckFilters(unsigned int slot, Long64_t entry, std::size_t bulkSize) final
+   bool CheckFilters(unsigned int slot, Long64_t entry) final
    {
-      auto &mask = fMask[slot * RDFInternal::CacheLineStep<RDFInternal::RMaskedEntryRange>()];
+      auto &newMask = fLastResult[slot * RDFInternal::CacheLineStep<int>()];
+      auto &lastEntry = fLastCheckedEntry[slot * RDFInternal::CacheLineStep<Long64_t>()];
 
-      if (entry != mask.FirstEntry()) {
-         mask = fPrevNode.CheckFilters(slot, entry, bulkSize);
+      if (entry != lastEntry) {
+         newMask = fPrevNode.CheckFilters(slot, entry);
 
-         std::transform(fValueReaders[slot].begin(), fValueReaders[slot].end(), fValuePtrs[slot].begin(),
-                        [&mask, &bulkSize](auto *v) { return v->Load(mask, bulkSize); });
+         // evaluate this filter, cache the result
+         std::for_each(fValues[slot].begin(), fValues[slot].end(),
+                       [entry, newMask](auto *v) { v->Load(entry, newMask); });
+         CheckFilterHelper(slot, /*idx=*/0u, newMask, ColumnTypes_t{}, TypeInd_t{});
 
-         const std::size_t processed = mask.Count(bulkSize);
-         std::size_t accepted = 0u;
-         for (std::size_t i = 0ul; i < bulkSize; ++i) {
-            auto &flag = mask[i];
-            flag = flag && EvalFilter(slot, i, ColumnTypes_t{}, TypeInd_t{});
-            accepted += flag;
-         }
-
-         fAccepted[slot * RDFInternal::CacheLineStep<ULong64_t>()] += accepted;
-         fRejected[slot * RDFInternal::CacheLineStep<ULong64_t>()] += processed - accepted;
+         lastEntry = entry;
       }
 
-      return mask;
+      return newMask;
    }
 
    template <typename... ColTypes, std::size_t... S>
-   bool EvalFilter(unsigned int slot, std::size_t idx, TypeList<ColTypes...>, std::index_sequence<S...>)
+   void CheckFilterHelper(unsigned int slot, std::size_t idx, int &entryMask, TypeList<ColTypes...>,
+                          std::index_sequence<S...>)
    {
-      return fFilter(*(static_cast<ColTypes *>(fValuePtrs[slot][S]) + idx)...);
-      // avoid unused parameter warnings (gcc 12.1)
-      (void)slot;
-      (void)idx;
+      if (entryMask) {
+         entryMask = fFilter(fValues[slot][S]->template Get<ColTypes>(idx)...);
+         entryMask ? ++fAccepted[slot * RDFInternal::CacheLineStep<ULong64_t>()]
+                   : ++fRejected[slot * RDFInternal::CacheLineStep<ULong64_t>()];
+      }
+      (void)idx; // avoid unused parameter warning (gcc 12.1)
    }
 
    void InitSlot(TTreeReader *r, unsigned int slot) final
    {
       RDFInternal::RColumnReadersInfo info{fColumnNames, fColRegister, fIsDefine.data(), *fLoopManager};
-      fValueReaders[slot] = RDFInternal::GetColumnReaders(slot, r, ColumnTypes_t{}, info, fVariation);
-      fMask[slot].SetFirstEntry(-1ll);
+      fValues[slot] = RDFInternal::GetColumnReaders(slot, r, ColumnTypes_t{}, info, fVariation);
+      fLastCheckedEntry[slot * RDFInternal::CacheLineStep<Long64_t>()] = -1;
    }
 
    // recursive chain of `Report`s
@@ -171,7 +164,7 @@ public:
    }
 
    /// Clean-up operations to be performed at the end of a task.
-   void FinalizeSlot(unsigned int slot) final { fValueReaders[slot].fill(nullptr); }
+   void FinalizeSlot(unsigned int slot) final { fValues[slot].fill(nullptr); }
 
    std::shared_ptr<RDFGraphDrawing::GraphNode>
    GetGraph(std::unordered_map<void *, std::shared_ptr<RDFGraphDrawing::GraphNode>> &visitedMap) final
@@ -201,6 +194,8 @@ public:
    /// Return a clone of this Filter that works with values in the variationName "universe".
    std::shared_ptr<RNodeBase> GetVariedFilter(const std::string &variationName) final
    {
+      // Only the nominal filter should be asked to produce varied filters
+      assert(fVariation == "nominal");
       // nobody should ask for a varied filter for the nominal variation: they can just
       // use the nominal filter!
       assert(variationName != "nominal");

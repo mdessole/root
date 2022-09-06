@@ -39,10 +39,10 @@ const std::type_info &RJittedDefine::GetTypeId() const
                                "retrieved. This should never happen, please report this as a bug.");
 }
 
-void RJittedDefine::Update(unsigned int slot, const RDFInternal::RMaskedEntryRange &m, std::size_t bulkSize)
+void RJittedDefine::Update(unsigned int slot, Long64_t entry, bool mask)
 {
    assert(fConcreteDefine != nullptr);
-   fConcreteDefine->Update(slot, m, bulkSize);
+   fConcreteDefine->Update(slot, entry, mask);
 }
 
 void RJittedDefine::Update(unsigned int slot, const ROOT::RDF::RSampleInfo &id)
@@ -67,16 +67,4 @@ RDefineBase &RJittedDefine::GetVariedDefine(const std::string &variationName)
 {
    assert(fConcreteDefine != nullptr);
    return fConcreteDefine->GetVariedDefine(variationName);
-}
-
-std::size_t RJittedDefine::GetTypeSize() const
-{
-   assert(fConcreteDefine != nullptr);
-   return fConcreteDefine->GetTypeSize();
-}
-
-bool RJittedDefine::IsDefinePerSample() const
-{
-   assert(fConcreteDefine != nullptr);
-   return fConcreteDefine->IsDefinePerSample();
 }
