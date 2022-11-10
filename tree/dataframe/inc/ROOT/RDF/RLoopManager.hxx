@@ -139,11 +139,8 @@ class RLoopManager : public RNodeBase {
    bool fMustRunNamedFilters{true};
    const ELoopType fLoopType; ///< The kind of event loop that is going to be run (e.g. on ROOT files, on no files)
    const std::unique_ptr<RDataSource> fDataSource; ///< Owning pointer to a data-source object. Null if no data-source
-   /// Registered callbacks to be executed every N events.
-   /// The registration happens via the RegisterCallback method.
-   std::vector<RDFInternal::RCallback> fCallbacksEveryNEvents;
-   /// Registered callbacks to invoke just once before running the loop.
-   /// The registration happens via the RegisterCallback method.
+   std::vector<RDFInternal::RCallback> fCallbacks;         ///< Registered callbacks
+   /// Registered callbacks to invoke just once before running the loop
    std::vector<RDFInternal::ROneTimeCallback> fCallbacksOnce;
    /// Registered callbacks to call at the beginning of each "data block".
    /// The key is the pointer of the corresponding node in the computation graph (a RDefinePerSample or a RAction).
@@ -160,13 +157,8 @@ class RLoopManager : public RNodeBase {
 
    ROOT::Internal::TreeUtils::RNoCleanupNotifier fNoCleanupNotifier;
 
-   /// All of the computation graph must be able to process these many events per bulk.
-   std::size_t fMaxEventsPerBulk;
    /// One masked entry range per processing slot. All elements are always true, while the range changes.
    std::vector<RDFInternal::RMaskedEntryRange> fAllTrueMasks;
-
-   /// See GetUniqueRDFEntry().
-   std::vector<Long64_t> fUniqueRDFEntry;
 
    void RunEmptySourceMT();
    void RunEmptySource();
@@ -174,7 +166,7 @@ class RLoopManager : public RNodeBase {
    void RunTreeReader();
    void RunDataSourceMT();
    void RunDataSource();
-   void RunAndCheckFilters(unsigned int slot, Long64_t entry, std::size_t bulkSize);
+   void RunAndCheckFilters(unsigned int slot, Long64_t entry);
    void InitNodeSlots(TTreeReader *r, unsigned int slot);
    void InitNodes();
    void CleanUpNodes();
@@ -185,10 +177,10 @@ class RLoopManager : public RNodeBase {
    void UpdateSampleInfo(unsigned int slot, TTreeReader &r);
 
 public:
-   RLoopManager(TTree *tree, const ColumnNames_t &defaultBranches, std::size_t maxBulkSize);
-   RLoopManager(ULong64_t nEmptyEntries, std::size_t maxBulkSize);
-   RLoopManager(std::unique_ptr<RDataSource> ds, const ColumnNames_t &defaultBranches, std::size_t maxBulkSize);
-   RLoopManager(ROOT::RDF::Experimental::RDatasetSpec &&spec, std::size_t maxBulkSize);
+   RLoopManager(TTree *tree, const ColumnNames_t &defaultBranches);
+   RLoopManager(ULong64_t nEmptyEntries);
+   RLoopManager(std::unique_ptr<RDataSource> ds, const ColumnNames_t &defaultBranches);
+   RLoopManager(ROOT::RDF::Experimental::RDatasetSpec &&spec);
    RLoopManager(const RLoopManager &) = delete;
    RLoopManager &operator=(const RLoopManager &) = delete;
 
@@ -211,9 +203,8 @@ public:
    void Deregister(RDefineBase *definePtr);
    void Register(RDFInternal::RVariationBase *varPtr);
    void Deregister(RDFInternal::RVariationBase *varPtr);
-   const RDFInternal::RMaskedEntryRange &CheckFilters(unsigned int, Long64_t, std::size_t) final;
+   const RDFInternal::RMaskedEntryRange &CheckFilters(unsigned int, Long64_t) final;
    unsigned int GetNSlots() const { return fNSlots; }
-   std::size_t GetMaxEventsPerBulk() const { return fMaxEventsPerBulk; }
    void Report(ROOT::RDF::RCutFlowReport &rep) const final;
    /// End of recursive chain of calls, does nothing
    void PartialReport(ROOT::RDF::RCutFlowReport &) const final {}
@@ -229,11 +220,6 @@ public:
    RColumnReaderBase *AddTreeColumnReader(unsigned int slot, const std::string &col,
                                           std::unique_ptr<RColumnReaderBase> &&reader, const std::type_info &ti);
    RColumnReaderBase *GetDatasetColumnReader(unsigned int slot, const std::string &col, const std::type_info &ti) const;
-   /// Return a unique entry number for a given processing slot.
-   /// The entry number is guaranteed to be unique across the whole (possibly multi-thread) event loop.
-   /// This is what rdfentry_ and the input entry to DefineSlotEntry lambdas will be equal to, and it will
-   /// only differ from the actual event loop (e.g. TTree/TChain) global entry number in multi-thread event loops.
-   Long64_t GetUniqueRDFEntry(unsigned int slot) const { return fUniqueRDFEntry[slot]; }
 
    /// End of recursive chain of calls, does nothing
    void AddFilterName(std::vector<std::string> &) final {}
@@ -255,7 +241,6 @@ public:
    void AddSampleCallback(void *nodePtr, ROOT::RDF::SampleCallback_t &&callback);
 
    void SetEmptyEntryRange(std::pair<ULong64_t, ULong64_t> &&newRange);
-   void ChangeSpec(ROOT::RDF::Experimental::RDatasetSpec &&spec);
 };
 
 } // ns RDF

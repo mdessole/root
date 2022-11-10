@@ -11,7 +11,7 @@
 #include "ROOT/RDF/RDefineBase.hxx"
 #include "ROOT/RDF/RLoopManager.hxx"
 #include "ROOT/RDF/Utils.hxx"
-#include <string_view>
+#include "ROOT/RStringView.hxx"
 #include "RtypesCore.h" // Long64_t
 
 #include <string>
@@ -25,7 +25,7 @@ RDefineBase::RDefineBase(std::string_view name, std::string_view type, const RDF
                          ROOT::Detail::RDF::RLoopManager &lm, const ROOT::RDF::ColumnNames_t &columnNames,
                          const std::string &variationName)
    : fName(name), fType(type),
-     fMask(lm.GetNSlots() * RDFInternal::CacheLineStep<RDFInternal::RMaskedEntryRange>(), {lm.GetMaxEventsPerBulk()}),
+     fMask(lm.GetNSlots() * RDFInternal::CacheLineStep<RDFInternal::RMaskedEntryRange>(), {1ul}),
      fColRegister(colRegister), fLoopManager(&lm), fColumnNames(columnNames), fIsDefine(columnNames.size()),
      fVariationDeps(fColRegister.GetVariationDeps(fColumnNames)), fVariation(variationName)
 {

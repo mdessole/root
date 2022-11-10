@@ -14,7 +14,7 @@
 #include "ROOT/RDF/GraphNode.hxx"
 #include "ROOT/RDF/RFilterBase.hxx"
 #include "ROOT/RDF/RLoopManager.hxx"
-#include <string_view>
+#include "ROOT/RStringView.hxx"
 #include "RtypesCore.h"
 
 #include <memory>
@@ -46,7 +46,7 @@ public:
    void SetFilter(std::unique_ptr<RFilterBase> f);
 
    void InitSlot(TTreeReader *r, unsigned int slot) final;
-   const RDFInternal::RMaskedEntryRange &CheckFilters(unsigned int slot, Long64_t entry, std::size_t bulkSize) final;
+   const RDFInternal::RMaskedEntryRange &CheckFilters(unsigned int slot, Long64_t entry) final;
    void Report(ROOT::RDF::RCutFlowReport &) const final;
    void PartialReport(ROOT::RDF::RCutFlowReport &) const final;
    void FillReport(ROOT::RDF::RCutFlowReport &) const final;
