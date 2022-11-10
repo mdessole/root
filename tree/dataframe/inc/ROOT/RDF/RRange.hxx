@@ -61,7 +61,7 @@ public:
    ~RRange() { fLoopManager->Deregister(this); }
 
    /// Ranges act as filters when it comes to selecting entries that downstream nodes should process
-   const RDFInternal::RMaskedEntryRange &CheckFilters(unsigned int slot, Long64_t entry, std::size_t bulkSize) final
+   const RDFInternal::RMaskedEntryRange &CheckFilters(unsigned int slot, Long64_t entry) final
    {
       if (entry == fMask.FirstEntry()) // fMask already correctly set
          return fMask;
@@ -77,7 +77,8 @@ public:
       }
 
       // otherwise check the previous node
-      fMask = fPrevNode.CheckFilters(slot, entry, bulkSize);
+      fMask = fPrevNode.CheckFilters(slot, entry);
+      const auto bulkSize = 1ul; // for now we don't really have bulks
       for (std::size_t i = 0u; i < bulkSize; ++i) {
          if (fMask[i]) {
             fMask[i] = fNProcessedEntries >= fStart && (fStop == 0 || fNProcessedEntries < fStop) &&
