@@ -1627,6 +1627,24 @@ public:
    }
 
    std::string GetActionName() { return "Snapshot"; }
+
+   /**
+    * @brief Create a new SnapshotHelper with a different output file name
+    *
+    * @param newName A type-erased string with the output file name
+    * @return SnapshotHelper
+    *
+    * This MakeNew implementation is tied to the cloning feature of actions
+    * of the computation graph. In particular, cloning a Snapshot node usually
+    * also involves changing the name of the output file, otherwise the cloned
+    * Snapshot would overwrite the same file.
+    */
+   SnapshotHelper MakeNew(void *newName)
+   {
+      const std::string finalName = *reinterpret_cast<const std::string *>(newName);
+      return SnapshotHelper{
+         finalName, fDirName, fTreeName, fInputBranchNames, fOutputBranchNames, fOptions, std::vector<bool>(fIsDefine)};
+   }
 };
 
 /// Helper object for a multi-thread Snapshot action
@@ -1783,6 +1801,24 @@ public:
    }
 
    std::string GetActionName() { return "Snapshot"; }
+
+   /**
+    * @brief Create a new SnapshotHelperMT with a different output file name
+    *
+    * @param newName A type-erased string with the output file name
+    * @return SnapshotHelperMT
+    *
+    * This MakeNew implementation is tied to the cloning feature of actions
+    * of the computation graph. In particular, cloning a Snapshot node usually
+    * also involves changing the name of the output file, otherwise the cloned
+    * Snapshot would overwrite the same file.
+    */
+   SnapshotHelperMT MakeNew(void *newName)
+   {
+      const std::string finalName = *reinterpret_cast<const std::string *>(newName);
+      return SnapshotHelperMT{fNSlots,           finalName,          fDirName, fTreeName,
+                              fInputBranchNames, fOutputBranchNames, fOptions, std::vector<bool>(fIsDefine)};
+   }
 };
 
 template <typename Acc, typename Merge, typename R, typename T, typename U,
