@@ -10,10 +10,10 @@
 ROOT_ADD_GTEST(dataframe_friends dataframe_friends.cxx LIBRARIES ROOTDataFrame)
 ROOT_ADD_GTEST(dataframe_colnames dataframe_colnames.cxx LIBRARIES ROOTDataFrame)
 ROOT_ADD_GTEST(dataframe_cache dataframe_cache.cxx LIBRARIES ROOTDataFrame)
-
 #FIXME currently broken with bulk processing: cannot honor calling callbacks
 # every N entries, best we can do is _at least_ every N (at bulk granularity).
 #ROOT_ADD_GTEST(dataframe_callbacks dataframe_callbacks.cxx LIBRARIES ROOTDataFrame)
+ROOT_ADD_GTEST(dataframe_cloning dataframe_cloning.cxx LIBRARIES ROOTDataFrame)
 ROOT_ADD_GTEST(dataframe_histomodels dataframe_histomodels.cxx LIBRARIES ROOTDataFrame)
 ROOT_ADD_GTEST(dataframe_interface dataframe_interface.cxx LIBRARIES ROOTDataFrame)
 ROOT_ADD_GTEST(dataframe_nodes dataframe_nodes.cxx LIBRARIES ROOTDataFrame)
@@ -34,7 +34,7 @@ ROOT_ADD_GTEST(dataframe_redefine dataframe_redefine.cxx LIBRARIES ROOTDataFrame
 ROOT_ADD_GTEST(dataframe_definepersample dataframe_definepersample.cxx LIBRARIES ROOTDataFrame)
 
 if(NOT MSVC OR win_broken_tests)
-  ROOT_ADD_GTEST(dataframe_simple dataframe_simple.cxx LIBRARIES ROOTDataFrame GenVector)
+  ROOT_ADD_GTEST(dataframe_simple dataframe_simple.cxx LIBRARIES ROOTDataFrame)
   target_include_directories(dataframe_simple PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   ROOT_GENERATE_DICTIONARY(DataFrameSimpleDict ${CMAKE_CURRENT_SOURCE_DIR}/MaxSlotHelper.h ${CMAKE_CURRENT_SOURCE_DIR}/SimpleFiller.h MODULE dataframe_simple
                            LINKDEF DataFrameSimpleLinkDef.h OPTIONS -inlineInputHeader DEPENDENCIES ROOTDataFrame Hist)
@@ -120,8 +120,8 @@ if(pyroot)
   if(NOT MSVC OR win_broken_tests OR CMAKE_CXX_STANDARD GREATER 14)
     ROOT_ADD_PYUNITTEST(dataframe_misc dataframe_misc.py)
     ROOT_ADD_PYUNITTEST(dataframe_histograms dataframe_histograms.py)
-    ROOT_ADD_PYUNITTEST(dataframe_cache dataframe_cache.py ENVIRONMENT LEGACY_PYROOT="off")
-    ROOT_ADD_PYUNITTEST(dataframe_datasetspec dataframe_datasetspec.py ENVIRONMENT LEGACY_PYROOT="off")
+    ROOT_ADD_PYUNITTEST(dataframe_cache dataframe_cache.py ENVIRONMENT LEGACY_PYROOT=${pyroot_legacy})
+    ROOT_ADD_PYUNITTEST(dataframe_datasetspec dataframe_datasetspec.py ENVIRONMENT LEGACY_PYROOT=${pyroot_legacy})
   endif()
   if(NOT MSVC OR win_broken_tests)
     ROOT_ADD_PYUNITTEST(dataframe_merge_results dataframe_merge_results.py)
