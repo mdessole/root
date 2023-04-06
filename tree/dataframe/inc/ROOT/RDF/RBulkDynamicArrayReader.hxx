@@ -23,58 +23,63 @@ namespace RDF {
 template <typename ColType, typename SizeType>
 class RBulkDynamicArrayReader final : public RBulkReaderBase {
    using Element_t = typename ColType::value_type;
-   ROOT::RVec<Element_t> fCachedFlattenedElements;
-   ROOT::RVec<ROOT::RVec<Element_t>> fCachedArrays;
-   RColumnReaderBase *fSizeReader; ///< Pointer to the column reader for the size of the dynamic arrays. Never null.
+   ROOT::RVec<Element_t> fFlattenedElements;
+   /// Each inner RVec is a view over the data in fFlattenedElements.
+   ROOT::RVec<ROOT::RVec<Element_t>> fArrays;
+   /// Pointer to the column reader for the size of the dynamic arrays. Never null.
+   RColumnReaderBase *fSizeReader;
    /// Index of the element in the branch bulk after the last one we already read.
-   std::size_t fBulkElementsOffset = 0u;
+   std::size_t fBranchBulkElementsOffset = 0u;
 
-   // Copy N entries starting from fBuf to fCachedValues.
-   // Expects fBuf to have enough values available and fCachedValues to have enough room for them.
+   // Copy N entries from fBuf to fFlattenedElements, make fArrays point to them.
+   // Expects fBuf to have enough values available and fFlattenedElements to have enough room for them.
+   // Return the number of total array elements loaded.
    std::size_t LoadN(std::size_t N, std::size_t arrayOffset, std::size_t elementsOffset, SizeType *sizes)
    {
       // work on raw pointers to side-step RVec::operator[] which is slightly more costly than simple pointer arithmetic
-      Element_t *elementsCache = &fCachedFlattenedElements[0] + elementsOffset;
-      ROOT::RVec<Element_t> *arrayCache = &fCachedArrays[0] + arrayOffset;
+      Element_t *elementsCache = fFlattenedElements.data() + elementsOffset;
+      ROOT::RVec<Element_t> *arrayCache = fArrays.data() + arrayOffset;
 
       char *data = reinterpret_cast<char *>(fBuf.GetCurrent());
-      data += fBulkElementsOffset * sizeof(Element_t); // advance to the first element we are interested in
+      data += fBranchBulkElementsOffset * sizeof(Element_t); // advance to the first element we are interested in
 
       std::size_t nElements = 0u;
 
-      // make the RVecs in fCachedArrays point to the right addresses in fCachedFlattenedElements
+      // make the RVecs in fArrays point to the right addresses in fFlattenedElements
       for (std::size_t i = 0u; i < N; ++i) {
-         const std::size_t size = sizes[arrayOffset++];
-         ROOT::Internal::VecOps::ResetView(*(arrayCache++), elementsCache + nElements, size);
+         const std::size_t size = sizes[arrayOffset];
+         ROOT::Internal::VecOps::ResetView(*arrayCache, elementsCache + nElements, size);
          nElements += size;
+         ++arrayOffset;
+         ++arrayCache;
       }
 
-      // copy the new elements in fCachedFlattenedElements
+      // copy the new elements in fFlattenedElements
       for (std::size_t i = 0u; i < nElements; ++i)
          frombuf(data, elementsCache + i); // `frombuf` also advances the `data` pointer
 
-      return elementsOffset + nElements;
+      fBranchBulkElementsOffset += nElements;
+      return nElements;
    }
 
 public:
-   RBulkDynamicArrayReader(TBranch &branch, RColumnReaderBase &sizeReader, std::size_t maxEventsPerBulk)
-      : RBulkReaderBase(branch), fCachedArrays(maxEventsPerBulk), fSizeReader(&sizeReader)
+   RBulkDynamicArrayReader(TBranch &branch, TTree &tree, RColumnReaderBase &sizeReader, std::size_t maxEventsPerBulk)
+      : RBulkReaderBase(branch, tree), fSizeReader(&sizeReader)
    {
       static_assert(VecOps::IsRVec<ColType>::value,
                     "Something went wrong, RBulkDynamicArrayReader should only be used for RVec columns.");
 
-      // Put all fCachedArrays in non-owning mode (aka view mode), so later we can just call ResetView on them.
-      fCachedFlattenedElements.resize(1ull);
-      for (auto &vec : fCachedArrays) {
-         ROOT::RVec<Element_t> tmp(&fCachedFlattenedElements[0], 1u);
-         std::swap(vec, tmp);
-      }
+      // Put all fArrays in non-owning mode (aka view mode), so later we can just call ResetView on them.
+      fFlattenedElements.resize(1ull);
+      fArrays.reserve(maxEventsPerBulk);
+      for (std::size_t i = 0u; i < maxEventsPerBulk; ++i)
+         fArrays.emplace_back(fFlattenedElements.data(), 1u);
    }
 
    void *LoadImpl(const Internal::RDF::RMaskedEntryRange &requestedMask, std::size_t bulkSize) final
    {
-      if (requestedMask.FirstEntry() == fLoadedEntriesBegin)
-         return &fCachedArrays[0]; // the requested bulk is already loaded, nothing to do
+      if (requestedMask.FirstEntry() == fLoadedEntriesBegin) // the requested bulk is already loaded, nothing to do
+         return fArrays.data();
 
       // Load array sizes.
       // We actually need all values, not just the ones from the `requestedMask`, because for branches that support bulk
@@ -85,45 +90,44 @@ public:
 
       // Make sure we have enough space in the array elements cache
       const auto nTotalElements = std::accumulate(sizes, sizes + bulkSize, std::size_t(0u));
-      fCachedFlattenedElements.resize(nTotalElements);
+      fFlattenedElements.resize(nTotalElements);
 
       fLoadedEntriesBegin = requestedMask.FirstEntry();
-      std::size_t nLoaded = 0u;
-      std::size_t elementsOffset = 0u; // how many array elements we have read for this bulk
+      std::size_t nLoadedEntries = 0u;
+      // Offset into fFlattenedElements, points to where new elements should be inserted.
+      std::size_t elementsOffset = 0u;
 
-      if (fBulkSize > 0u) { // we have leftover values in the bulk from the previous call to LoadImpl
-         const std::size_t nAvailable = (fBulkBegin + fBulkSize) - fLoadedEntriesBegin;
+      if (fBranchBulkSize > 0u) { // we have a branch bulk loaded
+         const std::size_t nAvailable = (fBranchBulkBegin + fBranchBulkSize) - fLoadedEntriesBegin;
          const auto nToLoad = std::min(nAvailable, bulkSize);
-         elementsOffset = LoadN(nToLoad, /*arrayOffset*/ 0u, /*elementsOffset*/ 0u, sizes);
-         fBulkElementsOffset += elementsOffset;
-         nLoaded += nToLoad;
+         elementsOffset += LoadN(nToLoad, /*arrayOffset*/ nLoadedEntries, elementsOffset, sizes);
+         nLoadedEntries += nToLoad;
       }
 
-      while (nLoaded < bulkSize) {
+      while (nLoadedEntries < bulkSize) {
          // assert we either have not loaded a bulk yet or we exhausted the last branch bulk
-         assert(fBulkSize == 0u || fBulkBegin + fBulkSize == fLoadedEntriesBegin + nLoaded);
+         assert(fBranchBulkSize == 0u || fBranchBulkBegin + fBranchBulkSize == fLoadedEntriesBegin + nLoadedEntries);
 
          // read in new branch bulk
-         fBulkBegin = fLoadedEntriesBegin + nLoaded;
-         fBulkElementsOffset = 0u;
-         const auto ret = fBranch->GetBulkRead().GetEntriesSerialized(fBulkBegin, fBuf);
+         fBranchBulkBegin = fLoadedEntriesBegin + nLoadedEntries;
+         fBranchBulkElementsOffset = 0u;
+         // GetEntriesSerialized does not byte-swap, so later we use frombuf to byte-swap and copy in a single pass
+         const auto ret = fBranch->GetBulkRead().GetEntriesSerialized(fBranchBulkBegin - fChainOffset, fBuf);
          if (ret == -1)
             throw std::runtime_error(
                "RBulkScalarReader: could not load branch values. This should never happen. File name: " +
                std::string(fBranch->GetTree()->GetCurrentFile()->GetName()) +
                ". File title: " + std::string(fBranch->GetTree()->GetCurrentFile()->GetTitle()) +
                ". Branch name: " + std::string(fBranch->GetFullName()) +
-               ". Requested entry at beginning of bulk: " + std::to_string(fBulkBegin));
-         fBulkSize = ret;
+               ". Requested entry at beginning of bulk: " + std::to_string(fBranchBulkBegin));
+         fBranchBulkSize = ret;
 
-         const auto nToLoad = std::min(fBulkSize, bulkSize - nLoaded);
-         const auto newElementsOffset = LoadN(nToLoad, /*arrayOffset*/ nLoaded, elementsOffset, sizes);
-         fBulkElementsOffset = newElementsOffset - elementsOffset;
-         elementsOffset = newElementsOffset;
-         nLoaded += nToLoad;
+         const auto nToLoad = std::min(fBranchBulkSize, bulkSize - nLoadedEntries);
+         elementsOffset += LoadN(nToLoad, /*arrayOffset*/ nLoadedEntries, elementsOffset, sizes);
+         nLoadedEntries += nToLoad;
       }
 
-      return &fCachedArrays[0];
+      return fArrays.data();
    }
 };
 

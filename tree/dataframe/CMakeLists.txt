@@ -104,6 +104,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(ROOTDataFrame
     ${RDATAFRAME_EXTRA_HEADERS}
   SOURCES
     src/RActionBase.cxx
+    src/RBulkReaderBase.cxx
     src/RCsvDS.cxx
     src/RDefineBase.cxx
     src/RCutFlowReport.cxx

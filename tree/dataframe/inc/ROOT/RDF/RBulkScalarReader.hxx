@@ -30,15 +30,18 @@ class RBulkScalarReader final : public RBulkReaderBase {
    // Expects fBuf to have enough values available and fCachedValues to have enough room for them.
    void LoadN(std::size_t N, std::size_t cacheOffset, std::size_t bufOffset)
    {
-      T *data = reinterpret_cast<T *>(fBuf.GetCurrent());
+      char *data = reinterpret_cast<char *>(fBuf.GetCurrent());
+      data += bufOffset * sizeof(T); // advance to the first element we are interested in
+
+      T* elementsCache = fCachedValues.data() + cacheOffset;
 
       for (std::size_t i = 0u; i < N; ++i)
-         fCachedValues[i + cacheOffset] = data[i + bufOffset];
+         frombuf(data, elementsCache + i); // `frombuf` also advances the `data` pointer
    }
 
 public:
-   RBulkScalarReader(TBranch &branch, std::size_t maxEventsPerBulk)
-      : RBulkReaderBase(branch), fCachedValues(maxEventsPerBulk)
+   RBulkScalarReader(TBranch &branch, TTree &tree, std::size_t maxEventsPerBulk)
+      : RBulkReaderBase(branch, tree), fCachedValues(maxEventsPerBulk)
    {
    }
 
@@ -50,28 +53,29 @@ public:
       fLoadedEntriesBegin = requestedMask.FirstEntry();
       std::size_t nLoaded = 0u;
 
-      if (fBulkSize > 0u) { // we have leftover values in the bulk from the previous call to LoadImpl
-         const std::size_t nAvailable = (fBulkBegin + fBulkSize) - fLoadedEntriesBegin;
+      if (fBranchBulkSize > 0u) { // we have a branch bulk loaded
+         const std::size_t nAvailable = (fBranchBulkBegin + fBranchBulkSize) - fLoadedEntriesBegin;
          const auto nToLoad = std::min(nAvailable, bulkSize);
-         LoadN(nToLoad, 0u, fLoadedEntriesBegin - fBulkBegin);
+         LoadN(nToLoad, 0u, fLoadedEntriesBegin - fBranchBulkBegin);
          nLoaded += nToLoad;
       }
 
       while (nLoaded < bulkSize) {
          // assert we either have not loaded a bulk yet or we exhausted the last branch bulk
-         assert(fBulkSize == 0u || fBulkBegin + fBulkSize == fLoadedEntriesBegin + nLoaded);
-         fBulkBegin = fLoadedEntriesBegin + nLoaded;
-         const auto ret = fBranch->GetBulkRead().GetBulkEntries(fBulkBegin, fBuf);
+         assert(fBranchBulkSize == 0u || fBranchBulkBegin + fBranchBulkSize == fLoadedEntriesBegin + nLoaded);
+         fBranchBulkBegin = fLoadedEntriesBegin + nLoaded;
+         // GetEntriesSerialized does not byte-swap, so later we use frombuf to byte-swap and copy in a single pass
+         const auto ret = fBranch->GetBulkRead().GetEntriesSerialized(fBranchBulkBegin - fChainOffset, fBuf);
          if (ret == -1)
             throw std::runtime_error(
                "RBulkScalarReader: could not load branch values. This should never happen. File name: " +
                std::string(fBranch->GetTree()->GetCurrentFile()->GetName()) +
                ". File title: " + std::string(fBranch->GetTree()->GetCurrentFile()->GetTitle()) +
                ". Branch name: " + std::string(fBranch->GetFullName()) +
-               ". Requested entry at beginning of bulk: " + std::to_string(fBulkBegin));
-         fBulkSize = ret;
-         const auto nToLoad = std::min(fBulkSize, bulkSize - nLoaded);
-         LoadN(nToLoad, /*cacheOffset*/nLoaded, /*bufOffset*/0u);
+               ". Requested entry at beginning of bulk: " + std::to_string(fBranchBulkBegin));
+         fBranchBulkSize = ret;
+         const auto nToLoad = std::min(fBranchBulkSize, bulkSize - nLoaded);
+         LoadN(nToLoad, /*cacheOffset*/ nLoaded, /*bufOffset*/ 0u);
          nLoaded += nToLoad;
       }
 
