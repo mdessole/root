@@ -34,26 +34,22 @@ class RBulkDynamicArrayReader final : public RBulkReaderBase {
    std::size_t LoadN(std::size_t N, std::size_t arrayOffset, std::size_t elementsOffset, SizeType *sizes)
    {
       // work on raw pointers to side-step RVec::operator[] which is slightly more costly than simple pointer arithmetic
-      Element_t *elementsCache = &fCachedFlattenedElements[0] + elementsOffset;
-      ROOT::RVec<Element_t> *arrayCache = &fCachedArrays[0] + arrayOffset;
+      Element_t *elementsCache = &fCachedFlattenedElements[0];
+      ROOT::RVec<Element_t> *arrayCache = &fCachedArrays[0];
 
       char *data = reinterpret_cast<char *>(fBuf.GetCurrent());
       data += fBulkElementsOffset * sizeof(Element_t); // advance to the first element we are interested in
 
-      std::size_t nElements = 0u;
-
-      // make the RVecs in fCachedArrays point to the right addresses in fCachedFlattenedElements
+      // copy the new elements in fCachedFlattenedElements, make the RVecs in fCachedArrays point to those values
       for (std::size_t i = 0u; i < N; ++i) {
-         const std::size_t size = sizes[arrayOffset++];
-         ROOT::Internal::VecOps::ResetView(*(arrayCache++), elementsCache + nElements, size);
-         nElements += size;
+         const std::size_t size = sizes[arrayOffset + i];
+         for (std::size_t j = 0u; j < size; ++j)
+            frombuf(data, elementsCache + elementsOffset + j); // `frombuf` also advances the `data` pointer
+         ROOT::Internal::VecOps::ResetView(*(arrayCache + arrayOffset + i), elementsCache + elementsOffset, size);
+         elementsOffset += size;
       }
 
-      // copy the new elements in fCachedFlattenedElements
-      for (std::size_t i = 0u; i < nElements; ++i)
-         frombuf(data, elementsCache + i); // `frombuf` also advances the `data` pointer
-
-      return elementsOffset + nElements;
+      return elementsOffset;
    }
 
 public:
