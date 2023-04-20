@@ -21,7 +21,6 @@ TEST(RDFBulkAPI, BulkDefine)
    EXPECT_DOUBLE_EQ(m.GetValue(), 28.5);
 }
 
-/*
 TEST(RDFBulkAPI, BulkFilter)
 {
    auto bulkReturnX = [](const ROOT::RDF::Experimental::REventMask &m, ROOT::RVec<float> &output,
@@ -49,4 +48,3 @@ TEST(RDFBulkAPI, BulkFilter)
          .Mean<double>("xx");
    EXPECT_DOUBLE_EQ(m.GetValue(), 57.5);
 }
-*/
