@@ -816,10 +816,10 @@ the distributed execution.
 
 ### Live visualization in distributed mode with dask
 
-The live visualization feature allows real-time data representation of plots generated during the execution 
-of a distributed RDataFrame application. 
+The live visualization feature allows real-time data representation of plots generated during the execution
+of a distributed RDataFrame application.
 It enables visualizing intermediate results as they are computed across multiple nodes of a Dask cluster
-by creating a canvas and continuously updating it as partial results become available. 
+by creating a canvas and continuously updating it as partial results become available.
 
 The LiveVisualize() function can be imported from the Python package **ROOT.RDF.Experimental.Distributed**:
 
@@ -831,14 +831,14 @@ LiveVisualize = ROOT.RDF.Experimental.Distributed.LiveVisualize
 
 The function takes drawable objects (e.g. histograms) and optional callback functions as argument, it accepts 4 different input formats:
 
-- Passing a list or tuple of drawables: 
+- Passing a list or tuple of drawables:
 You can pass a list or tuple containing the plots you want to visualize. For example:
 
 ~~~{.py}
 LiveVisualize([h_gaus, h_exp, h_random])
 ~~~
 
-- Passing a list or tuple of drawables with a global callback function: 
+- Passing a list or tuple of drawables with a global callback function:
 You can also include a global callback function that will be applied to all plots. For example:
 
 ~~~{.py}
@@ -848,7 +848,7 @@ def set_fill_color(hist):
 LiveVisualize([h_gaus, h_exp, h_random], set_fill_color)
 ~~~
 
-- Passing a Dictionary of drawables and callback functions: 
+- Passing a Dictionary of drawables and callback functions:
 For more control, you can create a dictionary where keys are plots and values are corresponding (optional) callback functions. For example:
 
 ~~~{.py}
@@ -861,7 +861,7 @@ plot_callback_dict = {
 LiveVisualize(plot_callback_dict)
 ~~~
 
-- Passing a Dictionary of drawables and callback functions with a global callback function: 
+- Passing a Dictionary of drawables and callback functions with a global callback function:
 You can also combine a dictionary of plots and callbacks with a global callback function:
 
 ~~~{.py}
@@ -1431,7 +1431,7 @@ More information (e.g. start and end of each multi-thread task) is printed using
 \anchor rdf-from-spec
 ### Creating an RDataFrame from a dataset specification file
 
-RDataFrame can be created using a dataset specification JSON file: 
+RDataFrame can be created using a dataset specification JSON file:
 
 ~~~{.python}
 import ROOT
@@ -1453,7 +1453,7 @@ A simple example for the formatting of the specification in the JSON file is the
          "trees": ["tree1", "tree2"],
          "files": ["file1.root", "file2.root"],
          "metadata": {
-            "lumi": 10000.0, 
+            "lumi": 10000.0,
             "xsec": 1.0,
             "sample_category" = "data"
             }
@@ -1462,7 +1462,7 @@ A simple example for the formatting of the specification in the JSON file is the
          "trees": ["tree3", "tree4"],
          "files": ["file3.root", "file4.root"],
          "metadata": {
-            "lumi": 0.5, 
+            "lumi": 0.5,
             "xsec": 1.5,
             "sample_category" = "MC_background"
             }
@@ -1494,12 +1494,12 @@ An example implementation of the "FromSpec" method is available in tutorial: df1
 provides a corresponding exemplary JSON file for the dataset specification.
 
 \anchor progressbar
-### Adding a progress bar 
+### Adding a progress bar
 
 A progress bar showing the processed event statistics can be added to any RDataFrame program.
-The event statistics include elapsed time, currently processed file, currently processed events, the rate of event processing 
-and an estimated remaining time (per file being processed). It is recorded and printed in the terminal every m events and every 
-n seconds (by default m = 1000 and n = 1). The ProgressBar can be also added when the multithread (MT) mode is enabled. 
+The event statistics include elapsed time, currently processed file, currently processed events, the rate of event processing
+and an estimated remaining time (per file being processed). It is recorded and printed in the terminal every m events and every
+n seconds (by default m = 1000 and n = 1). The ProgressBar can be also added when the multithread (MT) mode is enabled.
 
 ProgressBar is added after creating the dataframe object (df):
 ~~~{.cpp}
@@ -1507,15 +1507,15 @@ ROOT::RDataFrame df("tree", "file.root");
 ROOT::RDF::Experimental::AddProgressBar(df);
 ~~~
 
-Alternatively, RDataFrame can be cast to an RNode first, giving the user more flexibility 
+Alternatively, RDataFrame can be cast to an RNode first, giving the user more flexibility
 For example, it can be called at any computational node, such as Filter or Define, not only the head node,
-with no change to the ProgressBar function itself: 
+with no change to the ProgressBar function itself:
 ~~~{.cpp}
 ROOT::RDataFrame df("tree", "file.root");
 auto df_1 = ROOT::RDF::RNode(df.Filter("x>1"));
 ROOT::RDF::Experimental::AddProgressBar(df_1);
 ~~~
-Examples of implemented progress bars can be seen by running [Higgs to Four Lepton tutorial](https://root.cern/doc/master/df106__HiggsToFourLeptons_8py_source.html) and [Dimuon tutorial](https://root.cern/doc/master/df102__NanoAODDimuonAnalysis_8C.html). 
+Examples of implemented progress bars can be seen by running [Higgs to Four Lepton tutorial](https://root.cern/doc/master/df106__HiggsToFourLeptons_8py_source.html) and [Dimuon tutorial](https://root.cern/doc/master/df102__NanoAODDimuonAnalysis_8C.html).
 
 */
 // clang-format on
@@ -1534,8 +1534,9 @@ using ColumnNamesPtr_t = std::shared_ptr<const ColumnNames_t>;
 /// The default columns are looked at in case no column is specified in the
 /// booking of actions or transformations.
 /// \see ROOT::RDF::RInterface for the documentation of the methods available.
-RDataFrame::RDataFrame(std::string_view treeName, TDirectory *dirPtr, const ColumnNames_t &defaultColumns)
-   : RInterface(std::make_shared<RDFDetail::RLoopManager>(nullptr, defaultColumns))
+RDataFrame::RDataFrame(std::string_view treeName, TDirectory *dirPtr, const ColumnNames_t &defaultColumns,
+                       std::size_t maxBulkSize)
+   : RInterface(std::make_shared<RDFDetail::RLoopManager>(nullptr, defaultColumns, maxBulkSize))
 {
    if (!dirPtr) {
       auto msg = "Invalid TDirectory!";
@@ -1562,8 +1563,9 @@ RDataFrame::RDataFrame(std::string_view treeName, TDirectory *dirPtr, const Colu
 /// The default columns are looked at in case no column is specified in the
 /// booking of actions or transformations.
 /// \see ROOT::RDF::RInterface for the documentation of the methods available.
-RDataFrame::RDataFrame(std::string_view treeName, std::string_view filenameglob, const ColumnNames_t &defaultColumns)
-   : RInterface(std::make_shared<RDFDetail::RLoopManager>(nullptr, defaultColumns))
+RDataFrame::RDataFrame(std::string_view treeName, std::string_view filenameglob, const ColumnNames_t &defaultColumns,
+                       std::size_t maxBulkSize)
+   : RInterface(std::make_shared<RDFDetail::RLoopManager>(nullptr, defaultColumns, maxBulkSize))
 {
    const std::string treeNameInt(treeName);
    const std::string filenameglobInt(filenameglob);
@@ -1584,8 +1586,8 @@ RDataFrame::RDataFrame(std::string_view treeName, std::string_view filenameglob,
 /// The default columns are looked at in case no column is specified in the booking of actions or transformations.
 /// \see ROOT::RDF::RInterface for the documentation of the methods available.
 RDataFrame::RDataFrame(std::string_view treeName, const std::vector<std::string> &fileglobs,
-                       const ColumnNames_t &defaultColumns)
-   : RInterface(std::make_shared<RDFDetail::RLoopManager>(nullptr, defaultColumns))
+                       const ColumnNames_t &defaultColumns, std::size_t maxBulkSize)
+   : RInterface(std::make_shared<RDFDetail::RLoopManager>(nullptr, defaultColumns, maxBulkSize))
 {
    std::string treeNameInt(treeName);
    auto chain = ROOT::Internal::TreeUtils::MakeChainForMT(treeNameInt);
@@ -1602,8 +1604,8 @@ RDataFrame::RDataFrame(std::string_view treeName, const std::vector<std::string>
 /// The default columns are looked at in case no column is specified in the
 /// booking of actions or transformations.
 /// \see ROOT::RDF::RInterface for the documentation of the methods available.
-RDataFrame::RDataFrame(TTree &tree, const ColumnNames_t &defaultColumns)
-   : RInterface(std::make_shared<RDFDetail::RLoopManager>(&tree, defaultColumns))
+RDataFrame::RDataFrame(TTree &tree, const ColumnNames_t &defaultColumns, std::size_t maxBulkSize)
+   : RInterface(std::make_shared<RDFDetail::RLoopManager>(&tree, defaultColumns, maxBulkSize))
 {
 }
 
@@ -1615,8 +1617,8 @@ RDataFrame::RDataFrame(TTree &tree, const ColumnNames_t &defaultColumns)
 /// generate those entries on the fly when some action is triggered,
 /// and it will do so for all the previously-defined columns.
 /// \see ROOT::RDF::RInterface for the documentation of the methods available.
-RDataFrame::RDataFrame(ULong64_t numEntries)
-   : RInterface(std::make_shared<RDFDetail::RLoopManager>(numEntries))
+RDataFrame::RDataFrame(ULong64_t numEntries, std::size_t maxBulkSize)
+   : RInterface(std::make_shared<RDFDetail::RLoopManager>(numEntries, maxBulkSize))
 
 {
 }
@@ -1628,8 +1630,9 @@ RDataFrame::RDataFrame(ULong64_t numEntries)
 ///
 /// A dataframe associated to a data source will query it to access column values.
 /// \see ROOT::RDF::RInterface for the documentation of the methods available.
-RDataFrame::RDataFrame(std::unique_ptr<ROOT::RDF::RDataSource> ds, const ColumnNames_t &defaultColumns)
-   : RInterface(std::make_shared<RDFDetail::RLoopManager>(std::move(ds), defaultColumns))
+RDataFrame::RDataFrame(std::unique_ptr<ROOT::RDF::RDataSource> ds, const ColumnNames_t &defaultColumns,
+                       std::size_t maxBulkSize)
+   : RInterface(std::make_shared<RDFDetail::RLoopManager>(std::move(ds), defaultColumns, maxBulkSize))
 {
 }
 
@@ -1650,10 +1653,8 @@ RDataFrame::RDataFrame(std::unique_ptr<ROOT::RDF::RDataSource> ds, const ColumnN
 /// )
 /// df = ROOT.RDataFrame(spec)
 /// ~~~
-///
-/// See also ROOT::RDataFrame::FromSpec().
-RDataFrame::RDataFrame(ROOT::RDF::Experimental::RDatasetSpec spec)
-   : RInterface(std::make_shared<RDFDetail::RLoopManager>(std::move(spec)))
+RDataFrame::RDataFrame(ROOT::RDF::Experimental::RDatasetSpec spec, std::size_t maxBulkSize)
+   : RInterface(std::make_shared<RDFDetail::RLoopManager>(std::move(spec), maxBulkSize))
 {
 }
 
@@ -1662,7 +1663,7 @@ namespace Experimental {
 
 ////////////////////////////////////////////////////////////////////////////
 /// \brief Create the RDataFrame from the dataset specification file.
-/// \param[in] jsonFile Path to the dataset specification JSON file. 
+/// \param[in] jsonFile Path to the dataset specification JSON file.
 ///
 /// The input dataset specification JSON file must include a number of keys that
 /// describe all the necessary samples and their associated metadata information.
@@ -1672,7 +1673,7 @@ namespace Experimental {
 /// added, as well as the friend list information.
 ///
 /// ### Example specification file JSON:
-/// The following is an example of the dataset specification JSON file formatting: 
+/// The following is an example of the dataset specification JSON file formatting:
 ///~~~{.cpp}
 /// {
 ///    "samples": {
