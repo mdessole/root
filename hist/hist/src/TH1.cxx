@@ -625,7 +625,7 @@ TH1::TH1(): TNamed(), TAttLine(), TAttFill(), TAttMarker()
    fYaxis.SetParent(this);
    fZaxis.SetParent(this);
    UseCurrentStyle();
-}
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Histogram default destructor.
@@ -8831,6 +8831,19 @@ void TH1::SetStats(Bool_t stats)
       }
    }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+///
+
+#if defined(ROOT_RDF_CUDA) || defined(ROOT_RDF_SYCL)
+void TH1::SetStatsData(Double_t *stats)
+{
+   fTsumw = stats[0];
+   fTsumw2 = stats[1];
+   fTsumwx = stats[2];
+   fTsumwx2 = stats[3];
+}
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Create structure to store sum of squares of weights.

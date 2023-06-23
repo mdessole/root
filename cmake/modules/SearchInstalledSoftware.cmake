@@ -1703,19 +1703,75 @@ if(tmva-sofie)
   endif()
 endif()
 
-### Look for package CuDNN. If both cudnn and tmva-gpu are set and cudnn was
-### found, it implies the tmva-cudnn flag.
-if (cudnn)
-  if (fail-on-missing)
-    find_package(CUDNN REQUIRED)
-  else()
-    find_package(CUDNN)
+#---Check for SYCL-----------------------------------------------------------------------
+
+if (sycl)
+  find_package(OpenSYCL)
+  if (NOT OpenSYCL_FOUND)
+    if(fail-on-missing)
+      message(FATAL_ERROR "Open SYCL library not found")
+    else()
+      message(STATUS "Open SYCL library not found")
+      set(sycl OFF CACHE BOOL "Disabled because Open SYCL is not found" FORCE)
+    endif()
   endif()
-  if (CUDNN_FOUND)
-    message(STATUS "CuDNN library found: " ${CUDNN_LIBRARIES})
-    ### set tmva-cudnn flag only if tmva-gpu is on!
-    if (tmva-gpu)
-      set(tmva-cudnn ON)
+endif()
+
+
+#---Check for CUDA-----------------------------------------------------------------------
+# if tmva-gpu is off and cuda is on cuda is searched but not used in tmva
+#  if cuda is off but tmva-gpu is on cuda is searched and activated if found !
+#
+if(cuda OR tmva-gpu)
+  find_package(CUDA)
+  if(CUDA_FOUND)
+    if(NOT DEFINED CMAKE_CUDA_STANDARD)
+      set(CMAKE_CUDA_STANDARD ${CMAKE_CXX_STANDARD})
+    endif()
+    enable_language(CUDA)
+    set(cuda ON CACHE BOOL "Found Cuda for TMVA GPU" FORCE)
+    # CUDA_NVCC_EXECUTABLE
+    if(DEFINED ENV{CUDA_NVCC_EXECUTABLE})
+      set(CUDA_NVCC_EXECUTABLE "$ENV{CUDA_NVCC_EXECUTABLE}" CACHE FILEPATH "The CUDA compiler")
+    else()
+      find_program(CUDA_NVCC_EXECUTABLE
+        NAMES nvcc nvcc.exe
+        PATHS "${CUDA_TOOLKIT_ROOT_DIR}"
+          ENV CUDA_TOOLKIT_ROOT
+          ENV CUDA_PATH
+          ENV CUDA_BIN_PATH
+        PATH_SUFFIXES bin bin64
+        DOC "The CUDA compiler"
+        NO_DEFAULT_PATH
+      )
+      find_program(CUDA_NVCC_EXECUTABLE
+        NAMES nvcc nvcc.exe
+        PATHS /opt/cuda/bin
+        PATH_SUFFIXES cuda/bin
+        DOC "The CUDA compiler"
+      )
+      # Search default search paths, after we search our own set of paths.
+      find_program(CUDA_NVCC_EXECUTABLE nvcc)
+    endif()
+    mark_as_advanced(CUDA_NVCC_EXECUTABLE)
+    ###
+    ### look for package CuDNN
+    if (cudnn)
+      if (fail-on-missing)
+        find_package(CUDNN REQUIRED)
+      else()
+        find_package(CUDNN)
+      endif()
+      if (CUDNN_FOUND)
+        message(STATUS "CuDNN library found: " ${CUDNN_LIBRARIES})
+	### set tmva-cudnn flag only if tmva-gpu is on!
+        if (tmva-gpu)
+          set(tmva-cudnn ON)
+        endif()
+      else()
+        message(STATUS "CUDNN library not found")
+        set(cudnn OFF CACHE BOOL "Disabled because cudnn is not found" FORCE)
+      endif()
     endif()
   else()
     message(STATUS "CUDNN library not found")
