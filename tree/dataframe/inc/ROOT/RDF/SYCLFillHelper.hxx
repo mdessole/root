@@ -18,6 +18,7 @@
 #ifndef ROOT_SYCLFILLHELPER
 #define ROOT_SYCLFILLHELPER
 
+#include "ROOT/RVec.hxx"
 #include <ROOT/RDF/RAction.hxx>
 #include "ROOT/RDF/RActionImpl.hxx"
 #include "ROOT/RDF/Utils.hxx"
@@ -32,6 +33,7 @@
 #include <array>
 
 using ROOT::Internal::RDF::Disjunction;
+using ROOT::Internal::RDF::FindIdxTrue;
 using ROOT::Internal::RDF::GetNthElement;
 using ROOT::Internal::RDF::IsDataContainer;
 using ROOT::Internal::RDF::RActionImpl;
@@ -91,21 +93,6 @@ class R__CLING_PTRCHECK(off) SYCLFillHelper : public RActionImpl<SYCLFillHelper<
    void UnsetDirectoryIfPossible(TH1 *h) { h->SetDirectory(nullptr); }
 
    void UnsetDirectoryIfPossible(...) {}
-
-   template <size_t DIMW>
-   void FillWithWeight(unsigned int slot, const std::array<double, DIMW> &v)
-   {
-      double w = v.back();
-      std::array<double, DIMW - 1> coords;
-      std::copy(v.begin(), v.end() - 1, coords.begin());
-      fSYCLHist->Fill(coords, w);
-   }
-
-   template <typename... Coords>
-   void FillWithoutWeight(unsigned int slot, const Coords &...x)
-   {
-      fSYCLHist->Fill({x...});
-   }
 
    // Merge overload for types with Merge(TCollection*), like TH1s
    template <typename H, typename = std::enable_if_t<std::is_base_of<TObject, H>::value, int>>
@@ -195,6 +182,8 @@ class R__CLING_PTRCHECK(off) SYCLFillHelper : public RActionImpl<SYCLFillHelper<
    }
 
 public:
+   static constexpr bool kUseBulk = true;
+
    SYCLFillHelper(SYCLFillHelper &&) = default;
    SYCLFillHelper(const SYCLFillHelper &) = delete;
 
@@ -240,43 +229,49 @@ public:
 
    void InitTask(TTreeReader *, unsigned int) {}
 
-   template <typename... ValTypes, std::enable_if_t<!Disjunction<IsDataContainer<ValTypes>...>::value, int> = 0>
-   auto Exec(unsigned int slot, const ValTypes &...x)
+   // Non-bulk overloads
+   // template <typename... ValTypes, std::enable_if_t<!Disjunction<IsDataContainer<ValTypes>...>::value, int> = 0>
+   // auto Exec(unsigned int slot, const ValTypes &...x)
+   // {
+   //    if constexpr (sizeof...(ValTypes) > dim)
+   //       FillWithWeight<dim + 1>(slot, {((double)x)...});
+   //    else
+   //       FillWithoutWeight(slot, x...);
+   // }
+
+   // // at least one container argument
+   // template <typename... Xs, std::enable_if_t<Disjunction<IsDataContainer<Xs>...>::value, int> = 0>
+   // auto Exec(unsigned int slot, const Xs &...xs) -> decltype(fObject->Fill(*MakeBegin(xs)...), void())
+   // {
+   //    // array of bools keeping track of which inputs are containers
+   //    constexpr std::array<bool, sizeof...(Xs)> isContainer{IsDataContainer<Xs>::value...};
+
+   //    // index of the first container input
+   //    constexpr std::size_t colidx = FindIdxTrue(isContainer);
+   //    // if this happens, there is a bug in the implementation
+   //    static_assert(colidx < sizeof...(Xs), "Error: index of collection-type argument not found.");
+
+   //    // get the end iterator to the first container
+   //    auto const xrefend = std::end(GetNthElement<colidx>(xs...));
+
+   //    // array of container sizes (1 for scalars)
+   //    std::array<std::size_t, sizeof...(xs)> sizes = {{GetSize(xs)...}};
+
+   //    for (std::size_t i = 0; i < sizeof...(xs); ++i) {
+   //       if (isContainer[i] && sizes[i] != sizes[colidx]) {
+   //          throw std::runtime_error("Cannot fill histogram with values in containers of different sizes.");
+   //       }
+   //    }
+
+   //    ExecLoop<colidx>(slot, xrefend, MakeBegin(xs)...);
+   // }
+
+   // Bulk overload
+   template <typename... ValTypes>
+   auto Exec(const ROOT::RDF::Experimental::REventMask &m, const ValTypes &...x)
    {
-      if constexpr (sizeof...(ValTypes) > dim)
-         FillWithWeight<dim + 1>(slot, {((double)x)...});
-      else
-         FillWithoutWeight(slot, x...);
-      return;
-
-      fObject->Fill(x...);
-   }
-
-   // at least one container argument
-   template <typename... Xs, std::enable_if_t<Disjunction<IsDataContainer<Xs>...>::value, int> = 0>
-   auto Exec(unsigned int slot, const Xs &...xs) -> decltype(fObject->Fill(*MakeBegin(xs)...), void())
-   {
-      // array of bools keeping track of which inputs are containers
-      constexpr std::array<bool, sizeof...(Xs)> isContainer{IsDataContainer<Xs>::value...};
-
-      // index of the first container input
-      constexpr std::size_t colidx = FindIdxTrue(isContainer);
-      // if this happens, there is a bug in the implementation
-      static_assert(colidx < sizeof...(Xs), "Error: index of collection-type argument not found.");
-
-      // get the end iterator to the first container
-      auto const xrefend = std::end(GetNthElement<colidx>(xs...));
-
-      // array of container sizes (1 for scalars)
-      std::array<std::size_t, sizeof...(xs)> sizes = {{GetSize(xs)...}};
-
-      for (std::size_t i = 0; i < sizeof...(xs); ++i) {
-         if (isContainer[i] && sizes[i] != sizes[colidx]) {
-            throw std::runtime_error("Cannot fill histogram with values in containers of different sizes.");
-         }
-      }
-
-      ExecLoop<colidx>(slot, xrefend, MakeBegin(xs)...);
+      const auto bulkSize = m.Size();
+      fSYCLHist->Fill(x...);
    }
 
    template <typename T = HIST>

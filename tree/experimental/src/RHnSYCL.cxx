@@ -336,28 +336,41 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(std::array<int, Dim> ncells, std::array<dou
 }
 
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
-void RHnSYCL<T, Dim, WGroupSize>::Fill(const std::array<double, Dim> &coords, double w)
+void RHnSYCL<T, Dim, WGroupSize>::Fill(const RVecD &coords)
 {
-   auto bufferIdx = fEntries % fBufferSize;
+   auto bulkSize = coords.size() / Dim;
 
    // Add the coordinates and weight to the buffers
    {
-      sycl::host_accessor coordsAcc{*fBCoords, sycl::range<1>(Dim), sycl::id{bufferIdx * Dim}, sycl::write_only,
-                                    sycl::no_init};
-      sycl::host_accessor weightsAcc{*fBWeights, sycl::range<1>(1), sycl::id{bufferIdx}, sycl::write_only,
-                                     sycl::no_init};
-      for (unsigned int i = 0; i < Dim; i++) {
-         coordsAcc[i] = coords[i];
-      }
-      weightsAcc[0] = w;
+      sycl::host_accessor coordsAcc{*fBCoords, sycl::write_only, sycl::no_init};
+      sycl::host_accessor weightsAcc{*fBWeights, sycl::write_only, sycl::no_init};
+      std::copy(coords.begin(), coords.end(), coordsAcc.get_pointer());
+      std::fill(weightsAcc.get_pointer(), weightsAcc.get_pointer() + bulkSize, 1);
    }
 
-   // Only execute when a certain number of values are buffered to increase the GPU workload and decrease the
-   // frequency of kernel launches.
-   fEntries++;
-   if (fEntries % fBufferSize == 0) {
-      ExecuteSYCLHisto();
+   fEntries += bulkSize;
+
+   // The histogram kernels execute asynchronously.
+   ExecuteSYCLHisto(bulkSize);
+}
+
+template <typename T, unsigned int Dim, unsigned int WGroupSize>
+void RHnSYCL<T, Dim, WGroupSize>::Fill(const RVecD &coords, const RVecD &weights)
+{
+   auto bulkSize = weights.size();
+
+   // Add the coordinates and weight to the buffers
+   {
+      sycl::host_accessor coordsAcc{*fBCoords, sycl::write_only, sycl::no_init};
+      sycl::host_accessor weightsAcc{*fBWeights, sycl::write_only, sycl::no_init};
+      std::copy(coords.begin(), coords.end(), coordsAcc.get_pointer());
+      std::copy(weights.begin(), weights.end(), weightsAcc.get_pointer());
    }
+
+   fEntries += bulkSize;
+
+   // The histogram kernels execute asynchronously.
+   ExecuteSYCLHisto(bulkSize);
 }
 
 unsigned int nextPow2(unsigned int x)
@@ -442,10 +455,8 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(unsigned int size)
 }
 
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
-void RHnSYCL<T, Dim, WGroupSize>::ExecuteSYCLHisto()
+void RHnSYCL<T, Dim, WGroupSize>::ExecuteSYCLHisto(int size)
 {
-   unsigned int size = (fEntries - 1) % fBufferSize + 1;
-
    if (fHistoSmemSize > fMaxSmemSize) {
       queue.submit([&](sycl::handler &cgh) {
          // Get handles to SYCL buffers.
@@ -486,11 +497,6 @@ void RHnSYCL<T, Dim, WGroupSize>::ExecuteSYCLHisto()
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
 void RHnSYCL<T, Dim, WGroupSize>::RetrieveResults(T *histResult, double *statsResult)
 {
-   // Fill the histogram with remaining values in the buffer.
-   if (fEntries % fBufferSize != 0) {
-      ExecuteSYCLHisto();
-   }
-
    queue.copy(sycl::accessor{*fBHistogram, sycl::read_only}, histResult);
    queue.copy(sycl::accessor{*fBStats, sycl::read_only}, statsResult);
    queue.wait();

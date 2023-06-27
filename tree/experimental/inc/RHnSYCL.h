@@ -5,6 +5,7 @@
 #include <optional>
 #include <sycl/sycl.hpp>
 #include "AxisDescriptor.h"
+#include "ROOT/RVec.hxx"
 
 namespace ROOT {
 namespace Experimental {
@@ -62,12 +63,14 @@ public:
 
    void RetrieveResults(T *histResult, double *statsResult);
 
-   void Fill(const std::array<double, Dim> &coords, double w = 1.);
+   void Fill(const RVecD &coords);
+
+   void Fill(const RVecD &coords, const RVecD &weights);
 
 private:
    void GetStats(unsigned int size);
 
-   void ExecuteSYCLHisto();
+   void ExecuteSYCLHisto(int size);
 };
 
 } // namespace Experimental
