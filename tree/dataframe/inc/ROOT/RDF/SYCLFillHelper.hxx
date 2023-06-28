@@ -96,15 +96,23 @@ class R__CLING_PTRCHECK(off) SYCLFillHelper : public RActionImpl<SYCLFillHelper<
 
    // Bulk fill overloads
    // TODO: masking on GPU?
-   // TODO: make a more generic Fill with template magic
-
-   // 1D
-   void FillWithoutWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x)
+   template <typename... ValTypes>
+   void FillWithoutWeight(const ROOT::RDF::Experimental::REventMask &m, const ValTypes &...x)
    {
-      int i = 0;
-      fSYCLHist->Fill(Filter(x, [&](int e) { return m[i++]; }));
+      RVecD coords;
+      for (std::size_t i = 0ul; i < m.Size(); ++i) {
+         if (m[i]) {
+            // Converts separate arrays for coordinates in each dimension RVec(x1, x2, ...), RVec(y1, y2, ...), RVec(z1,
+            // z2, ...), ... into a single RVec in the form of RVec(x1, y1, z1, x2, y2, z2, ....)
+            (coords.emplace_back(x[i]), ...);
+         }
+      }
+
+      fSYCLHist->Fill(coords);
    }
 
+   // TODO: make a more generic Fill with template magic
+   // 1D
    void FillWithWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &w)
    {
       RVecD maskedX, maskedW;
@@ -119,19 +127,6 @@ class R__CLING_PTRCHECK(off) SYCLFillHelper : public RActionImpl<SYCLFillHelper<
    }
 
    // 2D
-   void FillWithoutWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &y)
-   {
-      RVecD coords;
-      for (std::size_t i = 0ul; i < m.Size(); ++i) {
-         if (m[i]) {
-            coords.emplace_back(x[i]);
-            coords.emplace_back(y[i]);
-         }
-      }
-
-      fSYCLHist->Fill(coords);
-   }
-
    void FillWithWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &y, const RVecD &w)
    {
       RVecD coords, maskedW;
@@ -147,20 +142,6 @@ class R__CLING_PTRCHECK(off) SYCLFillHelper : public RActionImpl<SYCLFillHelper<
    }
 
    // 3D
-   void FillWithoutWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &y, const RVecD &z)
-   {
-      RVecD coords;
-      for (std::size_t i = 0ul; i < m.Size(); ++i) {
-         if (m[i]) {
-            coords.emplace_back(x[i]);
-            coords.emplace_back(y[i]);
-            coords.emplace_back(z[i]);
-         }
-      }
-
-      fSYCLHist->Fill(coords);
-   }
-
    void FillWithWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &y, const RVecD &z,
                        const RVecD &w)
    {
@@ -317,7 +298,6 @@ public:
    template <typename... ValTypes>
    auto Exec(const ROOT::RDF::Experimental::REventMask &m, const ValTypes &...x)
    {
-      const auto bulkSize = m.Size();
       if constexpr (sizeof...(ValTypes) > dim)
          FillWithWeight(m, x...);
       else
@@ -344,7 +324,7 @@ public:
       fSYCLHist->RetrieveResults(h->GetArray(), stats);
       h->SetStatsData(stats);
       h->SetEntries(fSYCLHist->GetEntries());
-      // printf("%d %d??\n", fObjects[i]->GetArray()->size(), fObjects[i]->GetXaxis()->GetNbins());
+
       if (getenv("DBG")) {
          printf("sycl stats:");
          for (int j = 0; j < 13; j++) {
