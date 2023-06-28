@@ -94,6 +94,89 @@ class R__CLING_PTRCHECK(off) SYCLFillHelper : public RActionImpl<SYCLFillHelper<
 
    void UnsetDirectoryIfPossible(...) {}
 
+   // Bulk fill overloads
+   // TODO: masking on GPU?
+   // TODO: make a more generic Fill with template magic
+
+   // 1D
+   void FillWithoutWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x)
+   {
+      int i = 0;
+      fSYCLHist->Fill(Filter(x, [&](int e) { return m[i++]; }));
+   }
+
+   void FillWithWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &w)
+   {
+      RVecD maskedX, maskedW;
+      for (std::size_t i = 0ul; i < m.Size(); ++i) {
+         if (m[i]) {
+            maskedX.emplace_back(x[i]);
+            maskedW.emplace_back(w[i]);
+         }
+      }
+
+      fSYCLHist->Fill(maskedX, maskedW);
+   }
+
+   // 2D
+   void FillWithoutWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &y)
+   {
+      RVecD coords;
+      for (std::size_t i = 0ul; i < m.Size(); ++i) {
+         if (m[i]) {
+            coords.emplace_back(x[i]);
+            coords.emplace_back(y[i]);
+         }
+      }
+
+      fSYCLHist->Fill(coords);
+   }
+
+   void FillWithWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &y, const RVecD &w)
+   {
+      RVecD coords, maskedW;
+      for (std::size_t i = 0ul; i < m.Size(); ++i) {
+         if (m[i]) {
+            coords.emplace_back(x[i]);
+            coords.emplace_back(y[i]);
+            maskedW.emplace_back(w[i]);
+         }
+      }
+
+      fSYCLHist->Fill(coords, maskedW);
+   }
+
+   // 3D
+   void FillWithoutWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &y, const RVecD &z)
+   {
+      RVecD coords;
+      for (std::size_t i = 0ul; i < m.Size(); ++i) {
+         if (m[i]) {
+            coords.emplace_back(x[i]);
+            coords.emplace_back(y[i]);
+            coords.emplace_back(z[i]);
+         }
+      }
+
+      fSYCLHist->Fill(coords);
+   }
+
+   void FillWithWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &y, const RVecD &z,
+                       const RVecD &w)
+   {
+      RVecD coords, maskedW;
+      for (std::size_t i = 0ul; i < m.Size(); ++i) {
+         if (m[i]) {
+            coords.emplace_back(x[i]);
+            coords.emplace_back(y[i]);
+            coords.emplace_back(z[i]);
+            maskedW.emplace_back(w[i]);
+         }
+      }
+
+      fSYCLHist->Fill(coords, maskedW);
+   }
+
    // Merge overload for types with Merge(TCollection*), like TH1s
    template <typename H, typename = std::enable_if_t<std::is_base_of<TObject, H>::value, int>>
    auto Merge(std::vector<H *> &objs, int /*toincreaseoverloadpriority*/)
@@ -229,49 +312,16 @@ public:
 
    void InitTask(TTreeReader *, unsigned int) {}
 
-   // Non-bulk overloads
-   // template <typename... ValTypes, std::enable_if_t<!Disjunction<IsDataContainer<ValTypes>...>::value, int> = 0>
-   // auto Exec(unsigned int slot, const ValTypes &...x)
-   // {
-   //    if constexpr (sizeof...(ValTypes) > dim)
-   //       FillWithWeight<dim + 1>(slot, {((double)x)...});
-   //    else
-   //       FillWithoutWeight(slot, x...);
-   // }
-
-   // // at least one container argument
-   // template <typename... Xs, std::enable_if_t<Disjunction<IsDataContainer<Xs>...>::value, int> = 0>
-   // auto Exec(unsigned int slot, const Xs &...xs) -> decltype(fObject->Fill(*MakeBegin(xs)...), void())
-   // {
-   //    // array of bools keeping track of which inputs are containers
-   //    constexpr std::array<bool, sizeof...(Xs)> isContainer{IsDataContainer<Xs>::value...};
-
-   //    // index of the first container input
-   //    constexpr std::size_t colidx = FindIdxTrue(isContainer);
-   //    // if this happens, there is a bug in the implementation
-   //    static_assert(colidx < sizeof...(Xs), "Error: index of collection-type argument not found.");
-
-   //    // get the end iterator to the first container
-   //    auto const xrefend = std::end(GetNthElement<colidx>(xs...));
-
-   //    // array of container sizes (1 for scalars)
-   //    std::array<std::size_t, sizeof...(xs)> sizes = {{GetSize(xs)...}};
-
-   //    for (std::size_t i = 0; i < sizeof...(xs); ++i) {
-   //       if (isContainer[i] && sizes[i] != sizes[colidx]) {
-   //          throw std::runtime_error("Cannot fill histogram with values in containers of different sizes.");
-   //       }
-   //    }
-
-   //    ExecLoop<colidx>(slot, xrefend, MakeBegin(xs)...);
-   // }
-
    // Bulk overload
+   // TODO: Fill with containers
    template <typename... ValTypes>
    auto Exec(const ROOT::RDF::Experimental::REventMask &m, const ValTypes &...x)
    {
       const auto bulkSize = m.Size();
-      fSYCLHist->Fill(x...);
+      if constexpr (sizeof...(ValTypes) > dim)
+         FillWithWeight(m, x...);
+      else
+         FillWithoutWeight(m, x...);
    }
 
    template <typename T = HIST>
@@ -301,16 +351,15 @@ public:
             printf("%f ", stats[j]);
          }
          printf(" %f\n", fObject->GetEntries());
-      }
 
-      if (getenv("DBG")) {
          fObject->GetStats(stats);
          printf("stats:");
          for (int j = 0; j < 13; j++) {
             printf("%f ", stats[j]);
          }
+
          printf(" %f\n", fObject->GetEntries());
-         if (getenv("DBG") && atoi(getenv("DBG")) > 1) {
+         if (atoi(getenv("DBG")) > 1) {
 
             printf("histogram:");
             for (int j = 0; j < fObject->GetNcells(); ++j) {

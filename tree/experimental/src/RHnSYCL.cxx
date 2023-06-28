@@ -338,20 +338,8 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(std::array<int, Dim> ncells, std::array<dou
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
 void RHnSYCL<T, Dim, WGroupSize>::Fill(const RVecD &coords)
 {
-   auto bulkSize = coords.size() / Dim;
-
-   // Add the coordinates and weight to the buffers
-   {
-      sycl::host_accessor coordsAcc{*fBCoords, sycl::write_only, sycl::no_init};
-      sycl::host_accessor weightsAcc{*fBWeights, sycl::write_only, sycl::no_init};
-      std::copy(coords.begin(), coords.end(), coordsAcc.get_pointer());
-      std::fill(weightsAcc.get_pointer(), weightsAcc.get_pointer() + bulkSize, 1);
-   }
-
-   fEntries += bulkSize;
-
-   // The histogram kernels execute asynchronously.
-   ExecuteSYCLHisto(bulkSize);
+   RVecD weights(coords.size() / Dim, 1);
+   Fill(coords, weights);
 }
 
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
