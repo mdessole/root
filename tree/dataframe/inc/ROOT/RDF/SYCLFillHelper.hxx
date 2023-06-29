@@ -96,66 +96,30 @@ class R__CLING_PTRCHECK(off) SYCLFillHelper : public RActionImpl<SYCLFillHelper<
 
    // Bulk fill overloads
    // TODO: masking on GPU?
-   template <typename... ValTypes>
-   void FillWithoutWeight(const ROOT::RDF::Experimental::REventMask &m, const ValTypes &...x)
+   template <std::size_t... Is, typename... ValTypes>
+   void Fill(const ROOT::RDF::Experimental::REventMask &m, std::index_sequence<Is...>, const ValTypes &...x)
    {
       RVecD coords;
+      coords.reserve(m.Size() * dim);
+      [[maybe_unused]] RVecD weights;
+      if constexpr (sizeof...(ValTypes) > dim)
+         weights.reserve(m.Size());
+
       for (std::size_t i = 0ul; i < m.Size(); ++i) {
          if (m[i]) {
-            // Converts separate arrays for coordinates in each dimension RVec(x1, x2, ...), RVec(y1, y2, ...), RVec(z1,
-            // z2, ...), ... into a single RVec in the form of RVec(x1, y1, z1, x2, y2, z2, ....)
-            (coords.emplace_back(x[i]), ...);
+            // Converts the arrays in the parameter pack x for coordinates in each dimension,
+            // RVec(x1, x2, ...), RVec(y1, y2, ...), RVec(z1, z2, ...), ... into a single RVec in the form of
+            // RVec(x1, y1, z1, x2, y2, z2, ....)
+            // The parameter pack x may or may not include a vector containing the weights as the last element
+            // which needs to be placed in the weights array.
+            ((Is < dim ? coords : weights).emplace_back(x[i]), ...);
          }
       }
 
-      fSYCLHist->Fill(coords);
-   }
-
-   // TODO: make a more generic Fill with template magic
-   // 1D
-   void FillWithWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &w)
-   {
-      RVecD maskedX, maskedW;
-      for (std::size_t i = 0ul; i < m.Size(); ++i) {
-         if (m[i]) {
-            maskedX.emplace_back(x[i]);
-            maskedW.emplace_back(w[i]);
-         }
-      }
-
-      fSYCLHist->Fill(maskedX, maskedW);
-   }
-
-   // 2D
-   void FillWithWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &y, const RVecD &w)
-   {
-      RVecD coords, maskedW;
-      for (std::size_t i = 0ul; i < m.Size(); ++i) {
-         if (m[i]) {
-            coords.emplace_back(x[i]);
-            coords.emplace_back(y[i]);
-            maskedW.emplace_back(w[i]);
-         }
-      }
-
-      fSYCLHist->Fill(coords, maskedW);
-   }
-
-   // 3D
-   void FillWithWeight(const ROOT::RDF::Experimental::REventMask &m, const RVecD &x, const RVecD &y, const RVecD &z,
-                       const RVecD &w)
-   {
-      RVecD coords, maskedW;
-      for (std::size_t i = 0ul; i < m.Size(); ++i) {
-         if (m[i]) {
-            coords.emplace_back(x[i]);
-            coords.emplace_back(y[i]);
-            coords.emplace_back(z[i]);
-            maskedW.emplace_back(w[i]);
-         }
-      }
-
-      fSYCLHist->Fill(coords, maskedW);
+      if constexpr (sizeof...(ValTypes) > dim)
+         fSYCLHist->Fill(coords, weights);
+      else
+         fSYCLHist->Fill(coords);
    }
 
    // Merge overload for types with Merge(TCollection*), like TH1s
@@ -298,10 +262,7 @@ public:
    template <typename... ValTypes>
    auto Exec(const ROOT::RDF::Experimental::REventMask &m, const ValTypes &...x)
    {
-      if constexpr (sizeof...(ValTypes) > dim)
-         FillWithWeight(m, x...);
-      else
-         FillWithoutWeight(m, x...);
+      Fill(m, std::index_sequence_for<ValTypes...>{}, x...);
    }
 
    template <typename T = HIST>
