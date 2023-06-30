@@ -264,14 +264,9 @@ private:
 /// RHnSYCL
 
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
-RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(std::array<int, Dim> ncells, std::array<double, Dim> xlow,
-                                     std::array<double, Dim> xhigh, const double **binEdges)
+RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(const std::array<int, Dim> &ncells, const std::array<double, Dim> &xlow,
+                                     const std::array<double, Dim> &xhigh, const double **binEdges)
    : queue(sycl::default_selector{}, SYCLHelpers::exception_handler),
-     kNStats([]() {
-        // Sum of weights (squared) + sum of weight * bin (squared) per axis + sum of weight * binAx1 * binAx2 for
-        // all axis combinations
-        return Dim > 1 ? 2 + 2 * Dim + TMath::Binomial(Dim, 2) : 2 + 2 * Dim;
-     }()),
      kStatsSmemSize((WGroupSize <= 32) ? 2 * WGroupSize * sizeof(double) : WGroupSize * sizeof(double))
 {
    auto device = queue.get_device();

@@ -12,9 +12,12 @@ namespace Experimental {
 
 template <typename T, unsigned int Dim, unsigned int WGroupSize = 256>
 class RHnSYCL {
+private:
    // B = SYCL buffer
    // S = SYCL USM shared pointer
-   // D = SYCL USM dev8ice pointer
+   // D = SYCL USM device pointer
+
+   static constexpr int kNStats = 2 + Dim * 2 + Dim * (Dim - 1) / 2; ///< Number of statistics.
 
    // clang-format off
    sycl::queue                                     queue;
@@ -30,7 +33,6 @@ class RHnSYCL {
    std::optional<sycl::buffer<int, 1>>             fBBins;             ///< Pointer to array of bins (corresponding to the coordinates) to fill on the GPU.
 
    int                                             fEntries;           ///< Number of entries that have been filled.
-   const int                                       kNStats;            ///< Number of statistics.
    std::optional<sycl::buffer<double, 1>>          fBStats;            ///< Pointer to statistics array on GPU.
    double                                         *fDIntermediateStats;///< Pointer to statistics array on GPU.
 
@@ -45,7 +47,7 @@ class RHnSYCL {
 public:
    RHnSYCL() = delete;
 
-   RHnSYCL(std::array<int, Dim> ncells, std::array<double, Dim> xlow, std::array<double, Dim> xhigh,
+   RHnSYCL(const std::array<int, Dim> &ncells, const std::array<double, Dim> &xlow, const std::array<double, Dim> &xhigh,
            const double **binEdges = NULL);
 
    ~RHnSYCL()

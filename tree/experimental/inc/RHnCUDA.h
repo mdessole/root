@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 #include "AxisDescriptor.h"
+#include "ROOT/RVec.hxx"
 
 namespace ROOT {
 namespace Experimental {
@@ -12,10 +13,11 @@ template <typename T, unsigned int Dim, unsigned int BlockSize = 256>
 class RHnCUDA {
    // clang-format off
 private:
+   static constexpr int kNStats = 2 + Dim * 2 + Dim * (Dim - 1) / 2; ///< Number of statistics.
+
    T                                *fDHistogram;         ///< Pointer to histogram buffer on the GPU.
    int                               fNbins;              ///< Total number of bins in the histogram WITH under/overflow
 
-   const int                         kNStats;             ///< Number of statistics.
    std::array<AxisDescriptor, Dim>   fHAxes;              ///< Vector of Dim axis descriptors
    AxisDescriptor                   *fDAxes;              ///< Pointer to axis descriptors on the GPU.
 
@@ -54,12 +56,14 @@ public:
 
    void RetrieveResults(T *histResult, double *statsResult);
 
-   void Fill(const std::array<double, Dim> &coords, double w = 1.);
+   void Fill(const RVecD &coords);
+
+   void Fill(const RVecD &coords, const RVecD &weights);
 
 protected:
    void GetStats(unsigned int size);
 
-   void ExecuteCUDAHisto();
+   void ExecuteCUDAHisto(unsigned int size);
 };
 
 } // namespace Experimental

@@ -3,6 +3,7 @@
 #include "CUDAHelpers.cuh"
 #include "TError.h"
 #include "TMath.h"
+#include "ROOT/RVec.hxx"
 
 #include <thrust/functional.h>
 #include <array>
@@ -254,12 +255,7 @@ __global__ void ExcludeUOverflowKernel(int *bins, double *weights, unsigned int 
 template <typename T, unsigned int Dim, unsigned int BlockSize>
 RHnCUDA<T, Dim, BlockSize>::RHnCUDA(std::array<int, Dim> ncells, std::array<double, Dim> xlow,
                                     std::array<double, Dim> xhigh, const double **binEdges)
-   : kNStats([]() {
-        // Sum of weights (squared) + sum of weight * bin (squared) per axis + sum of weight * binAx1 * binAx2 for
-        // all axis combinations
-        return Dim > 1 ? 2 + 2 * Dim + TMath::Binomial(Dim, 2) : 2 + 2 * Dim;
-     }()),
-     kStatsSmemSize((BlockSize <= 32) ? 2 * BlockSize * sizeof(double) : BlockSize * sizeof(double))
+   : kStatsSmemSize((BlockSize <= 32) ? 2 * BlockSize * sizeof(double) : BlockSize * sizeof(double))
 {
    fBufferSize = 10000;
 
@@ -343,18 +339,22 @@ void RHnCUDA<T, Dim, BlockSize>::AllocateBuffers()
 }
 
 template <typename T, unsigned int Dim, unsigned int BlockSize>
-void RHnCUDA<T, Dim, BlockSize>::Fill(const std::array<double, Dim> &coords, double w)
+void RHnCUDA<T, Dim, BlockSize>::Fill(const RVecD &coords)
 {
-   auto bufferIdx = fEntries % fBufferSize;
-   std::copy(coords.begin(), coords.end(), &fHCoords[bufferIdx * Dim]);
-   fHWeights[bufferIdx] = w;
+   RVecD weights(coords.size() / Dim, 1);
+   Fill(coords, weights);
+}
 
-   // Only execute when a certain number of values are buffered to increase the GPU workload and decrease the
-   // frequency of kernel launches.
-   fEntries++;
-   if (fEntries % fBufferSize == 0) {
-      ExecuteCUDAHisto();
-   }
+template <typename T, unsigned int Dim, unsigned int BlockSize>
+void RHnCUDA<T, Dim, BlockSize>::Fill(const RVecD &coords, const RVecD &weights)
+{
+   auto bulkSize = weights.size();
+
+   std::copy(coords.begin(), coords.end(), fHCoords.begin());
+   std::copy(weights.begin(), weights.end(), fHWeights.begin());
+
+   fEntries += bulkSize;
+   ExecuteCUDAHisto(bulkSize);
 }
 
 unsigned int nextPow2(unsigned int x)
@@ -430,9 +430,8 @@ void RHnCUDA<T, Dim, BlockSize>::GetStats(unsigned int size)
 }
 
 template <typename T, unsigned int Dim, unsigned int BlockSize>
-void RHnCUDA<T, Dim, BlockSize>::ExecuteCUDAHisto()
+void RHnCUDA<T, Dim, BlockSize>::ExecuteCUDAHisto(unsigned int size)
 {
-   unsigned int size = (fEntries - 1) % fBufferSize + 1;
    int numBlocks = size % BlockSize == 0 ? size / BlockSize : size / BlockSize + 1;
 
    fEntries += size;
@@ -450,19 +449,11 @@ void RHnCUDA<T, Dim, BlockSize>::ExecuteCUDAHisto()
    ERRCHECK(cudaPeekAtLastError());
 
    GetStats(size);
-
-   fHCoords.clear();
-   fHWeights.clear();
 }
 
 template <typename T, unsigned int Dim, unsigned int BlockSize>
 void RHnCUDA<T, Dim, BlockSize>::RetrieveResults(T *histResult, double *statsResult)
 {
-   // Fill the histogram with remaining values in the buffer.
-   if (fEntries % fBufferSize != 0) {
-      ExecuteCUDAHisto();
-   }
-
    // Copy back results from GPU to CPU.
    ERRCHECK(cudaMemcpy(histResult, fDHistogram, fNbins * sizeof(T), cudaMemcpyDeviceToHost));
    ERRCHECK(cudaMemcpy(statsResult, fDStats, kNStats * sizeof(double), cudaMemcpyDeviceToHost));
