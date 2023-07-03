@@ -49,14 +49,13 @@ inline int FindFixBin(double x, double *binEdges, int binEdgesIdx, int nBins, do
 }
 
 template <unsigned int Dim>
-inline int GetBin(int i, AxisDescriptor *axes, double *coords, int *bins, double *binEdges)
+inline int GetBin(int tid, AxisDescriptor *axes, double *coords, unsigned int nCoords, int *bins, double *binEdges)
 {
-   auto *x = &coords[i * Dim];
-
    auto bin = 0;
    for (int d = Dim - 1; d >= 0; d--) {
-      auto binD = FindFixBin(x[d], binEdges, axes[d].binEdgesIdx, axes[d].fNbins - 2, axes[d].fMin, axes[d].fMax);
-      bins[i * Dim + d] = binD;
+      auto *x = &coords[d * nCoords];
+      auto binD = FindFixBin(x[tid], binEdges, axes[d].binEdgesIdx, axes[d].fNbins - 2, axes[d].fMin, axes[d].fMax);
+      bins[d * nCoords + tid] = binD;
 
       if (binD < 0) {
          return -1;
@@ -161,7 +160,8 @@ public:
    void operator()(sycl::item<1> item) const
    {
       size_t id = item.get_linear_id();
-      auto bin = GetBin<Dim>(id, axesAcc.get_pointer(), coordsAcc.get_pointer(), binsAcc.get_pointer(), binEdges);
+      auto bin = GetBin<Dim>(id, axesAcc.get_pointer(), coordsAcc.get_pointer(), weightsAcc.size(),
+                             binsAcc.get_pointer(), binEdges);
 
       if (bin >= 0) {
          AddBinContent<sycl::access::address_space::global_space>(histogramAcc, bin, weightsAcc[id]);
@@ -204,7 +204,7 @@ public:
 
       for (auto i = globalId; i < nCoords; i += stride) {
          // Fill local histogram
-         auto bin = GetBin<Dim>(i, this->axesAcc.get_pointer(), this->coordsAcc.get_pointer(),
+         auto bin = GetBin<Dim>(i, this->axesAcc.get_pointer(), this->coordsAcc.get_pointer(), this->weightsAcc.size(),
                                 this->binsAcc.get_pointer(), this->binEdges);
 
          if (bin >= 0) {
@@ -236,8 +236,9 @@ public:
 
    void operator()(sycl::id<1> id) const
    {
-      if (binsAcc[id] <= 0 || binsAcc[id] >= axesAcc[id % Dim].fNbins - 1) {
-         weightsAcc[id / Dim] = 0.;
+      auto size = weightsAcc.size();
+      if (binsAcc[id] <= 0 || binsAcc[id] >= axesAcc[id / size].fNbins - 1) {
+         weightsAcc[id % size ] = 0.;
       }
    }
 
@@ -405,8 +406,8 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(unsigned int size)
 
          cgh.parallel_for(sycl::range<1>(size), GetSumWAxis, GetSumWAxis2,
                           [=](sycl::id<1> id, auto &sumwaxis, auto &sumwaxis2) {
-                             sumwaxis += weightsAcc[id] * coordsAcc[id * Dim + d];
-                             sumwaxis2 += weightsAcc[id] * coordsAcc[id * Dim + d] * coordsAcc[id * Dim + d];
+                             sumwaxis += weightsAcc[id] * coordsAcc[d * size + id];
+                             sumwaxis2 += weightsAcc[id] * coordsAcc[d * size + id] * coordsAcc[d * size + id];
                           });
       }));
 
@@ -420,7 +421,7 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(unsigned int size)
             auto GetSumWAxisAxis = sycl::reduction(&fDIntermediateStats[offset++], sycl::plus<double>());
 
             cgh.parallel_for(sycl::range<1>(size), GetSumWAxisAxis, [=](sycl::id<1> id, auto &sumwaxisaxis) {
-               sumwaxisaxis += weightsAcc[id] * coordsAcc[id * Dim + d] * coordsAcc[id * Dim + prev_d];
+               sumwaxisaxis += weightsAcc[id] * coordsAcc[d * size + id] * coordsAcc[prev_d * size + id];
             });
          }));
       }

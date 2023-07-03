@@ -37,14 +37,13 @@ __device__ inline int FindFixBin(double x, const double *binEdges, int nBins, do
 
 // Use Horner's method to calculate the bin in an n-Dimensional array.
 template <unsigned int Dim>
-__device__ inline int GetBin(int i, AxisDescriptor *axes, double *coords, int *bins)
+__device__ inline int GetBin(int tid, AxisDescriptor *axes, double *coords, unsigned int  nCoords, int *bins)
 {
-   auto *x = &coords[i * Dim];
-
    auto bin = 0;
    for (int d = Dim - 1; d >= 0; d--) {
-      auto binD = FindFixBin(x[d], axes[d].kBinEdges, axes[d].fNbins - 2, axes[d].fMin, axes[d].fMax);
-      bins[i * Dim + d] = binD;
+      auto *x = &coords[d * nCoords];
+      auto binD = FindFixBin(x[tid], axes[d].kBinEdges, axes[d].fNbins - 2, axes[d].fMin, axes[d].fMax);
+      bins[d * nCoords + tid] = binD;
 
       if (binD < 0) {
          return -1;
@@ -133,7 +132,7 @@ __device__ inline void AddBinContent(int *histogram, int bin, double weight)
 
 template <typename T, unsigned int Dim>
 __global__ void HistoKernel(T *histogram, AxisDescriptor *axes, int nBins, double *coords, int *bins, double *weights,
-                            unsigned int bufferSize)
+                            unsigned int bulkSize)
 {
    auto sMem = CUDAHelpers::shared_memory_proxy<T>();
    unsigned int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -147,8 +146,8 @@ __global__ void HistoKernel(T *histogram, AxisDescriptor *axes, int nBins, doubl
    __syncthreads();
 
    // Fill local histogram
-   for (auto i = tid; i < bufferSize; i += stride) {
-      auto bin = GetBin<Dim>(i, axes, coords, bins);
+   for (auto i = tid; i < bulkSize; i += stride) {
+      auto bin = GetBin<Dim>(i, axes, coords, bulkSize, bins);
       if (bin >= 0)
          AddBinContent<T>(sMem, bin, weights[i]);
    }
@@ -164,14 +163,14 @@ __global__ void HistoKernel(T *histogram, AxisDescriptor *axes, int nBins, doubl
 // OPTIMIZATION: consider sorting the coords array.
 template <typename T, unsigned int Dim>
 __global__ void HistoKernelGlobal(T *histogram, AxisDescriptor *axes, int nBins, double *coords, int *bins,
-                                  double *weights, unsigned int bufferSize)
+                                  double *weights, unsigned int bulkSize)
 {
    unsigned int tid = threadIdx.x + blockDim.x * blockIdx.x;
    unsigned int stride = blockDim.x * gridDim.x;
 
    // Fill histogram
-   for (auto i = tid; i < bufferSize; i += stride) {
-      auto bin = GetBin<Dim>(i, axes, coords, bins);
+   for (auto i = tid; i < bulkSize; i += stride) {
+      auto bin = GetBin<Dim>(i, axes, coords, bulkSize, bins);
       if (bin >= 0)
          AddBinContent<T>(histogram, bin, weights[i]);
    }
@@ -205,7 +204,7 @@ GetSumWAxis(int axis, int is_offset, double *coords, double *weights, unsigned i
 {
    CUDAHelpers::ReduceBase<BlockSize>(
       weights, &fDIntermediateStats[is_offset], nCoords,
-      [&coords, &axis](unsigned int i, double r, double w) { return r + w * coords[i * Dim + axis]; },
+      [&](unsigned int i, double r, double w) { return r + w * coords[axis * nCoords + i]; },
       CUDAHelpers::Plus<double>(), 0.);
 }
 
@@ -216,8 +215,8 @@ __global__ void GetSumWAxis2(int axis, int is_offset, double *coords, double *we
 {
    CUDAHelpers::ReduceBase<BlockSize>(
       weights, &fDIntermediateStats[is_offset], nCoords,
-      [&coords, &axis](unsigned int i, double r, double w) {
-         return r + w * coords[i * Dim + axis] * coords[i * Dim + axis];
+      [&](unsigned int i, double r, double w) {
+         return r + w * coords[axis * nCoords + i] * coords[axis * nCoords + i];
       },
       CUDAHelpers::Plus<double>(), 0.);
 }
@@ -229,8 +228,8 @@ __global__ void GetSumWAxisAxis(int axis1, int axis2, int is_offset, double *coo
 {
    CUDAHelpers::ReduceBase<BlockSize>(
       weights, &fDIntermediateStats[is_offset], nCoords,
-      [&coords, &axis1, &axis2](unsigned int i, double r, double w) {
-         return r + w * coords[i * Dim + axis1] * coords[i * Dim + axis2];
+      [&](unsigned int i, double r, double w) {
+         return r + w * coords[axis1 * nCoords + i] * coords[axis2 * nCoords + i];
       },
       CUDAHelpers::Plus<double>(), 0.);
 }
@@ -243,8 +242,8 @@ __global__ void ExcludeUOverflowKernel(int *bins, double *weights, unsigned int 
    unsigned int stride = blockDim.x * gridDim.x;
 
    for (auto i = tid; i < nCoords * Dim; i += stride) {
-      if (bins[i] <= 0 || bins[i] >= axes[i % Dim].fNbins - 1) {
-         weights[i / Dim] = 0.;
+      if (bins[i] <= 0 || bins[i] >= axes[i / nCoords].fNbins - 1) {
+         weights[i % nCoords] = 0.;
       }
    }
 }

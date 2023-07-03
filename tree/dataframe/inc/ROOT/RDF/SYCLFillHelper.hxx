@@ -105,16 +105,19 @@ class R__CLING_PTRCHECK(off) SYCLFillHelper : public RActionImpl<SYCLFillHelper<
       if constexpr (sizeof...(ValTypes) > dim)
          weights.reserve(m.Size());
 
-      for (std::size_t i = 0ul; i < m.Size(); ++i) {
-         if (m[i]) {
-            // Converts the arrays in the parameter pack x for coordinates in each dimension,
-            // RVec(x1, x2, ...), RVec(y1, y2, ...), RVec(z1, z2, ...), ... into a single RVec in the form of
-            // RVec(x1, y1, z1, x2, y2, z2, ....)
-            // The parameter pack x may or may not include a vector containing the weights as the last element
-            // which needs to be placed in the weights array.
-            ((Is < dim ? coords : weights).emplace_back(x[i]), ...);
+      auto maskedInsert = [&](auto &arr, auto &out) {
+         for (std::size_t i = 0ul; i < m.Size(); ++i) {
+            if (m[i])
+               out.emplace_back(arr[i]);
          }
-      }
+      };
+
+      // Converts the arrays in the parameter pack x for coordinates in each dimension,
+      // RVec(x1, x2, ...), RVec(y1, y2, ...), RVec(z1, z2, ...), ... into a single RVec in the form of
+      // RVec(x1, x2, ... y1, y2, ... z1, x2, ....)
+      // The parameter pack x may or may not include a vector containing the weights as the last element
+      // which needs to be placed in the weights array.
+      (maskedInsert(x, Is < dim ? coords : weights), ...);
 
       if constexpr (sizeof...(ValTypes) > dim)
          fSYCLHist->Fill(coords, weights);
