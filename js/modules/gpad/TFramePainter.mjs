@@ -11,6 +11,8 @@ import { detectRightButton } from '../gui/utils.mjs';
 
 const logminfactorX = 0.0001, logminfactorY = 3e-4;
 
+/** @summary Configure tooltip enable flag for painter
+  * @private */
 function setPainterTooltipEnabled(painter, on) {
    if (!painter) return;
 
@@ -22,6 +24,54 @@ function setPainterTooltipEnabled(painter, on) {
    // this is 3D control object
    if (isFunc(painter.control?.setTooltipEnabled))
       painter.control.setTooltipEnabled(on);
+}
+
+/** @summary Returns coordinates transformation func
+  * @private */
+function getEarthProjectionFunc(id) {
+   switch (id) {
+      // Aitoff2xy
+      case 1: return (l, b) => {
+         const DegToRad = Math.PI/180,
+               alpha2 = (l/2)*DegToRad,
+               delta  = b*DegToRad,
+               r2     = Math.sqrt(2),
+               f      = 2*r2/Math.PI,
+               cdec   = Math.cos(delta),
+               denom  = Math.sqrt(1. + cdec*Math.cos(alpha2));
+         return {
+            x: cdec*Math.sin(alpha2)*2.*r2/denom/f/DegToRad,
+            y: Math.sin(delta)*r2/denom/f/DegToRad
+         };
+      };
+      // mercator
+      case 2: return (l, b) => { return { x: l, y: Math.log(Math.tan((Math.PI/2 + b/180*Math.PI)/2)) }; };
+      // sinusoidal
+      case 3: return (l, b) => { return { x: l*Math.cos(b/180*Math.PI), y: b } };
+      // parabolic
+      case 4: return (l, b) => { return { x: l*(2.*Math.cos(2*b/180*Math.PI/3) - 1), y: 180*Math.sin(b/180*Math.PI/3) }; };
+      // Mollweide projection
+      case 5: return (l, b) => {
+         const theta0 = b * Math.PI/180;
+         let theta = theta0, num, den;
+         for (let i = 0; i < 100; i++) {
+            num = 2 * theta + Math.sin(2 * theta) - Math.PI * Math.sin(theta0);
+            den = 4 * (Math.cos(theta)**2);
+            if (den < 1e-20) {
+               theta = theta0;
+               break;
+            }
+            theta -= num / den;
+            if (Math.abs(num / den) < 1e-4) break;
+         }
+
+         return {
+            x: l * Math.cos(theta),
+            y: 90 * Math.sin(theta)
+         };
+      };
+
+   }
 }
 
 // global, allow single drag at once
@@ -47,24 +97,25 @@ function addDragHandler(_painter, arg) {
    function makeResizeElements(group, handler) {
       function addElement(cursor, d) {
          let clname = 'js_' + cursor.replace(/[-]/g, '_'),
-             elem = group.select('.' + clname);
+             elem = group.selectChild('.' + clname);
+         if (arg.cleanup) return elem.remove();
          if (elem.empty()) elem = group.append('path').classed(clname, true);
          elem.style('opacity', 0).style('cursor', cursor).attr('d', d);
          if (handler) elem.call(handler);
       }
 
       addElement('nw-resize', 'M2,2h15v-5h-20v20h5Z');
-      addElement('ne-resize', `M${arg.width - 2},2h-15v-5h20v20h-5 Z`);
-      addElement('sw-resize', `M2,${arg.height - 2}h15v5h-20v-20h5Z`);
-      addElement('se-resize', `M${arg.width - 2},${arg.height - 2}h-15v5h20v-20h-5Z`);
+      addElement('ne-resize', `M${arg.width-2},2h-15v-5h20v20h-5 Z`);
+      addElement('sw-resize', `M2,${arg.height-2}h15v5h-20v-20h5Z`);
+      addElement('se-resize', `M${arg.width-2},${arg.height-2}h-15v5h20v-20h-5Z`);
 
       if (!arg.no_change_x) {
-         addElement('w-resize', `M-3,18h5v${Math.max(0, arg.height - 2 * 18)}h-5Z`);
-         addElement('e-resize', `M${arg.width + 3},18h-5v${Math.max(0, arg.height - 2 * 18)}h5Z`);
+         addElement('w-resize', `M-3,18h5v${Math.max(0, arg.height-2*18)}h-5Z`);
+         addElement('e-resize', `M${arg.width+3},18h-5v${Math.max(0, arg.height-2*18)}h5Z`);
       }
       if (!arg.no_change_y) {
-         addElement('n-resize', `M18,-3v5h${Math.max(0, arg.width - 2 * 18)}v-5Z`);
-         addElement('s-resize', `M18,${arg.height + 3}v-5h${Math.max(0, arg.width - 2 * 18)}v5Z`);
+         addElement('n-resize', `M18,-3v5h${Math.max(0, arg.width-2*18)}v-5Z`);
+         addElement('s-resize', `M18,${arg.height+3}v-5h${Math.max(0, arg.width-2*18)}v5Z`);
       }
    }
 
@@ -124,7 +175,10 @@ function addDragHandler(_painter, arg) {
       return change_size || change_pos;
    };
 
-   let drag_move = d3_drag().subject(Object);
+   let drag_move = d3_drag().subject(Object),
+       drag_move_off = d3_drag().subject(Object);
+
+   drag_move_off.on('start', null).on('drag', null).on('end', null);
 
    drag_move
       .on('start', function(evnt) {
@@ -132,7 +186,6 @@ function addDragHandler(_painter, arg) {
          if (isFunc(arg.is_disabled) && arg.is_disabled('move')) return;
 
          closeMenu(); // close menu
-
          setPainterTooltipEnabled(painter, false); // disable tooltip
 
          evnt.sourceEvent.preventDefault();
@@ -201,10 +254,11 @@ function addDragHandler(_painter, arg) {
          if (detectRightButton(evnt.sourceEvent) || drag_kind) return;
          if (isFunc(arg.is_disabled) && arg.is_disabled('resize')) return;
 
+         closeMenu(); // close menu
+         setPainterTooltipEnabled(painter, false); // disable tooltip
+
          evnt.sourceEvent.stopPropagation();
          evnt.sourceEvent.preventDefault();
-
-         setPainterTooltipEnabled(painter, false); // disable tooltip
 
          let pad_rect = arg.pad_rect ?? pp.getPadRect(), handle = {
             x: arg.x, y: arg.y, width: arg.width, height: arg.height,
@@ -267,7 +321,7 @@ function addDragHandler(_painter, arg) {
       });
 
    if (!arg.only_resize)
-      arg.getDrawG().style('cursor', 'move').call(drag_move);
+      arg.getDrawG().style('cursor', arg.cleanup ? null : 'move').call(arg.cleanup ? drag_move_off : drag_move);
 
    if (!arg.only_move)
       makeResizeElements(arg.getDrawG(), drag_resize);
@@ -285,10 +339,11 @@ const TooltipHandler = {
    isTooltipShown() {
       if (!this.tooltip_enabled || !this.isTooltipAllowed())
          return false;
-      let hintsg = this.hints_layer().select('.objects_hints');
+      let hintsg = this.hints_layer().selectChild('.objects_hints');
       return hintsg.empty() ? false : hintsg.property('hints_pad') == this.getPadName();
    },
 
+   /** @summary set tooltips enabled on/off */
    setTooltipEnabled(enabled) {
       if (enabled !== undefined)
          this.tooltip_enabled = enabled;
@@ -299,7 +354,7 @@ const TooltipHandler = {
 
       if (pnt?.handler) {
          // special use of interactive handler in the frame painter
-         let rect = this.draw_g?.select('.main_layer');
+         let rect = this.draw_g?.selectChild('.main_layer');
          if (!rect || rect.empty()) {
             pnt = null; // disable
          } else if (pnt.touch && evnt) {
@@ -367,7 +422,7 @@ const TooltipHandler = {
       }
 
       let layer = this.hints_layer(),
-          hintsg = layer.select('.objects_hints'), // group with all tooltips
+          hintsg = layer.selectChild('.objects_hints'), // group with all tooltips
           title = '', name = '', info = '',
           hint = null, best_dist2 = 1e10, best_hint = null, show_only_best = nhints > 15,
           coordinates = pnt ? Math.round(pnt.x) + ',' + Math.round(pnt.y) : '';
@@ -475,7 +530,7 @@ const TooltipHandler = {
 
       for (let n = 0; n < hints.length; ++n) {
          let hint = hints[n],
-            group = hintsg.select('.painter_hint_' + n);
+            group = hintsg.selectChild(`.painter_hint_${n}`);
 
          if (show_only_best && (hint !== best_hint)) hint = null;
 
@@ -488,7 +543,7 @@ const TooltipHandler = {
 
          if (was_empty)
             group = hintsg.append('svg:svg')
-               .attr('class', 'painter_hint_' + n)
+               .attr('class', `painter_hint_${n}`)
                .attr('opacity', 0) // use attribute, not style to make animation with d3.transition()
                .style('overflow', 'hidden')
                .style('pointer-events', 'none');
@@ -622,7 +677,7 @@ const FrameInteractive = {
                                 is_disabled: kind => { return (kind == 'move') && this.mode3d; },
                                 only_resize: true, minwidth: 20, minheight: 20, redraw: () => this.sizeChanged() });
 
-      let main_svg = this.draw_g.select('.main_layer');
+      let main_svg = this.draw_g.selectChild('.main_layer');
 
       main_svg.style('pointer-events','visibleFill')
               .property('handlers_set', 0);
@@ -654,7 +709,7 @@ const FrameInteractive = {
               .attr('width', this.getFrameWidth())
               .attr('height', this.getFrameHeight());
 
-      let hintsg = this.hints_layer().select('.objects_hints');
+      let hintsg = this.hints_layer().selectChild('.objects_hints');
       // if tooltips were visible before, try to reconstruct them after short timeout
       if (!hintsg.empty() && this.isTooltipAllowed() && (hintsg.property('hints_pad') == this.getPadName()))
          setTimeout(this.processFrameTooltipEvent.bind(this, hintsg.property('last_point'), null), 10);
@@ -824,7 +879,7 @@ const FrameInteractive = {
       if (evnt.buttons === this._shifting_buttons) {
          let frame = this.getFrameSvg(),
              pos = d3_pointer(evnt, frame.node()),
-             main_svg = this.draw_g.select('.main_layer');
+             main_svg = this.draw_g.selectChild('.main_layer');
          let dx = pos0[0] - pos[0],
              dy = pos0[1] - pos[1],
              w = this.getFrameWidth(), h = this.getFrameHeight();
@@ -856,7 +911,7 @@ const FrameInteractive = {
     /** @summary Shift scales on defined positions */
    performScalesShift() {
       let w = this.getFrameWidth(), h = this.getFrameHeight(),
-          main_svg = this.draw_g.select('.main_layer'),
+          main_svg = this.draw_g.selectChild('.main_layer'),
           gr = this.getGrFuncs(),
           xmin = gr.revertAxis('x', this._shifting_dx),
           xmax = gr.revertAxis('x', this._shifting_dx + w),
@@ -1448,7 +1503,7 @@ const FrameInteractive = {
     * @private */
    moveTouchHandling(evnt, kind, pos0) {
       let frame = this.getFrameSvg(),
-          main_svg = this.draw_g.select('.main_layer'), pos;
+          main_svg = this.draw_g.selectChild('.main_layer'), pos;
 
       try {
         pos = d3_pointers(evnt, frame.node())[0];
@@ -1577,30 +1632,7 @@ class TFramePainter extends ObjectPainter {
    getLastEventPos() { return this.fLastEventPnt; }
 
    /** @summary Returns coordinates transformation func */
-   getProjectionFunc() {
-      switch (this.projection) {
-         // Aitoff2xy
-         case 1: return (l, b) => {
-            const DegToRad = Math.PI/180,
-                  alpha2 = (l/2)*DegToRad,
-                  delta  = b*DegToRad,
-                  r2     = Math.sqrt(2),
-                  f      = 2*r2/Math.PI,
-                  cdec   = Math.cos(delta),
-                  denom  = Math.sqrt(1. + cdec*Math.cos(alpha2));
-            return {
-               x: cdec*Math.sin(alpha2)*2.*r2/denom/f/DegToRad,
-               y: Math.sin(delta)*r2/denom/f/DegToRad
-            };
-         };
-         // mercator
-         case 2: return (l, b) => { return { x: l, y: Math.log(Math.tan((Math.PI/2 + b/180*Math.PI)/2)) }; };
-         // sinusoidal
-         case 3: return (l, b) => { return { x: l*Math.cos(b/180*Math.PI), y: b } };
-         // parabolic
-         case 4: return (l, b) => { return { x: l*(2.*Math.cos(2*b/180*Math.PI/3) - 1), y: 180*Math.sin(b/180*Math.PI/3) }; };
-      }
-   }
+   getProjectionFunc() { return getEarthProjectionFunc(this.projection); }
 
    /** @summary Rcalculate frame ranges using specified projection functions */
    recalculateRange(Proj, change_x, change_y) {
@@ -2034,7 +2066,7 @@ class TFramePainter extends ObjectPainter {
      * @desc Called immediately after axes drawing */
    drawGrids() {
 
-      let layer = this.getFrameSvg().select('.grid_layer');
+      let layer = this.getFrameSvg().selectChild('.grid_layer');
 
       layer.selectAll('.xgrid').remove();
       layer.selectAll('.ygrid').remove();
@@ -2116,7 +2148,7 @@ class TFramePainter extends ObjectPainter {
 
       if (AxisPos === undefined) AxisPos = 0;
 
-      let layer = this.getFrameSvg().select('.axis_layer'),
+      let layer = this.getFrameSvg().selectChild('.axis_layer'),
           w = this.getFrameWidth(),
           h = this.getFrameHeight(),
           pp = this.getPadPainter(),
@@ -2185,7 +2217,7 @@ class TFramePainter extends ObjectPainter {
    /** @summary draw second axes (if any)  */
    drawAxes2(second_x, second_y) {
 
-      let layer = this.getFrameSvg().select('.axis_layer'),
+      let layer = this.getFrameSvg().selectChild('.axis_layer'),
           w = this.getFrameWidth(),
           h = this.getFrameHeight(),
           pp = this.getPadPainter(),
@@ -2293,51 +2325,32 @@ class TFramePainter extends ObjectPainter {
       delete this.grx;
       delete this.gry;
       delete this.grz;
-
-      if (this.x_handle) {
-         this.x_handle.cleanup();
-         delete this.x_handle;
-      }
-
-      if (this.y_handle) {
-         this.y_handle.cleanup();
-         delete this.y_handle;
-      }
-
-      if (this.z_handle) {
-         this.z_handle.cleanup();
-         delete this.z_handle;
-      }
-
-      // these are drawing of second axes
       delete this.grx2;
       delete this.gry2;
 
-      if (this.x2_handle) {
-         this.x2_handle.cleanup();
-         delete this.x2_handle;
-      }
+      this.x_handle?.cleanup();
+      this.y_handle?.cleanup();
+      this.z_handle?.cleanup();
+      this.x2_handle?.cleanup();
+      this.y2_handle?.cleanup();
 
-      if (this.y2_handle) {
-         this.y2_handle.cleanup();
-         delete this.y2_handle;
-      }
-
+      delete this.x_handle;
+      delete this.y_handle;
+      delete this.z_handle;
+      delete this.x2_handle;
+      delete this.y2_handle;
    }
 
    /** @summary remove all axes drawings */
    cleanAxesDrawings() {
-      if (this.x_handle) this.x_handle.removeG();
-      if (this.y_handle) this.y_handle.removeG();
-      if (this.z_handle) this.z_handle.removeG();
-      if (this.x2_handle) this.x2_handle.removeG();
-      if (this.y2_handle) this.y2_handle.removeG();
+      this.x_handle?.removeG();
+      this.y_handle?.removeG();
+      this.z_handle?.removeG();
+      this.x2_handle?.removeG();
+      this.y2_handle?.removeG();
 
-      let g = this.getG();
-      if (g) {
-         g.select('.grid_layer').selectAll('*').remove();
-         g.select('.axis_layer').selectAll('*').remove();
-      }
+      this.draw_g?.selectChild('.grid_layer').selectAll('*').remove();
+      this.draw_g?.selectChild('.axis_layer').selectAll('*').remove();
       this.axes_drawn = false;
    }
 
@@ -2365,10 +2378,8 @@ class TFramePainter extends ObjectPainter {
       this.scale_ymin = this.scale_ymax = 0;
       this.scale_zmin = this.scale_zmax = 0;
 
-      if (this.draw_g) {
-         this.draw_g.select('.main_layer').selectAll('*').remove();
-         this.draw_g.select('.upper_layer').selectAll('*').remove();
-      }
+      this.draw_g?.selectChild('.main_layer').selectAll('*').remove();
+      this.draw_g?.selectChild('.upper_layer').selectAll('*').remove();
 
       this.xaxis = null;
       this.yaxis = null;
@@ -2469,8 +2480,8 @@ class TFramePainter extends ObjectPainter {
          this.draw_g.append('svg:g').attr('class', 'axis_layer');
          this.draw_g.append('svg:g').attr('class', 'upper_layer');
       } else {
-         top_rect = this.draw_g.select('path');
-         main_svg = this.draw_g.select('.main_layer');
+         top_rect = this.draw_g.selectChild('path');
+         main_svg = this.draw_g.selectChild('.main_layer');
       }
 
       this.axes_drawn = false;
@@ -2931,4 +2942,4 @@ class TFramePainter extends ObjectPainter {
 
 } // class TFramePainter
 
-export { addDragHandler, TooltipHandler, FrameInteractive, TFramePainter };
+export { addDragHandler, TooltipHandler, FrameInteractive, TFramePainter, getEarthProjectionFunc };

@@ -1,7 +1,7 @@
 // Author: Sergey Linev, GSI   7/12/2016
 
 /*************************************************************************
- * Copyright (C) 1995-2021, Rene Brun and Fons Rademakers.               *
+ * Copyright (C) 1995-2023, Rene Brun and Fons Rademakers.               *
  * All rights reserved.                                                  *
  *                                                                       *
  * For the licensing terms see $ROOTSYS/LICENSE.                         *
@@ -33,6 +33,7 @@
 #include "TF2.h"
 #include "TH1.h"
 #include "TH1K.h"
+#include "TH2.h"
 #include "THStack.h"
 #include "TMultiGraph.h"
 #include "TEnv.h"
@@ -59,8 +60,23 @@
 /** \class TWebCanvas
 \ingroup webgui6
 
-Basic TCanvasImp ABI implementation for Web-based GUI
-Provides painting of main ROOT6 classes in web browsers
+Basic TCanvasImp ABI implementation for Web-based Graphics
+Provides painting of main ROOT classes in web browsers using [JSROOT](https://root.cern/js/)
+
+Following settings parameters can be useful for TWebCanvas:
+
+     WebGui.FullCanvas:       1     read-only mode (0), full-functional canvas (1) (default - 1)
+     WebGui.StyleDelivery:    1     provide gStyle object to JSROOT client (default - 1)
+     WebGui.PaletteDelivery:  1     provide color palette to JSROOT client (default - 1)
+     WebGui.TF1UseSave:       0     used saved values for function drawing (1) or calculate function on the client side (0) (default - 0)
+
+TWebCanvas is used by default in interactive ROOT session. To use web-based canvas in batch mode for image
+generation, one should explicitly specify `--web` option when starting ROOT:
+
+    [shell] root -b --web tutorials/hsimple.root -e 'hpxpy->Draw("colz"); c1->SaveAs("image.png");'
+
+If for any reasons TWebCanvas does not provide required functionality, one always can disable it.
+Either by specifying `root --web=off` when starting ROOT or by setting `Canvas.Name: TRootCanvas` in rootrc file.
 
 */
 
@@ -76,6 +92,7 @@ TWebCanvas::TWebCanvas(TCanvas *c, const char *name, Int_t x, Int_t y, UInt_t wi
    fStyleDelivery = gEnv->GetValue("WebGui.StyleDelivery", 1);
    fPaletteDelivery = gEnv->GetValue("WebGui.PaletteDelivery", 1);
    fPrimitivesMerge = gEnv->GetValue("WebGui.PrimitivesMerge", 100);
+   fTF1UseSave = gEnv->GetValue("WebGui.TF1UseSave", (Int_t) 0) > 0;
    fJsonComp = gEnv->GetValue("WebGui.JsonComp", TBufferJSON::kSameSuppression + TBufferJSON::kNoSpaces);
 }
 
@@ -358,7 +375,7 @@ void TWebCanvas::CreatePadSnapshot(TPadWebSnapshot &paddata, TPad *pad, Long64_t
    TObject *obj = nullptr;
    TFrame *frame = nullptr;
    TPaveText *title = nullptr;
-   bool need_frame = false, has_histo = false;
+   bool need_frame = false, has_histo = false, need_palette = false;
    std::string need_title;
 
    while (process_primitives && ((obj = iter()) != nullptr)) {
@@ -386,6 +403,8 @@ void TWebCanvas::CreatePadSnapshot(TPadWebSnapshot &paddata, TPad *pad, Long64_t
          has_histo = true;
          if (!obj->TestBit(TH1::kNoTitle) && !opt.Contains("SAME") && (strlen(obj->GetTitle()) > 0))
             need_title = obj->GetTitle();
+         if (obj->InheritsFrom(TH2::Class()) && (opt.Contains("COLZ") || opt.Contains("LEGO2Z") || opt.Contains("LEGO4Z") || opt.Contains("SURF2Z")))
+            need_palette = true;
       } else if (obj->InheritsFrom(TGraph::Class())) {
          if (opt.Contains("A")) {
             need_frame = true;
@@ -393,7 +412,7 @@ void TWebCanvas::CreatePadSnapshot(TPadWebSnapshot &paddata, TPad *pad, Long64_t
                need_title = obj->GetTitle();
          }
       } else if (obj->InheritsFrom(TScatter::Class())) {
-         need_frame = true;
+         need_frame = need_palette = true;
          if (strlen(obj->GetTitle()) > 0)
             need_title = obj->GetTitle();
       } else if (obj->InheritsFrom(TF1::Class())) {
@@ -407,6 +426,9 @@ void TWebCanvas::CreatePadSnapshot(TPadWebSnapshot &paddata, TPad *pad, Long64_t
    }
 
    if (need_frame && !frame && primitives && CanCreateObject("TFrame")) {
+      if (!IsReadOnly() && need_palette && (pad->GetRightMargin() < 0.12) && (pad->GetRightMargin() == gStyle->GetPadRightMargin()))
+         pad->SetRightMargin(0.12);
+
       frame = pad->GetFrame();
       if(frame)
          primitives->AddFirst(frame);
@@ -525,9 +547,11 @@ void TWebCanvas::CreatePadSnapshot(TPadWebSnapshot &paddata, TPad *pad, Long64_t
          }
 
          TString hopt = iter.GetOption();
+         TString o = hopt;
+         o.ToUpper();
 
          if (!palette && CanCreateObject("TPaletteAxis") && (hist->GetDimension() > 1) &&
-             (hopt.Index("colz", 0, TString::kIgnoreCase) != kNPOS)) {
+              (o.Contains("COLZ") || o.Contains("LEGO2Z") || o.Contains("LEGO4Z") || o.Contains("SURF2Z"))) {
             std::stringstream exec;
             exec << "new TPaletteAxis(0,0,0,0, (TH1*)" << std::hex << std::showbase << (size_t)hist << ");";
             palette = (TObject *)gROOT->ProcessLine(exec.str().c_str());
@@ -643,6 +667,13 @@ void TWebCanvas::CreatePadSnapshot(TPadWebSnapshot &paddata, TPad *pad, Long64_t
          auto f1 = static_cast<TF1 *> (obj);
 
          TString f1opt = iter.GetOption();
+
+         if (f1->IsA() == TF1::Class() || f1->IsA() == TF2::Class()) {
+            if (paddata.IsBatchMode() || fTF1UseSave)
+               f1->Save(0, 0, 0, 0, 0, 0);
+            if (fTF1UseSave)
+               f1opt.Append(";force_saved");
+         }
 
          if (first_obj) {
             auto hist = f1->GetHistogram();
@@ -775,7 +806,7 @@ void TWebCanvas::CheckDataToSend(unsigned connid)
 
          buf = "SNAP6:"s + std::to_string(fCanvVersion) + ":"s;
 
-         TCanvasWebSnapshot holder(IsReadOnly());
+         TCanvasWebSnapshot holder(IsReadOnly(), true, false); // readonly, set ids, batchmode
 
          // scripts send only when canvas drawn for the first time
          if (!conn.fSendVersion)
@@ -807,6 +838,9 @@ void TWebCanvas::CheckDataToSend(unsigned connid)
          std::swap(buf, conn.fSend.front());
          conn.fSend.pop();
 
+      } else if ((conn.fConnId == fWebConn[0].fConnId) && !fCtrlMsgs.empty()) {
+         buf = "CTRL:"s + TBufferJSON::ToJSON(&fCtrlMsgs, TBufferJSON::kMapAsObject + TBufferJSON::kNoSpaces);
+         fCtrlMsgs.clear();
       }
 
       if (!buf.empty())
@@ -942,6 +976,44 @@ Bool_t TWebCanvas::HasToolTips() const
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
+/// Set window position of web canvas
+
+void TWebCanvas::SetWindowPosition(Int_t x, Int_t y)
+{
+   if (IsFirstDrawn()) {
+      fCtrlMsgs["x"s] = std::to_string(x);
+      fCtrlMsgs["y"s] = std::to_string(y);
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/// Set window size of web canvas
+
+void TWebCanvas::SetWindowSize(UInt_t w, UInt_t h)
+{
+   if (IsFirstDrawn()) {
+      fCtrlMsgs["w"s] = std::to_string(w);
+      fCtrlMsgs["h"s] = std::to_string(h);
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/// Set window title of web canvas
+
+void TWebCanvas::SetWindowTitle(const char *newTitle)
+{
+   if (IsFirstDrawn())
+      fCtrlMsgs["title"s] = newTitle;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/// Set canvas size of web canvas
+
+void TWebCanvas::SetCanvasSize(UInt_t, UInt_t)
+{
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
 /// Assign clients bits
 
 void TWebCanvas::AssignStatusBits(UInt_t bits)
@@ -982,6 +1054,8 @@ Bool_t TWebCanvas::DecodePadOptions(const std::string &msg, bool process_execs)
          AssignStatusBits(r.bits);
          Canvas()->fCw = r.cw;
          Canvas()->fCh = r.ch;
+         Canvas()->fWindowWidth = r.cw + 2;
+         Canvas()->fWindowHeight = r.ch + 25;
       }
 
       if (r.active && (pad != gPad)) gPad = pad;
@@ -1590,6 +1664,8 @@ Bool_t TWebCanvas::ProcessData(unsigned connid, const std::string &arg)
          // set members directly to avoid redrawing of the client again
          Canvas()->fCw = arr->at(0);
          Canvas()->fCh = arr->at(1);
+         Canvas()->fWindowWidth = arr->at(0) + 2;
+         Canvas()->fWindowHeight = arr->at(1) + 25;
       }
    } else if (arg.compare(0, 7, "POPOBJ:") == 0) {
       auto arr = TBufferJSON::FromJSON<std::vector<std::string>>(arg.substr(7));
@@ -1764,7 +1840,11 @@ Bool_t TWebCanvas::WaitWhenCanvasPainted(Long64_t ver)
    return kFALSE;
 }
 
-TString TWebCanvas::CreatePadJSON(TPad *pad, Int_t json_compression)
+//////////////////////////////////////////////////////////////////////////////////////////
+/// Create JSON painting output for given pad
+/// Produce JSON can be used for offline drawing with JSROOT
+
+TString TWebCanvas::CreatePadJSON(TPad *pad, Int_t json_compression, Bool_t batchmode)
 {
    TString res;
    if (!pad)
@@ -1772,11 +1852,11 @@ TString TWebCanvas::CreatePadJSON(TPad *pad, Int_t json_compression)
 
    TCanvas *c = dynamic_cast<TCanvas *>(pad);
    if (c) {
-      res = CreateCanvasJSON(c, json_compression);
+      res = CreateCanvasJSON(c, json_compression, batchmode);
    } else {
-      auto imp = std::make_unique<TWebCanvas>(pad->GetCanvas(), pad->GetName(), 0, 0, 1000, 500);
+      auto imp = std::make_unique<TWebCanvas>(pad->GetCanvas(), pad->GetName(), 0, 0, pad->GetWw(), pad->GetWh(), kTRUE);
 
-      TPadWebSnapshot holder(true, false); // readonly, no ids
+      TPadWebSnapshot holder(true, false, batchmode); // readonly, no ids, batchmode
 
       imp->CreatePadSnapshot(holder, pad, 0, [&res, json_compression](TPadWebSnapshot *snap) {
          res = TBufferJSON::ToJSON(snap, json_compression);
@@ -1790,7 +1870,7 @@ TString TWebCanvas::CreatePadJSON(TPad *pad, Int_t json_compression)
 /// Create JSON painting output for given canvas
 /// Produce JSON can be used for offline drawing with JSROOT
 
-TString TWebCanvas::CreateCanvasJSON(TCanvas *c, Int_t json_compression)
+TString TWebCanvas::CreateCanvasJSON(TCanvas *c, Int_t json_compression, Bool_t batchmode)
 {
    TString res;
 
@@ -1798,9 +1878,9 @@ TString TWebCanvas::CreateCanvasJSON(TCanvas *c, Int_t json_compression)
       return res;
 
    {
-      auto imp = std::make_unique<TWebCanvas>(c, c->GetName(), 0, 0, 1000, 500);
+      auto imp = std::make_unique<TWebCanvas>(c, c->GetName(), 0, 0, c->GetWw(), c->GetWh(), kTRUE);
 
-      TCanvasWebSnapshot holder(true, false); // readonly, no ids
+      TCanvasWebSnapshot holder(true, false, batchmode); // readonly, no ids, batchmode
 
       imp->CreatePadSnapshot(holder, c, 0, [&res, json_compression](TPadWebSnapshot *snap) {
          res = TBufferJSON::ToJSON(snap, json_compression);
@@ -1812,19 +1892,25 @@ TString TWebCanvas::CreateCanvasJSON(TCanvas *c, Int_t json_compression)
 
 //////////////////////////////////////////////////////////////////////////////////////////
 /// Create JSON painting output for given canvas and store into the file
-/// See TBufferJSON::ExportToFile() method for more details
+/// See TBufferJSON::ExportToFile() method for more details about option
+/// If option string starts with symbol 'b', JSON for batch mode will be generated
 
 Int_t TWebCanvas::StoreCanvasJSON(TCanvas *c, const char *filename, const char *option)
 {
    Int_t res = 0;
+   Bool_t batchmode = kFALSE;
+   if (option && *option == 'b') {
+      batchmode = kTRUE;
+      ++option;
+   }
 
    if (!c)
       return res;
 
    {
-      auto imp = std::make_unique<TWebCanvas>(c, c->GetName(), 0, 0, 1000, 500);
+      auto imp = std::make_unique<TWebCanvas>(c, c->GetName(), 0, 0, c->GetWw(), c->GetWh(), kTRUE);
 
-      TCanvasWebSnapshot holder(true, false); // readonly, no ids
+      TCanvasWebSnapshot holder(true, false, batchmode); // readonly, no ids, batchmode
 
       imp->CreatePadSnapshot(holder, c, 0, [&res, filename, option](TPadWebSnapshot *snap) {
          res = TBufferJSON::ExportToFile(filename, snap, option);
@@ -1843,12 +1929,62 @@ bool TWebCanvas::ProduceImage(TPad *pad, const char *fileName, Int_t width, Int_
    if (!pad)
       return false;
 
-   auto json = TWebCanvas::CreatePadJSON(pad, TBufferJSON::kNoSpaces + TBufferJSON::kSameSuppression);
+   auto json = CreatePadJSON(pad, TBufferJSON::kNoSpaces + TBufferJSON::kSameSuppression, kTRUE);
    if (!json.Length())
       return false;
 
-   return ROOT::Experimental::RWebDisplayHandle::ProduceImage(fileName, json.Data(), width ? width : pad->GetWw(), height ? height : pad->GetWh());
+   if (!width && !height) {
+      if ((pad->GetCanvas() == pad) || (pad->IsA() == TCanvas::Class())) {
+         width = pad->GetWw();
+         height = pad->GetWh();
+      } else {
+         width = (Int_t) (pad->GetAbsWNDC() * pad->GetCanvas()->GetWw());
+         height = (Int_t) (pad->GetAbsHNDC() * pad->GetCanvas()->GetWh());
+      }
+   }
+
+   return ROOT::Experimental::RWebDisplayHandle::ProduceImage(fileName, json.Data(), width, height);
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+/// Create images for several pads using batch (headless) capability of Chrome or Firefox browsers
+/// Supported png, jpeg, svg, pdf formats
+/// For png/jpeg/svg filename can include % symbol which will be replaced by image index.
+/// For pdf format all images will be stored in single PDF file
+
+bool TWebCanvas::ProduceImages(std::vector<TPad *> pads, const char *filename, Int_t width, Int_t height)
+{
+   if (pads.empty())
+      return false;
+
+   std::vector<std::string> jsons;
+   std::vector<Int_t> widths, heights;
+
+   for (auto pad: pads) {
+      auto json = CreatePadJSON(pad, TBufferJSON::kNoSpaces + TBufferJSON::kSameSuppression, kTRUE);
+      if (!json.Length())
+         continue;
+
+      Int_t w = width, h = height;
+
+      if (!w && !h) {
+         if ((pad->GetCanvas() == pad) || (pad->IsA() == TCanvas::Class())) {
+            w = pad->GetWw();
+            h = pad->GetWh();
+         } else {
+            w = (Int_t) (pad->GetAbsWNDC() * pad->GetCanvas()->GetWw());
+            h = (Int_t) (pad->GetAbsHNDC() * pad->GetCanvas()->GetWh());
+         }
+      }
+
+      jsons.emplace_back(json.Data());
+      widths.emplace_back(w);
+      heights.emplace_back(h);
+   }
+
+   return ROOT::Experimental::RWebDisplayHandle::ProduceImages(filename, jsons, widths, heights);
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////
 /// Process data for single primitive
@@ -1932,8 +2068,14 @@ TPad *TWebCanvas::ProcessObjectOptions(TWebObjectOptions &item, TPad *pad, int i
             stats->AddText(item.fcust.substr(pos_start).c_str());
          }
       }
+   } else if (item.fcust.compare(0,9,"func_fail") == 0) {
+      if (!fTF1UseSave) {
+         fTF1UseSave = kTRUE;
+         modified = true;
+      } else {
+         Error("ProcessObjectOptions", "Client fails to calculate function %s cl %s but it should not try!", obj ? obj->GetName() : "---", obj ? obj->ClassName() : "---");
+      }
    }
-
 
    return modified ? objpad : nullptr;
 }
@@ -2097,6 +2239,15 @@ TCanvasImp *TWebCanvas::NewCanvas(TCanvas *c, const char *name, Int_t x, Int_t y
 {
    Bool_t readonly = gEnv->GetValue("WebGui.FullCanvas", (Int_t) 1) == 0;
 
-   return new TWebCanvas(c, name, x, y, width, height, readonly);
+   auto imp = new TWebCanvas(c, name, x, y, width, height, readonly);
+
+   if (!gROOT->IsBatch()) {
+      c->fWindowWidth = width;
+      c->fWindowHeight = height;
+      c->fCw = width > 2 ? width - 2 : 0;
+      c->fCh = height > 25 ? height - 25 : 0;
+   }
+
+   return imp;
 }
 

@@ -481,12 +481,24 @@ private:
          TVirtualCollectionProxy::DeleteTwoIterators_t fDeleteTwoIterators;
          TVirtualCollectionProxy::Next_t fNext;
       };
-      static RIteratorFuncs GetIteratorFuncs(TVirtualCollectionProxy *proxy, bool readOnly);
+      static RIteratorFuncs GetIteratorFuncs(TVirtualCollectionProxy *proxy, bool readFromDisk);
+
    private:
       class RIterator {
          const RCollectionIterableOnce &fOwner;
          void *fIterator = nullptr;
          void *fElementPtr = nullptr;
+
+         void Advance()
+         {
+            auto fnNext_Contig = [&]() {
+               auto &iter = *static_cast<unsigned char **>(fIterator), p = iter;
+               iter += fOwner.fStride;
+               return p;
+            };
+            fElementPtr = fOwner.fStride ? fnNext_Contig() : fOwner.fIFuncs.fNext(fIterator, fOwner.fEnd);
+         }
+
       public:
          using iterator_category = std::forward_iterator_tag;
          using iterator = RIterator;
@@ -494,13 +506,10 @@ private:
          using pointer = void *;
 
          RIterator(const RCollectionIterableOnce &owner) : fOwner(owner) {}
-         RIterator(const RCollectionIterableOnce &owner, void *iter) : fOwner(owner), fIterator(iter)
-         {
-            fElementPtr = fOwner.fIFuncs.fNext(fIterator, fOwner.fEnd);
-         }
+         RIterator(const RCollectionIterableOnce &owner, void *iter) : fOwner(owner), fIterator(iter) { Advance(); }
          iterator operator++()
          {
-            fElementPtr = fOwner.fIFuncs.fNext(fIterator, fOwner.fEnd);
+            Advance();
             return *this;
          }
          pointer operator*() const { return fElementPtr; }
@@ -509,25 +518,32 @@ private:
       };
 
       const RIteratorFuncs &fIFuncs;
+      const std::size_t fStride;
       unsigned char fBeginSmallBuf[TVirtualCollectionProxy::fgIteratorArenaSize];
       unsigned char fEndSmallBuf[TVirtualCollectionProxy::fgIteratorArenaSize];
       void *fBegin = &fBeginSmallBuf;
       void *fEnd = &fEndSmallBuf;
    public:
-      RCollectionIterableOnce(void *collection, const RIteratorFuncs &ifuncs, TVirtualCollectionProxy *proxy)
-         : fIFuncs(ifuncs)
+      /// Construct a `RCollectionIterableOnce` that iterates over `collection`.  If elements are guaranteed to be
+      /// contiguous in memory (e.g. a vector), `stride` can be provided for faster iteration, i.e. the address of each
+      /// element is known given the base pointer.
+      RCollectionIterableOnce(void *collection, const RIteratorFuncs &ifuncs, TVirtualCollectionProxy *proxy,
+                              std::size_t stride = 0U)
+         : fIFuncs(ifuncs), fStride(stride)
       {
          fIFuncs.fCreateIterators(collection, &fBegin, &fEnd, proxy);
       }
       ~RCollectionIterableOnce() { fIFuncs.fDeleteTwoIterators(fBegin, fEnd); }
 
       RIterator begin() { return RIterator(*this, fBegin); }
-      RIterator end() { return RIterator(*this); }
+      RIterator end() { return fStride ? RIterator(*this, fEnd) : RIterator(*this); }
    };
 
    std::unique_ptr<TVirtualCollectionProxy> fProxy;
    Int_t fProperties;
-   /// Two sets of functions to operate on iterators, to be used depending on the access type
+   Int_t fCollectionType;
+   /// Two sets of functions to operate on iterators, to be used depending on the access type.  The direction preserves
+   /// the meaning from TVirtualCollectionProxy, i.e. read from disk / write to disk, respectively
    RCollectionIterableOnce::RIteratorFuncs fIFuncsRead;
    RCollectionIterableOnce::RIteratorFuncs fIFuncsWrite;
    std::size_t fItemSize;

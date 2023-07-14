@@ -4,7 +4,7 @@ import { getSvgLineStyle } from '../base/TAttLineHandler.mjs';
 import { makeTranslate} from '../base/BasePainter.mjs';
 import { TAxisPainter } from './TAxisPainter.mjs';
 import { RAxisPainter } from './RAxisPainter.mjs';
-import { FrameInteractive } from './TFramePainter.mjs';
+import { FrameInteractive, getEarthProjectionFunc } from './TFramePainter.mjs';
 import { RObjectPainter } from '../base/RObjectPainter.mjs';
 
 
@@ -74,30 +74,7 @@ class RFramePainter extends RObjectPainter {
    }
 
    /** @summary Returns coordinates transformation func */
-   getProjectionFunc() {
-      switch (this.projection) {
-         // Aitoff2xy
-         case 1: return (l, b) => {
-            const DegToRad = Math.PI/180,
-                  alpha2 = (l/2)*DegToRad,
-                  delta  = b*DegToRad,
-                  r2     = Math.sqrt(2),
-                  f      = 2*r2/Math.PI,
-                  cdec   = Math.cos(delta),
-                  denom  = Math.sqrt(1. + cdec*Math.cos(alpha2));
-            return {
-               x: cdec*Math.sin(alpha2)*2.*r2/denom/f/DegToRad,
-               y: Math.sin(delta)*r2/denom/f/DegToRad
-            };
-         };
-         // mercator
-         case 2: return (l, b) => { return { x: l, y: Math.log(Math.tan((Math.PI/2 + b/180*Math.PI)/2)) }; };
-         // sinusoidal
-         case 3: return (l, b) => { return { x: l*Math.cos(b/180*Math.PI), y: b } };
-         // parabolic
-         case 4: return (l, b) => { return { x: l*(2.*Math.cos(2*b/180*Math.PI/3) - 1), y: 180*Math.sin(b/180*Math.PI/3) }; };
-      }
-   }
+   getProjectionFunc() { return getEarthProjectionFunc(this.projection); }
 
    /** @summary Rcalculate frame ranges using specified projection functions
      * @desc Not yet used in v7 */
@@ -144,7 +121,7 @@ class RFramePainter extends RObjectPainter {
    /** @summary Draw axes grids
      * @desc Called immediately after axes drawing */
    drawGrids() {
-      let layer = this.getFrameSvg().select('.grid_layer');
+      let layer = this.getFrameSvg().selectChild('.grid_layer');
 
       layer.selectAll('.xgrid').remove();
       layer.selectAll('.ygrid').remove();
@@ -417,7 +394,7 @@ class RFramePainter extends RObjectPainter {
          this.z_handle.configureZAxis('zaxis', this);
       }
 
-      let layer = this.getFrameSvg().select('.axis_layer');
+      let layer = this.getFrameSvg().selectChild('.axis_layer');
 
       this.x_handle.has_obstacle = false;
 
@@ -479,7 +456,7 @@ class RFramePainter extends RObjectPainter {
    /** @summary Draw secondary configuread axes */
    drawAxes2(second_x, second_y) {
       let w = this.getFrameWidth(), h = this.getFrameHeight(),
-          layer = this.getFrameSvg().select('.axis_layer'),
+          layer = this.getFrameSvg().selectChild('.axis_layer'),
           pr1, pr2;
 
       if (second_x) {
@@ -578,10 +555,8 @@ class RFramePainter extends RObjectPainter {
    cleanXY() {
       // remove all axes drawings
       let clean = (name,grname) => {
-         if (this[name]) {
-            this[name].cleanup();
-            delete this[name];
-         }
+         this[name]?.cleanup();
+         delete this[name];
          delete this[grname];
       };
 
@@ -599,10 +574,8 @@ class RFramePainter extends RObjectPainter {
    cleanupAxes() {
       this.cleanXY();
 
-      if (this.draw_g) {
-         this.draw_g.select('.grid_layer').selectAll('*').remove();
-         this.draw_g.select('.axis_layer').selectAll('*').remove();
-      }
+      this.draw_g?.selectChild('.grid_layer').selectAll('*').remove();
+      this.draw_g?.selectChild('.axis_layer').selectAll('*').remove();
       this.axes_drawn = false;
    }
 
@@ -627,10 +600,8 @@ class RFramePainter extends RObjectPainter {
       clean('x2');
       clean('y2');
 
-      if (this.draw_g) {
-         this.draw_g.select('.main_layer').selectAll('*').remove();
-         this.draw_g.select('.upper_layer').selectAll('*').remove();
-      }
+      this.draw_g?.selectChild('.main_layer').selectAll('*').remove();
+      this.draw_g?.selectChild('.upper_layer').selectAll('*').remove();
    }
 
    /** @summary Fully cleanup frame
@@ -738,8 +709,8 @@ class RFramePainter extends RObjectPainter {
          this.draw_g.append('svg:g').attr('class','axis_layer');
          this.draw_g.append('svg:g').attr('class','upper_layer');
       } else {
-         top_rect = this.draw_g.select('rect');
-         main_svg = this.draw_g.select('.main_layer');
+         top_rect = this.draw_g.selectChild('rect');
+         main_svg = this.draw_g.selectChild('.main_layer');
       }
 
       this.axes_drawn = false;

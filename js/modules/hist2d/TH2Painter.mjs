@@ -691,6 +691,11 @@ class TH2Painter extends THistPainter {
          return true;
       }
 
+      if (method.fName == 'SetShowProjectionXY') {
+         this.toggleProjection('X' + args.replaceAll(',','_Y'));
+         return true;
+      }
+
       return false;
    }
 
@@ -767,6 +772,7 @@ class TH2Painter extends THistPainter {
          this.options.Color = true;
       } else {
          this.options.Color = !this.options.Color;
+         this.options.Scat = !this.options.Color;
       }
 
       this._can_move_colz = true; // indicate that next redraw can move Z scale
@@ -2320,8 +2326,8 @@ class TH2Painter extends THistPainter {
          }
       }
 
-      let layer = this.getFrameSvg().select('.main_layer'),
-          defs = layer.select('defs');
+      let layer = this.getFrameSvg().selectChild('.main_layer'),
+          defs = layer.selectChild('defs');
       if (defs.empty() && (colPaths.length > 0))
          defs = layer.insert('svg:defs', ':first-child');
 
@@ -2330,7 +2336,7 @@ class TH2Painter extends THistPainter {
       for (colindx = 0; colindx < colPaths.length; ++colindx)
         if ((colPaths[colindx] !== undefined) && (colindx < cntr.arr.length)) {
            let pattern_id = (this.pad_name || 'canv') + `_scatter_${colindx}`,
-               pattern = defs.select(`#${pattern_id}`);
+               pattern = defs.selectChild(`#${pattern_id}`);
            if (pattern.empty())
               pattern = defs.append('svg:pattern')
                             .attr('id', pattern_id)
@@ -2415,7 +2421,7 @@ class TH2Painter extends THistPainter {
             pr = this.drawBinsText(handle);
 
          if (!handle && !pr)
-            handle = this.drawBinsScatter();
+            handle = this.drawBinsColor();
       }
 
       if (handle)
@@ -2740,15 +2746,14 @@ class TH2Painter extends THistPainter {
 
    /** @summary Process tooltip event */
    processTooltipEvent(pnt) {
-      if (!pnt || !this.draw_content || !this.draw_g || !this.tt_handle || this.options.Proj) {
-         if (this.draw_g)
-            this.draw_g.select('.tooltip_bin').remove();
+      let ttrect = this.draw_g?.selectChild('.tooltip_bin'),
+          histo = this.getHisto(),
+          h = this.tt_handle;
+
+      if (!pnt || !this.draw_content || !this.draw_g || !h || this.options.Proj) {
+         ttrect?.remove();
          return null;
       }
-
-      let histo = this.getHisto(),
-          h = this.tt_handle,
-          ttrect = this.draw_g.select('.tooltip_bin');
 
       if (h.poly) {
          // process tooltips from TH2Poly

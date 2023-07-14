@@ -959,7 +959,7 @@ not limited to string expressions but they can also pass any valid C++ callable,
 complex functors. The callable can be applied to zero or more existing columns and it will always receive their
 _nominal_ values in input.
 
-**Varying multiple columns in lockstep**
+#### Varying multiple columns in lockstep
 
 In the following Python snippet we use the Vary() signature that allows varying multiple columns simultaneously or
 "in lockstep":
@@ -977,7 +977,7 @@ this case we also have to explicitly pass a variation name as there is no one co
 
 The call above will produce variations "ptAndEta:down" and "ptAndEta:up".
 
-**Combining multiple variations**
+#### Combining multiple variations
 
 Even if a result depends on multiple variations, only one is applied at a time, i.e. there will be no result produced
 by applying multiple systematic variations at the same time.
@@ -1573,7 +1573,7 @@ namespace Experimental {
 ///~~~
 ROOT::RDataFrame FromSpec(const std::string &jsonFile)
 {
-   const nlohmann::json fullData = nlohmann::json::parse(std::ifstream(jsonFile));
+   const nlohmann::ordered_json fullData = nlohmann::ordered_json::parse(std::ifstream(jsonFile));
    if (!fullData.contains("samples") || fullData["samples"].size() == 0) {
       throw std::runtime_error(
          R"(The input specification does not contain any samples. Please provide the samples in the specification like:

@@ -268,7 +268,7 @@ class RH1Painter extends RHistPainter {
 
       let left = handle.i1, right = handle.i2, di = handle.stepi,
           histo = this.getHisto(), xaxis = this.getAxis('x'),
-          i, x, grx, y, yerr, gry1, gry2,
+          i, x, grx, y, yerr, gry,
           bins1 = [], bins2 = [];
 
       for (i = left; i < right; i += di) {
@@ -280,11 +280,11 @@ class RH1Painter extends RHistPainter {
          yerr = histo.getBinError(i+1);
          if (funcs.logy && (y-yerr < funcs.scale_ymin)) continue;
 
-         gry1 = Math.round(funcs.gry(y + yerr));
-         gry2 = Math.round(funcs.gry(y - yerr));
+         gry = Math.round(funcs.gry(y + yerr));
+         bins1.push({grx, gry});
 
-         bins1.push({grx: grx, gry: gry1});
-         bins2.unshift({grx: grx, gry: gry2});
+         gry = Math.round(funcs.gry(y - yerr));
+         bins2.unshift({grx, gry});
       }
 
       let path1 = buildSvgCurve(bins1, { line: this.options.ErrorKind !== 4 }),
@@ -620,9 +620,10 @@ class RH1Painter extends RHistPainter {
 
    /** @summary Process tooltip event */
    processTooltipEvent(pnt) {
+      let ttrect = this.draw_g?.selectChild('.tooltip_bin');
+
       if (!pnt || !this.draw_content || this.options.Mode3D || !this.draw_g) {
-         if (this.draw_g)
-            this.draw_g.select('.tooltip_bin').remove();
+         ttrect?.remove();
          return null;
       }
 
@@ -779,8 +780,6 @@ class RH1Painter extends RHistPainter {
          // exclude empty bin if empty bins suppressed
          if (!this.options.Zero && (histo.getBinContent(findbin+1) === 0)) findbin = null;
       }
-
-      let ttrect = this.draw_g.select('.tooltip_bin');
 
       if ((findbin === null) || ((gry2 <= 0) || (gry1 >= height))) {
          ttrect.remove();

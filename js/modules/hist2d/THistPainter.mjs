@@ -1,6 +1,6 @@
 import { gStyle, BIT, settings, constants, internals, create, isObject, isFunc, isStr, getPromise,
          clTList, clTPaveText, clTPaveStats, clTPaletteAxis,
-         clTAxis, clTF1, clTProfile, kNoZoom, clTCutG, kNoStats } from '../core.mjs';
+         clTAxis, clTF1, clTF2, clTProfile, kNoZoom, clTCutG, kNoStats } from '../core.mjs';
 import { getColor, getColorPalette } from '../base/colors.mjs';
 import { DrawOptions } from '../base/BasePainter.mjs';
 import { ObjectPainter, EAxisBits } from '../base/ObjectPainter.mjs';
@@ -8,7 +8,7 @@ import { TPavePainter } from '../hist/TPavePainter.mjs';
 import { ensureTCanvas } from '../gpad/TCanvasPainter.mjs';
 
 
-const CoordSystem = { kCARTESIAN: 1, kPOLAR: 2, kCYLINDRICAL: 3, kSPHERICAL: 4, kRAPIDITY: 5 };
+const kCARTESIAN = 1, kPOLAR = 2, kCYLINDRICAL = 3, kSPHERICAL = 4, kRAPIDITY = 5;
 
 
 /**
@@ -33,8 +33,7 @@ class THistDrawOptions {
               Lego: 0, Surf: 0, Off: 0, Tri: 0, Proj: 0, AxisPos: 0,
               Spec: false, Pie: false, List: false, Zscale: false, Zvert: true, PadPalette: false,
               Candle: '', Violin: '', Scaled: null, Circular: 0,
-              GLBox: 0, GLColor: false, Project: '',
-              System: CoordSystem.kCARTESIAN,
+              GLBox: 0, GLColor: false, Project: '', System: kCARTESIAN,
               AutoColor: false, NoStat: false, ForceStat: false, PadStats: false, PadTitle: false, AutoZoom: false,
               HighRes: 0, Zero: 1, Palette: 0, BaseLine: false,
               Optimize: settings.OptimizeDraw, adjustFrame: false,
@@ -44,6 +43,8 @@ class THistDrawOptions {
               _pmc: false, _plc: false, _pfc: false, need_fillcol: false,
               minimum: kNoZoom, maximum: kNoZoom, ymin: 0, ymax: 0, cutg: null, IgnoreMainScale: false });
    }
+
+   isCartesian() { return this.System == kCARTESIAN; }
 
    /** @summary Base on sumw2 values (re)set some bacis draw options, only for 1dim hist */
    decodeSumw2(histo, force) {
@@ -283,10 +284,10 @@ class THistDrawOptions {
       }
 
       if (d.check('SCAT')) this.Scat = true;
-      if (d.check('POL')) this.System = CoordSystem.kPOLAR;
-      if (d.check('CYL')) this.System = CoordSystem.kCYLINDRICAL;
-      if (d.check('SPH')) this.System = CoordSystem.kSPHERICAL;
-      if (d.check('PSR')) this.System = CoordSystem.kRAPIDITY;
+      if (d.check('POL')) this.System = kPOLAR;
+      if (d.check('CYL')) this.System = kCYLINDRICAL;
+      if (d.check('SPH')) this.System = kSPHERICAL;
+      if (d.check('PSR')) this.System = kRAPIDITY;
 
       if (d.check('TRI', true)) {
          this.Color = false;
@@ -299,6 +300,7 @@ class THistDrawOptions {
       if (d.check('MERCATOR')) this.Proj = 2;
       if (d.check('SINUSOIDAL')) this.Proj = 3;
       if (d.check('PARABOLIC')) this.Proj = 4;
+      if (d.check('MOLLWEIDE')) this.Proj = 5;
       if (this.Proj > 0) this.Contour = 14;
 
       if (d.check('PROJXY', true)) this.Project = 'XY' + d.partAsInt(0,1);
@@ -380,9 +382,8 @@ class THistDrawOptions {
          this.Curve = this.Fill = true;
       }
 
-      //if (this.Surf == 15)
-      //   if (this.System == CoordSystem.kPOLAR || this.System == CoordSystem.kCARTESIAN)
-      //      this.Surf = 13;
+      if ((this.Surf == 15) && (this.System == kPOLAR || this.System == kCARTESIAN))
+         this.Surf = 13;
    }
 
    /** @summary Tries to reconstruct string with hist draw options */
@@ -796,6 +797,39 @@ class THistPainter extends ObjectPainter {
        }, 'objects');
    }
 
+   /** @summary Update axes attributes in target histogram
+     * @private */
+   updateAxes(tgt_histo, src_histo, fp) {
+      const copyTAxisMembers = (tgt, src, copy_zoom) => {
+         tgt.fTitle = src.fTitle;
+         tgt.fLabels = src.fLabels;
+         tgt.fXmin = src.fXmin;
+         tgt.fXmax = src.fXmax;
+         tgt.fTimeDisplay = src.fTimeDisplay;
+         tgt.fTimeFormat = src.fTimeFormat;
+         tgt.fAxisColor = src.fAxisColor;
+         tgt.fLabelColor = src.fLabelColor;
+         tgt.fLabelFont = src.fLabelFont;
+         tgt.fLabelOffset = src.fLabelOffset;
+         tgt.fLabelSize = src.fLabelSize;
+         tgt.fNdivisions = src.fNdivisions;
+         tgt.fTickLength = src.fTickLength;
+         tgt.fTitleColor = src.fTitleColor;
+         tgt.fTitleFont = src.fTitleFont;
+         tgt.fTitleOffset = src.fTitleOffset;
+         tgt.fTitleSize = src.fTitleSize;
+         if (copy_zoom) {
+            tgt.fFirst = src.fFirst;
+            tgt.fLast = src.fLast;
+            tgt.fBits = src.fBits;
+         }
+      };
+
+      copyTAxisMembers(tgt_histo.fXaxis, src_histo.fXaxis, this.snapid && !fp?.zoomChangedInteractive('x'));
+      copyTAxisMembers(tgt_histo.fYaxis, src_histo.fYaxis, this.snapid && !fp?.zoomChangedInteractive('y'));
+      copyTAxisMembers(tgt_histo.fZaxis, src_histo.fZaxis, this.snapid && !fp?.zoomChangedInteractive('z'));
+   }
+
    /** @summary Update histogram object
      * @param obj - new histogram instance
      * @param opt - new drawing option (optional)
@@ -852,34 +886,7 @@ class THistPainter extends ObjectPainter {
             }
          }
 
-         const copyAxisMembers = (name, tgt, src) => {
-            tgt.fTitle = src.fTitle;
-            tgt.fLabels = src.fLabels;
-            tgt.fXmin = src.fXmin;
-            tgt.fXmax = src.fXmax;
-            tgt.fTimeDisplay = src.fTimeDisplay;
-            tgt.fTimeFormat = src.fTimeFormat;
-            tgt.fAxisColor = src.fAxisColor;
-            tgt.fLabelColor = src.fLabelColor;
-            tgt.fLabelFont = src.fLabelFont;
-            tgt.fLabelOffset = src.fLabelOffset;
-            tgt.fLabelSize = src.fLabelSize;
-            tgt.fNdivisions = src.fNdivisions;
-            tgt.fTickLength = src.fTickLength;
-            tgt.fTitleColor = src.fTitleColor;
-            tgt.fTitleFont = src.fTitleFont;
-            tgt.fTitleOffset = src.fTitleOffset;
-            tgt.fTitleSize = src.fTitleSize;
-            if (this.snapid && (!fp || !fp.zoomChangedInteractive(name))) {
-               tgt.fFirst = src.fFirst;
-               tgt.fLast = src.fLast;
-               tgt.fBits = src.fBits;
-            }
-         };
-
-         copyAxisMembers('x', histo.fXaxis, obj.fXaxis);
-         copyAxisMembers('y', histo.fYaxis, obj.fYaxis);
-         copyAxisMembers('z', histo.fZaxis, obj.fZaxis);
+         this.updateAxes(histo, obj, fp);
 
          histo.fArray = obj.fArray;
          histo.fNcells = obj.fNcells;
@@ -1374,8 +1381,8 @@ class THistPainter extends ObjectPainter {
       if (func._typename === clTPaveStats)
           return (func.fName !== 'stats') || (!histo.TestBit(kNoStats) && !this.options.NoStat);
 
-       if (func._typename === clTF1)
-          return !func.TestBit(BIT(9));
+       if ((func._typename === clTF1) || (func._typename === clTF2))
+          return !func.TestBit(BIT(9)); // TF1::kNotDraw
 
        return func._typename !== clTPaletteAxis;
    }
@@ -1637,7 +1644,8 @@ class THistPainter extends ObjectPainter {
 
          menu.addchk(fp.enable_highlight, 'Highlight bins', () => {
             fp.enable_highlight = !fp.enable_highlight;
-            if (!fp.enable_highlight && fp.highlightBin3D && fp.mode3d) fp.highlightBin3D(null);
+            if (!fp.enable_highlight && fp.mode3d && isFunc(fp.highlightBin3D))
+               fp.highlightBin3D(null);
          });
 
          if (isFunc(fp?.render3D)) {
@@ -2104,9 +2112,9 @@ class THistPainter extends ObjectPainter {
       if (this.options.Mode3D) {
          if (!this.options.Surf && !this.options.Lego && !this.options.Error) {
             if ((this.nbinsx >= 50) || (this.nbinsy >= 50))
-               this.options.Lego = this.options.Color ? 14 : 13;
+               this.options.Lego = this.options.Scat ? 13 : 14;
             else
-               this.options.Lego = this.options.Color ? 12 : 1;
+               this.options.Lego = this.options.Scat ? 1 : 12;
 
             this.options.Zero = false; // do not show zeros by default
          }
@@ -2312,4 +2320,4 @@ class THistPainter extends ObjectPainter {
 
 } // class THistPainter
 
-export { THistPainter, kNoZoom, HistContour };
+export { THistPainter, kNoZoom, HistContour, kCARTESIAN, kPOLAR, kCYLINDRICAL, kSPHERICAL, kRAPIDITY };
