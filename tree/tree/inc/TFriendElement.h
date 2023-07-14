@@ -53,7 +53,7 @@ public:
    TFriendElement(TTree *tree, const char *treename, const char *filename);
    TFriendElement(TTree *tree, const char *treename, TFile *file);
    TFriendElement(TTree *tree, TTree* friendtree, const char *alias);
-   ~TFriendElement() override;
+   virtual ~TFriendElement();
    virtual TTree      *Connect();
    virtual TTree      *DisConnect();
    virtual TFile      *GetFile();
@@ -62,15 +62,15 @@ public:
    /// Get the actual TTree name of the friend.
    /// If an alias is present, it can be retrieved with GetName().
    virtual const char *GetTreeName() const {return fTreeName.Data();}
-   void        ls(Option_t *option="") const override;
+   virtual void        ls(Option_t *option="") const;
            void        Reset() { fTree = nullptr; fFile = nullptr; }
            Bool_t      IsUpdated() const { return TestBit(kUpdated); }
            void        ResetUpdated() { ResetBit(kUpdated); }
            void        MarkUpdated() { SetBit(kUpdated); }
-   void        RecursiveRemove(TObject *obj) override;
+   virtual void        RecursiveRemove(TObject *obj);
 
 
-   ClassDefOverride(TFriendElement,2)  //A friend element of another TTree
+   ClassDef(TFriendElement,2)  //A friend element of another TTree
 };
 
 #endif

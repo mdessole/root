@@ -35,7 +35,7 @@ public:
    typedef Int_t (*MethodCreateListOfBrowsables_t)
       (TList &, const TBranch *branch, const TVirtualBranchBrowsable *parent);
 
-   ~TVirtualBranchBrowsable() override;
+   ~TVirtualBranchBrowsable();
 
    void Browse(TBrowser *b) override;
 
@@ -102,7 +102,7 @@ private:
 
 class TMethodBrowsable: public TVirtualBranchBrowsable {
 public:
-   ~TMethodBrowsable() override {};
+   ~TMethodBrowsable() {};
 
    static Int_t GetBrowsables(TList &list, const TBranch *branch,
          const TVirtualBranchBrowsable *parent = nullptr);
@@ -131,7 +131,7 @@ private:
 
 class TNonSplitBrowsable: public TVirtualBranchBrowsable {
 public:
-   ~TNonSplitBrowsable() override {}
+   ~TNonSplitBrowsable() {}
 
    static Int_t GetBrowsables(TList &list, const TBranch *branch,
          const TVirtualBranchBrowsable *parent = nullptr);
@@ -143,13 +143,13 @@ protected:
          const TVirtualBranchBrowsable *parent = nullptr);
 
 private:
-   ClassDefOverride(TNonSplitBrowsable, 0); // Helper object to browse unsplit objects
+   ClassDef(TNonSplitBrowsable, 0); // Helper object to browse unsplit objects
 };
 
 
 class TCollectionPropertyBrowsable: public TVirtualBranchBrowsable {
 public:
-   ~TCollectionPropertyBrowsable() override {}
+   ~TCollectionPropertyBrowsable() {}
 
    void Browse(TBrowser *b) override;
    static Int_t GetBrowsables(TList &list, const TBranch *branch,
@@ -177,7 +177,7 @@ private:
 
 class TCollectionMethodBrowsable: public TMethodBrowsable {
 public:
-   ~TCollectionMethodBrowsable() override {};
+   ~TCollectionMethodBrowsable() {};
 
    static Int_t GetBrowsables(TList &list, const TBranch *branch,
          const TVirtualBranchBrowsable *parent = nullptr);
@@ -188,7 +188,7 @@ protected:
    TCollectionMethodBrowsable(const TBranch* branch, TMethod* m,
       const TVirtualBranchBrowsable* parent = nullptr);
 
-   ClassDefOverride(TCollectionMethodBrowsable,0); // Helper object to browse a collection's methods
+   ClassDef(TCollectionMethodBrowsable,0); // Helper object to browse a collection's methods
 };
 
 #endif // defined ROOT_TBranchBrowsable

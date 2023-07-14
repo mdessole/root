@@ -34,7 +34,7 @@ protected:
 public:
    TLeafF();
    TLeafF(TBranch *parent, const char *name, const char *type);
-   ~TLeafF() override;
+   virtual ~TLeafF();
 
    void            Export(TClonesArray *list, Int_t n) override;
    void            FillBasket(TBuffer &b) override;

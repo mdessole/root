@@ -53,40 +53,40 @@ public:
    TEntryListArray(const TTree *tree);
    TEntryListArray(const TEntryListArray& elist);
    TEntryListArray(const TEntryList& elist); // to convert TEL to TELA
-   ~TEntryListArray() override;
+   virtual ~TEntryListArray();
 
-   void                Add(const TEntryList *elist) override;
+   virtual void        Add(const TEntryList *elist);
    virtual Int_t       Contains(Long64_t entry, TTree *tree, Long64_t subentry);
-   Int_t       Contains(Long64_t entry, TTree *tree = nullptr) override {
+   virtual Int_t       Contains(Long64_t entry, TTree *tree = nullptr) {
       return TEntryList::Contains(entry, tree);
    };
    virtual Bool_t      Enter(Long64_t entry, TTree *tree, Long64_t subentry);
    virtual Bool_t      Enter(Long64_t entry, const char *treename, const char *filename, Long64_t subentry);
-   Bool_t      Enter(Long64_t entry, TTree *tree = nullptr) override {
+   virtual Bool_t      Enter(Long64_t entry, TTree *tree = nullptr) {
       return Enter(entry, tree, -1);
    };
-   Bool_t              Enter(Long64_t entry, const char *treename, const char *filename) override
+   virtual Bool_t      Enter(Long64_t entry, const char *treename, const char *filename)
    {
       return Enter(entry, treename, filename, -1);
    };
 //    virtual Bool_t      Enter(Long64_t entry, TTree *tree, const TEntryList *e);
    virtual TEntryListArray* GetSubListForEntry(Long64_t entry, TTree *tree = nullptr);
-   void        Print(const Option_t* option = "") const override;
+   virtual void        Print(const Option_t* option = "") const;
    virtual Bool_t      Remove(Long64_t entry, TTree *tree, Long64_t subentry);
-   Bool_t      Remove(Long64_t entry, TTree *tree = nullptr) override {
+   virtual Bool_t      Remove(Long64_t entry, TTree *tree = nullptr) {
       return Remove(entry, tree, -1);
    };
-   void        Reset() override;
+   virtual void        Reset();
 
-   void        SetTree(const char *treename, const char *filename) override;
-   void        SetTree(const TTree *tree) override {
+   virtual void        SetTree(const char *treename, const char *filename);
+   virtual void        SetTree(const TTree *tree) {
       TEntryList::SetTree(tree);   // will take treename and filename from the tree and call the method above
    }
-   void        Subtract(const TEntryList *elist) override;
+   virtual void        Subtract(const TEntryList *elist);
    virtual TList* GetSubLists() const {
       return fSubLists;
    };
 
-   ClassDefOverride(TEntryListArray, 1);  //A list of entries and subentries in a TTree
+   ClassDef(TEntryListArray, 1);  //A list of entries and subentries in a TTree
 };
 #endif

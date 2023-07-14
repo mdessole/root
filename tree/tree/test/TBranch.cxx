@@ -7,7 +7,7 @@
 
 class TBranchTest : public ::testing::Test {
 protected:
-   void SetUp() override
+   virtual void SetUp()
    {
       TRandom *random = new TRandom(837);
       TFile *file = new TFile("TBranchTestTree.root", "RECREATE");

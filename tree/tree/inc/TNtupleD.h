@@ -40,7 +40,7 @@ private:
 public:
    TNtupleD();
    TNtupleD(const char *name,const char *title, const char *varlist, Int_t bufsize=32000);
-   ~TNtupleD() override;
+   virtual ~TNtupleD();
 
            void      Browse(TBrowser *b) override;
    virtual Int_t     Fill(const Double_t *x);

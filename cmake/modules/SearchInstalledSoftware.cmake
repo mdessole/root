@@ -1688,6 +1688,21 @@ if(tmva-sofie)
   endif()
 endif()
 
+
+#---Check for SYCL-----------------------------------------------------------------------
+
+if (sycl)
+  find_package(OpenSYCL)
+  if (NOT OpenSYCL_FOUND)
+    if(fail-on-missing)
+      message(FATAL_ERROR "Open SYCL library not found")
+    else()
+      message(STATUS "Open SYCL library not found")
+      set(sycl OFF CACHE BOOL "Disabled because Open SYCL is not found" FORCE)
+    endif()
+  endif()
+endif()
+
 #---Check for CUDA-----------------------------------------------------------------------
 # if tmva-gpu is off and cuda is on cuda is searched but not used in tmva
 #  if cuda is off but tmva-gpu is on cuda is searched and activated if found !

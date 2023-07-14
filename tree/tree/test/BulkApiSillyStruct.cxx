@@ -23,7 +23,7 @@ public:
    const std::string fFileName = "BulkApiSillyStruct.root";
 
 protected:
-   void SetUp() override
+   virtual void SetUp()
    {
       TFile *hfile = new TFile(fFileName.c_str(), "RECREATE", "TTree silly-struct benchmark");
       hfile->SetCompressionLevel(0); // No compression at all.

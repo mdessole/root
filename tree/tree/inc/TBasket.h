@@ -113,7 +113,7 @@ public:
    TBasket();
    TBasket(TDirectory *motherDir);
    TBasket(const char *name, const char *title, TBranch *branch);
-   ~TBasket() override;
+   virtual ~TBasket();
 
    virtual void    AdjustSize(Int_t newsize);
    virtual void    DeleteEntryOffset();
@@ -153,7 +153,7 @@ public:
    virtual void    Update(Int_t newlast, Int_t skipped);
    virtual Int_t   WriteBuffer();
 
-   ClassDefOverride(TBasket, 3); // the TBranch buffers
+   ClassDef(TBasket, 3); // the TBranch buffers
 };
 
 #endif

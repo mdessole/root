@@ -72,7 +72,7 @@ public:
       this->PrependLink(c);
    }
 
-   ClassDefOverride(RNoCleanupNotifier, 0);
+   ClassDef(RNoCleanupNotifier, 0);
 };
 
 std::unique_ptr<TChain> MakeChainForMT(const std::string &name = "", const std::string &title = "");

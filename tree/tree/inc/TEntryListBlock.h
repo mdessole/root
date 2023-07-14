@@ -61,7 +61,7 @@ class TEntryListBlock:public TObject
    enum { kBlockSize = 4000 }; //size of the block, 4000 UShort_ts
    TEntryListBlock();
    TEntryListBlock(const TEntryListBlock &eblock);
-   ~TEntryListBlock() override;
+   ~TEntryListBlock();
    TEntryListBlock &operator=(const TEntryListBlock &rhs);
 
    Bool_t  Enter(Int_t entry);
@@ -74,10 +74,10 @@ class TEntryListBlock:public TObject
    void    ResetIndices() {fLastIndexQueried = -1, fLastIndexReturned = -1;}
    Int_t   GetType() { return fType; }
    Int_t   GetNPassed();
-   void Print(const Option_t *option = "") const override;
+   virtual void Print(const Option_t *option = "") const;
    void    PrintWithShift(Int_t shift) const;
 
-   ClassDefOverride(TEntryListBlock, 1) //Used internally in TEntryList to store the entry numbers
+   ClassDef(TEntryListBlock, 1) //Used internally in TEntryList to store the entry numbers
 
 };
 

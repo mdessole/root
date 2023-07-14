@@ -20,7 +20,7 @@ public:
    const std::string fFileName = "BulkApiTest.root";
 
 protected:
-   void SetUp() override
+   virtual void SetUp()
    {
       auto hfile = TFile::Open(fFileName.c_str(), "recreate", "TTree float micro benchmark ROOT file");
       hfile->SetCompressionLevel(0); // No compression at all.

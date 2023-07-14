@@ -31,6 +31,14 @@
 #include <TH1.h>
 #include <TROOT.h> // IsImplicitMTEnabled
 
+#ifdef ROOT_RDF_SYCL
+    #include <ROOT/RDF/SYCLFillHelper.hxx>
+#endif
+
+#ifdef ROOT_RDF_CUDA
+     #include <ROOT/RDF/CUDAFillHelper.hxx>
+#endif
+
 #include <deque>
 #include <functional>
 #include <map>
@@ -131,6 +139,25 @@ std::unique_ptr<RActionBase>
 BuildAction(const ColumnNames_t &bl, const std::shared_ptr<ActionResultType> &h, const unsigned int nSlots,
             std::shared_ptr<PrevNodeType> prevNode, ActionTag, const RColumnRegister &colRegister)
 {
+   if constexpr (std::is_same<ActionTag, ActionTags::Histo2D>::value ||
+                 std::is_same<ActionTag, ActionTags::Histo3D>::value) {
+#ifdef ROOT_RDF_SYCL
+      if (getenv("SYCL_HIST")) {
+         using Helper_t = ROOT::Experimental::SYCLFillHelper<ActionResultType>;
+         using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
+         return std::make_unique<Action_t>(Helper_t(h, nSlots), bl, std::move(prevNode), colRegister);
+      }
+#endif
+
+#ifdef ROOT_RDF_CUDA
+      if (getenv("CUDA_HIST")) {
+         using Helper_t = ROOT::Experimental::CUDAFillHelper<ActionResultType>;
+         using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
+         return std::make_unique<Action_t>(Helper_t(h, nSlots), bl, std::move(prevNode), colRegister);
+      }
+#endif
+   }
+
    using Helper_t = FillHelper<ActionResultType>;
    using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
    return std::make_unique<Action_t>(Helper_t(h, nSlots), bl, std::move(prevNode), colRegister);
@@ -143,6 +170,22 @@ BuildAction(const ColumnNames_t &bl, const std::shared_ptr<::TH1D> &h, const uns
             std::shared_ptr<PrevNodeType> prevNode, ActionTags::Histo1D, const RColumnRegister &colRegister)
 {
    auto hasAxisLimits = HistoUtils<::TH1D>::HasAxisLimits(*h);
+
+#ifdef ROOT_RDF_SYCL
+   if (getenv("SYCL_HIST")) {
+      using Helper_t = ROOT::Experimental::SYCLFillHelper<TH1D>;
+      using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
+      return std::make_unique<Action_t>(Helper_t(h, nSlots), bl, std::move(prevNode), colRegister);
+   }
+#endif
+
+#ifdef ROOT_RDF_CUDA
+   if (getenv("CUDA_HIST")) {
+      using Helper_t = ROOT::Experimental::CUDAFillHelper<::TH1D>;
+      using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
+      return std::make_unique<Action_t>(Helper_t(h, nSlots), bl, std::move(prevNode), colRegister);
+   }
+#endif
 
    if (hasAxisLimits || !IsImplicitMTEnabled()) {
       using Helper_t = FillHelper<::TH1D>;

@@ -30,7 +30,7 @@ protected:
          "ROOT PCM", false);
    }
 
-   void SetUp() override
+   virtual void SetUp()
    {
       TRandom *random = new TRandom(837);
       auto file = new TFile("TOffsetGeneration1.root", "RECREATE");

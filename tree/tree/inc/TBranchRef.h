@@ -44,7 +44,7 @@ protected:
 public:
    TBranchRef();
    TBranchRef(TTree *tree);
-   ~TBranchRef() override;
+   virtual ~TBranchRef();
            void    Clear(Option_t *option="") override;
    TRefTable      *GetRefTable() const {return fRefTable;}
            Bool_t  Notify() override;
