@@ -2,8 +2,10 @@
 #include <sycl/sycl.hpp>
 #include <iostream>
 #include <array>
+
 #include "TMath.h"
 #include "SYCLHelpers.h"
+#include "ROOT/RVec.hxx"
 
 namespace ROOT {
 namespace Experimental {
@@ -238,7 +240,7 @@ public:
    {
       auto size = weightsAcc.size();
       if (binsAcc[id] <= 0 || binsAcc[id] >= axesAcc[id / size].fNbins - 1) {
-         weightsAcc[id % size ] = 0.;
+         weightsAcc[id % size] = 0.;
       }
    }
 
