@@ -4,18 +4,14 @@
 # For the licensing terms see $ROOTSYS/LICENSE.
 # For the list of contributors see $ROOTSYS/README/CREDITS.
 
-set (histoRDFLibs ROOTDataFrame)
+if (sycl OR cuda)
+    ROOT_ADD_GTEST(InvariantMass invariantMass.cxx LIBRARIES ROOTVecOps Physics)
+endif()
 
 if (cuda)
-    ROOT_ADD_GTEST(HistoFill histoFill.cxx LIBRARIES CUDAHist Hist ROOTDataFrame)
-    list(APPEND histoRDFLibs CUDAHist)
+    target_link_libraries(InvariantMass InvariantMassCUDA)
 endif()
 
 if (sycl)
-    ROOT_ADD_GTEST(HistoFillSYCL histoFillSYCL.cxx LIBRARIES SYCLHist Hist ROOTDataFrame)
-    list(APPEND histoRDFLibs SYCLHist)
-endif()
-
-if (sycl OR cuda)
-    ROOT_ADD_GTEST(HistoRDF histoRDF.cxx LIBRARIES ${histoRDFLibs})
+    target_link_libraries(InvariantMass InvariantMassSYCL)
 endif()
