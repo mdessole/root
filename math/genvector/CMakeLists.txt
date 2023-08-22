@@ -153,6 +153,15 @@ ROOT_GENERATE_DICTIONARY(G__GenVector
     MathCore
 )
 
+if (sycl)
+#ROOT_LINKER_LIBRARY(SYCLHist src/RHnSYCL.cxx TYPE SHARED DEPENDENCIES GenVector)
+target_compile_definitions(G__GenVector INTERFACE ROOT_RDF_SYCL CL_TARGET_OPENCL_VERSION=300)
+target_compile_options(G__GenVector INTERFACE -O2)
+target_include_directories(G__GenVector INTERFACE ${OpenSYCL_INCLUDE_DIRS})
+#target_compile_definitions(G__GenVector PRIVATE ROOT_RDF_SYCL)
+endif()
+
+
 ROOT_GENERATE_DICTIONARY(G__GenVector32
     Math/Point2D.h
     Math/Point3D.h

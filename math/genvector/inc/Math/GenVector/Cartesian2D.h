@@ -91,8 +91,20 @@ public :
    Scalar X()     const { return fX;}
    Scalar Y()     const { return fY;}
    Scalar Mag2()  const { return fX*fX + fY*fY; }
-   Scalar R() const { using std::sqrt; return sqrt(Mag2()); }
-   Scalar Phi() const { using std::atan2; return (fX == Scalar(0) && fY == Scalar(0)) ? Scalar(0) : atan2(fY, fX); }
+   Scalar R() const { 
+#ifdef ROOT_RDF_SYCL 
+      using cl::sycl::sqrt;
+#else
+      using std::sqrt;
+#endif 
+      return sqrt(Mag2()); }
+   Scalar Phi() const { 
+#ifdef ROOT_RDF_SYCL 
+      using cl::sycl::atan2;
+#else
+      using std::atan2;
+#endif
+      return (fX == Scalar(0) && fY == Scalar(0)) ? Scalar(0) : atan2(fY, fX); }
 
    /**
        set the x coordinate value keeping y constant
@@ -126,9 +138,17 @@ public :
        rotate by an angle
     */
    void Rotate(Scalar angle) {
+#ifdef ROOT_RDF_SYCL 
+      using cl::sycl::sin;
+#else
       using std::sin;
+#endif
       const Scalar s = sin(angle);
+#ifdef ROOT_RDF_SYCL 
+      using cl::sycl::cos;
+#else
       using std::cos;
+#endif
       const Scalar c = cos(angle);
       SetCoordinates(c * fX - s * fY, s * fX + c * fY);
    }
@@ -167,9 +187,17 @@ public :
    {
       const Scalar r = v.R(); // re-using this instead of calling v.X() and v.Y()
       // is the speed improvement
+#ifdef ROOT_RDF_SYCL 
+      using cl::sycl::cos;
+#else
       using std::cos;
+#endif
       fX = r * cos(v.Phi());
+#ifdef ROOT_RDF_SYCL 
+      using cl::sycl::sin;
+#else
       using std::sin;
+#endif
       fY = r * sin(v.Phi());
    }
    // Technical note:  This works even though only Polar2Dfwd.h is
@@ -181,9 +209,17 @@ public :
    Cartesian2D & operator = (const Polar2D<T2> & v)
    {
       const Scalar r = v.R();
+#ifdef ROOT_RDF_SYCL 
+      using cl::sycl::cos;
+#else
       using std::cos;
+#endif
       fX             = r * cos(v.Phi());
+#ifdef ROOT_RDF_SYCL 
+      using cl::sycl::sin;
+#else
       using std::sin;
+#endif
       fY             = r * sin(v.Phi());
       return *this;
    }
