@@ -18,49 +18,55 @@
 #ifndef ROOT_Math_GenVector_MathUtil
 #define ROOT_Math_GenVector_MathUtil  1
 
+#ifdef ROOT_MATH_SYCL 
 #include <CL/sycl.hpp>
+#endif
 
 namespace ROOT {
 
    namespace Math {
 
 template <class Scalar>
-inline sin(Scalar x){
-#ifdef ROOT_RDF_SYCL 
-      using cl::sycl::sin;
-#else
-      using std::sin;
+ Scalar mysin(Scalar x){
+#ifdef ROOT_MATH_SYCL 
+      if (getenv("SYCL_MATH")) {return cl::sycl::sin(x);}
+      else {return std::sin(x);}
+#else 
+      return std::sin(x);
 #endif 
-      return sin(x); }
+ }
 
 template <class Scalar>
-inline cos(Scalar x){
-#ifdef ROOT_RDF_SYCL 
-      using cl::sycl::cos;
+ Scalar mycos(Scalar x){
+#ifdef ROOT_MATH_SYCL 
+      if (getenv("SYCL_MATH")) {return cl::sycl::cos(x);}
+      else {return std::cos(x);}
 #else
-      using std::cos;
+      return std::cos(x);
 #endif 
-      return cos(x); }
+ }
 
 template <class Scalar>
-inline atan2(Scalar x, Scalar y){
-#ifdef ROOT_RDF_SYCL 
-      using cl::sycl::atan2;
+ Scalar myatan2(Scalar x, Scalar y){
+#ifdef ROOT_MATH_SYCL 
+      if (getenv("SYCL_MATH")) {return cl::sycl::atan2(x,y);}
+      else {return std::atan2(x,y);}
 #else
-      using std::atan2;
+      return std::atan2(x,y);
 #endif 
-      return atan2(x,y); }
+ }
 
 template <class Scalar>
-inline sqrt(Scalar x){
-#ifdef ROOT_RDF_SYCL 
-      using cl::sycl::sqrt;
+ Scalar mysqrt(Scalar x){
+#ifdef ROOT_MATH_SYCL 
+      if (getenv("SYCL_MATH")) {return cl::sycl::sqrt(x);}
+      else {return std::sqrt(x);}
 #else
-      using std::sqrt;
+      return std::sqrt(x);
 #endif 
-      return sqrt(x); }
-
-   } // end namespace Math
+   } 
+   
+}// end namespace Math
 
 } // end namespace ROOT
 

@@ -8,6 +8,7 @@
 # CMakeLists.txt file for building ROOT math/genvector package
 ############################################################################
 
+
 ROOT_LINKER_LIBRARY(GenVector
     src/3DConversions.cxx
     src/3DDistances.cxx
@@ -30,6 +31,7 @@ ROOT_LINKER_LIBRARY(GenVector
     Core
     MathCore
 )
+
 
 ROOT_GENERATE_DICTIONARY(G__GenVector
     Math/AxisAngle.h
@@ -153,14 +155,20 @@ ROOT_GENERATE_DICTIONARY(G__GenVector
     MathCore
 )
 
-if (sycl)
-#ROOT_LINKER_LIBRARY(SYCLHist src/RHnSYCL.cxx TYPE SHARED DEPENDENCIES GenVector)
-target_compile_definitions(G__GenVector INTERFACE ROOT_RDF_SYCL CL_TARGET_OPENCL_VERSION=300)
-target_compile_options(G__GenVector INTERFACE -O2)
-target_include_directories(G__GenVector INTERFACE ${OpenSYCL_INCLUDE_DIRS})
-#target_compile_definitions(G__GenVector PRIVATE ROOT_RDF_SYCL)
-endif()
 
+ROOT_LINKER_LIBRARY(MathUtil inc/Math/GenVector/MathUtil.h)
+target_link_libraries(G__GenVector INTERFACE MathUtil)
+set_target_properties(MathUtil PROPERTIES LINKER_LANGUAGE CXX)
+
+if (sycl)
+  #add_library(MathUtil SHARED inc/Math/GenVector/MathUtil.h)
+  #set_target_properties(GenVector PROPERTIES LINKER_LANGUAGE CXX)
+  target_compile_definitions(MathUtil INTERFACE ROOT_MATH_SYCL CL_TARGET_OPENCL_VERSION=300)
+  target_compile_options(MathUtil INTERFACE -O2)
+  target_include_directories(MathUtil INTERFACE ${OpenSYCL_INCLUDE_DIRS})
+  target_link_libraries(MathUtil INTERFACE OpenSYCL::hipSYCL-rt)
+  add_sycl_to_target(TARGET MathUtil SOURCES inc/Math/GenVector/MathUtil.h)
+endif()
 
 ROOT_GENERATE_DICTIONARY(G__GenVector32
     Math/Point2D.h
