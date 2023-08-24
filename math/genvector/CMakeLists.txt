@@ -91,6 +91,7 @@ ROOT_GENERATE_DICTIONARY(G__GenVector
     Math/GenVector/LorentzRotation.h
     Math/GenVector/LorentzVectorfwd.h
     Math/GenVector/LorentzVector.h
+    Math/GenVector/MathUtil.h
     Math/GenVector/Plane3D.h
     Math/GenVector/Polar2Dfwd.h
     Math/GenVector/Polar2D.h
