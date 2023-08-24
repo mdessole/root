@@ -15,60 +15,66 @@
 //
 // Last update: Tue May 31 21:10:29 2005
 //
-#ifndef ROOT_Math_GenVector_MathUtil
-#define ROOT_Math_GenVector_MathUtil  1
+
+#ifndef MathUtil_H
+#define MathUtil_H
 
 #ifdef ROOT_MATH_SYCL 
 #include <CL/sycl.hpp>
-#endif
+#endif 
+
 
 namespace ROOT {
 
-   namespace Math {
+namespace Math {
+
+
+#ifdef ROOT_MATH_SYCL 
+template <class Scalar> Scalar mysin(Scalar x){
+      return cl::sycl::sin(x);}
 
 template <class Scalar>
- Scalar mysin(Scalar x){
-#ifdef ROOT_MATH_SYCL 
-      if (getenv("SYCL_MATH")) {return cl::sycl::sin(x);}
-      else {return std::sin(x);}
+ Scalar mycos(Scalar x)
+ {    return cl::sycl::cos(x);}
+
+template <class Scalar>
+ Scalar myatan2(Scalar x, Scalar y)
+ {    return cl::sycl::atan2(x,y);}
+
+template <class Scalar>
+ Scalar mysqrt(Scalar x)
+ {      return cl::sycl::sqrt(x);}
+
+template <class Scalar>
+ Scalar myfloor(Scalar x)
+ {       return cl::sycl::floor(x);}
+
+
 #else 
-      return std::sin(x);
-#endif 
- }
+
+template <class Scalar> Scalar mysin(Scalar x){
+      return std::sin(x);}
 
 template <class Scalar>
- Scalar mycos(Scalar x){
-#ifdef ROOT_MATH_SYCL 
-      if (getenv("SYCL_MATH")) {return cl::sycl::cos(x);}
-      else {return std::cos(x);}
-#else
-      return std::cos(x);
-#endif 
- }
+ Scalar mycos(Scalar x)
+ {          return std::cos(x);}
 
 template <class Scalar>
- Scalar myatan2(Scalar x, Scalar y){
-#ifdef ROOT_MATH_SYCL 
-      if (getenv("SYCL_MATH")) {return cl::sycl::atan2(x,y);}
-      else {return std::atan2(x,y);}
-#else
-      return std::atan2(x,y);
-#endif 
- }
+ Scalar myatan2(Scalar x, Scalar y)
+ {    return std::atan2(x,y);}
 
 template <class Scalar>
- Scalar mysqrt(Scalar x){
-#ifdef ROOT_MATH_SYCL 
-      if (getenv("SYCL_MATH")) {return cl::sycl::sqrt(x);}
-      else {return std::sqrt(x);}
-#else
-      return std::sqrt(x);
+ Scalar mysqrt(Scalar x)
+ {      return std::sqrt(x);}
+
+template <class Scalar>
+ Scalar myfloor(Scalar x)
+ {       return std::floor(x);} 
 #endif 
-   } 
    
-}// end namespace Math
+
+}// end namespace Experimental
 
 } // end namespace ROOT
 
-
-#endif /* ROOT_Math_GenVector_MathUtil  */
+#endif

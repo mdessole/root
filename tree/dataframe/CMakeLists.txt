@@ -140,13 +140,13 @@ ROOT_STANDARD_LIBRARY_PACKAGE(ROOTDataFrame
   ${EXTRA_DICT_OPTS}
 )
 
-if (cuda)
-  target_link_libraries(ROOTDataFrame PRIVATE CUDAHist)
-endif()
+#if (cuda)
+#  target_link_libraries(ROOTDataFrame PRIVATE CUDAHist)
+#endif()
 
-if (sycl)
-  target_link_libraries(ROOTDataFrame PRIVATE SYCLHist)
-endif()
+#if (sycl)
+#  target_link_libraries(ROOTDataFrame PRIVATE SYCLHist)
+#endif()
 
 if(arrow)
   target_sources(ROOTDataFrame PRIVATE src/RArrowDS.cxx)

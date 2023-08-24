@@ -23,6 +23,7 @@
 
 #include "Math/GenVector/etaMax.h"
 
+#include "Math/GenVector/MathUtil.h"
 
 
 namespace ROOT {
@@ -99,8 +100,8 @@ public :
 
    Scalar R()     const { return fR;}
    Scalar Phi()   const { return fPhi; }
-   Scalar X() const { using std::cos; return fR * cos(fPhi); }
-   Scalar Y() const { using std::sin; return fR * sin(fPhi); }
+   Scalar X() const { return fR * mycos(fPhi); }
+   Scalar Y() const { return fR * mysin(fPhi); }
    Scalar Mag2()  const { return fR*fR;}
 
 
@@ -136,8 +137,7 @@ private:
       restrict abgle hi to be between -PI and PI
     */
    inline void Restrict() {
-      using std::floor;
-      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - floor(fPhi / (2 * pi()) + .5) * 2 * pi();
+      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - myfloor(fPhi / (2 * pi()) + .5) * 2 * pi();
    }
 
 public:
