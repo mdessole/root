@@ -267,8 +267,9 @@ private:
 /// RHnSYCL
 
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
-RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(const std::array<int, Dim> &ncells, const std::array<double, Dim> &xlow,
-                                     const std::array<double, Dim> &xhigh, const double **binEdges)
+RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(size_t maxBulkSize, const std::array<int, Dim> &ncells,
+                                     const std::array<double, Dim> &xlow, const std::array<double, Dim> &xhigh,
+                                     const double **binEdges)
    : queue(sycl::default_selector{}, SYCLHelpers::exception_handler),
      kStatsSmemSize((WGroupSize <= 32) ? 2 * WGroupSize * sizeof(double) : WGroupSize * sizeof(double))
 {
@@ -276,14 +277,14 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(const std::array<int, Dim> &ncells, const s
    if (getenv("DBG"))
       std::cout << "Running SYCLHist on " << device.template get_info<sycl::info::device::name>() << "\n";
 
-   fBufferSize = 10000;
+   fMaxBulkSize = maxBulkSize;
    fNbins = 1;
    fEntries = 0;
 
    // Allocate buffers
-   fBWeights = sycl::buffer<double, 1>(sycl::range<1>(fBufferSize));
-   fBCoords = sycl::buffer<double, 1>(sycl::range<1>(Dim * fBufferSize));
-   fBBins = sycl::buffer<int, 1>(sycl::range<1>(Dim * fBufferSize));
+   fBWeights = sycl::buffer<double, 1>(sycl::range<1>(fMaxBulkSize));
+   fBCoords = sycl::buffer<double, 1>(sycl::range<1>(Dim * fMaxBulkSize));
+   fBBins = sycl::buffer<int, 1>(sycl::range<1>(Dim * fMaxBulkSize));
    fBAxes = sycl::buffer<AxisDescriptor, 1>(sycl::range<1>(Dim));
    std::vector<double> binEdgesFlat;
    int numBinEdges = 0;

@@ -37,7 +37,7 @@ __device__ inline int FindFixBin(double x, const double *binEdges, int nBins, do
 
 // Use Horner's method to calculate the bin in an n-Dimensional array.
 template <unsigned int Dim>
-__device__ inline int GetBin(int tid, AxisDescriptor *axes, double *coords, unsigned int  nCoords, int *bins)
+__device__ inline int GetBin(int tid, AxisDescriptor *axes, double *coords, unsigned int nCoords, int *bins)
 {
    auto bin = 0;
    for (int d = Dim - 1; d >= 0; d--) {
@@ -252,19 +252,18 @@ __global__ void ExcludeUOverflowKernel(int *bins, double *weights, unsigned int 
 /// RHnCUDA
 
 template <typename T, unsigned int Dim, unsigned int BlockSize>
-RHnCUDA<T, Dim, BlockSize>::RHnCUDA(std::array<int, Dim> ncells, std::array<double, Dim> xlow,
+RHnCUDA<T, Dim, BlockSize>::RHnCUDA(size_t maxBulkSize, std::array<int, Dim> ncells, std::array<double, Dim> xlow,
                                     std::array<double, Dim> xhigh, const double **binEdges)
    : kStatsSmemSize((BlockSize <= 32) ? 2 * BlockSize * sizeof(double) : BlockSize * sizeof(double))
 {
-   fBufferSize = 10000;
-
+   fMaxBulkSize = maxBulkSize;
    fNbins = 1;
    fEntries = 0;
    fDIntermediateStats = NULL;
    fDStats = NULL;
    fDAxes = NULL;
-   fHCoords.reserve(Dim * fBufferSize);
-   fHWeights.reserve(fBufferSize);
+   fHCoords.reserve(Dim * fMaxBulkSize);
+   fHWeights.reserve(fMaxBulkSize);
 
    // Initialize axis descriptors.
    for (auto i = 0; i < Dim; i++) {
@@ -309,13 +308,13 @@ void RHnCUDA<T, Dim, BlockSize>::AllocateBuffers()
    ERRCHECK(cudaMemset(fDHistogram, 0, fNbins * sizeof(T)));
 
    // Allocate weights array on GPU
-   ERRCHECK(cudaMalloc((void **)&fDWeights, fBufferSize * sizeof(double)));
+   ERRCHECK(cudaMalloc((void **)&fDWeights, fMaxBulkSize * sizeof(double)));
 
    // Allocate array of coords to fill on GPU
-   ERRCHECK(cudaMalloc((void **)&fDCoords, Dim * fBufferSize * sizeof(double)));
+   ERRCHECK(cudaMalloc((void **)&fDCoords, Dim * fMaxBulkSize * sizeof(double)));
 
    // Allocate array of bins corresponding to the coords.
-   ERRCHECK(cudaMalloc((void **)&fDBins, Dim * fBufferSize * sizeof(int)));
+   ERRCHECK(cudaMalloc((void **)&fDBins, Dim * fMaxBulkSize * sizeof(int)));
 
    // Allocate axes on the GPU
    ERRCHECK(cudaMalloc((void **)&fDAxes, Dim * sizeof(AxisDescriptor)));
@@ -332,7 +331,7 @@ void RHnCUDA<T, Dim, BlockSize>::AllocateBuffers()
    }
 
    // Allocate array with (intermediate) results of the stats for each block.
-   ERRCHECK(cudaMalloc((void **)&fDIntermediateStats, ceil(fBufferSize / BlockSize / 2.) * kNStats * sizeof(double)));
+   ERRCHECK(cudaMalloc((void **)&fDIntermediateStats, ceil(fMaxBulkSize / BlockSize / 2.) * kNStats * sizeof(double)));
    ERRCHECK(cudaMalloc((void **)&fDStats, kNStats * sizeof(double)));
    ERRCHECK(cudaMemset(fDStats, 0, kNStats * sizeof(double)));
 }
@@ -432,10 +431,10 @@ template <typename T, unsigned int Dim, unsigned int BlockSize>
 void RHnCUDA<T, Dim, BlockSize>::ExecuteCUDAHisto(unsigned int size)
 {
    int numBlocks = size % BlockSize == 0 ? size / BlockSize : size / BlockSize + 1;
+   ERRCHECK(cudaMemcpy(fDCoords, fHCoords.data(), Dim * size * sizeof(double), cudaMemcpyHostToDevice));
 
    fEntries += size;
 
-   ERRCHECK(cudaMemcpy(fDCoords, fHCoords.data(), Dim * size * sizeof(double), cudaMemcpyHostToDevice));
    ERRCHECK(cudaMemcpy(fDWeights, fHWeights.data(), size * sizeof(double), cudaMemcpyHostToDevice));
 
    if (fHistoSmemSize > fMaxSmemSize) {

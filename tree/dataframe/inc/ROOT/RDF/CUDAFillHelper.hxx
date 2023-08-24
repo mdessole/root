@@ -219,7 +219,7 @@ public:
    CUDAFillHelper(const CUDAFillHelper &) = delete;
 
    // Initialize fCUDAHist
-   inline void init_CUDA(HIST *obj, int i)
+   inline void init_CUDA(HIST *obj, int i, size_t maxBulkSize)
    {
       if (getenv("DBG"))
          printf("Init CUDA hist %d\n", i);
@@ -248,14 +248,14 @@ public:
             printf("\tdim %d --- nbins: %d xlow: %f xhigh: %f\n", d, ncells[d], xlow[d], xhigh[d]);
       }
 
-      fCUDAHist = std::make_unique<CUDAHist_t>(ncells, xlow, xhigh, binEdges.data());
+      fCUDAHist = std::make_unique<CUDAHist_t>(maxBulkSize, ncells, xlow, xhigh, binEdges.data());
    }
 
-   CUDAFillHelper(const std::shared_ptr<HIST> &h, const unsigned int nSlots)
+   CUDAFillHelper(const std::shared_ptr<HIST> &h, const unsigned int nSlots, std::size_t maxBulkSize)
    {
       // We ignore nSlots and just create one CUDAHist instance that handles the parallelization.
       fObject = h.get();
-      init_CUDA(fObject, 0);
+      init_CUDA(fObject, 0, maxBulkSize);
    }
 
    void InitTask(TTreeReader *, unsigned int) {}
@@ -345,7 +345,7 @@ public:
       auto &result = *static_cast<std::shared_ptr<H> *>(newResult);
       ResetIfPossible(result.get());
       UnsetDirectoryIfPossible(result.get());
-      return CUDAFillHelper(result, 1);
+      return CUDAFillHelper(result, 1, fCUDAHist->GetMaxBulkSize());
    }
 };
 

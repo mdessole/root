@@ -38,7 +38,7 @@ private:
 
    // Kernel size parameters
    unsigned int                                    fNumBlocks;         ///< Number of blocks used in SYCL kernels
-   unsigned int                                    fBufferSize;        ///< Number of coordinates to buffer.
+   unsigned int                                    fMaxBulkSize;        ///< Number of coordinates to buffer.
    unsigned int                                    fMaxSmemSize;       ///< Maximum shared memory size per block on device 0.
    unsigned int const                              kStatsSmemSize;     ///< Size of shared memory per block in GetStatsKernel
    unsigned int                                    fHistoSmemSize;     ///< Size of shared memory per block in HistoKernel
@@ -47,7 +47,7 @@ private:
 public:
    RHnSYCL() = delete;
 
-   RHnSYCL(const std::array<int, Dim> &ncells, const std::array<double, Dim> &xlow, const std::array<double, Dim> &xhigh,
+   RHnSYCL(size_t maxBulkSize, const std::array<int, Dim> &ncells, const std::array<double, Dim> &xlow, const std::array<double, Dim> &xhigh,
            const double **binEdges = NULL);
 
    ~RHnSYCL()
@@ -68,6 +68,8 @@ public:
    void Fill(const RVecD &coords);
 
    void Fill(const RVecD &coords, const RVecD &weights);
+
+   size_t GetMaxBulkSize() { return fMaxBulkSize; }
 
 private:
    void GetStats(unsigned int size);

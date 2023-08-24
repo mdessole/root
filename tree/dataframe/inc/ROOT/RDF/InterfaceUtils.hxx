@@ -147,7 +147,9 @@ BuildAction(const ColumnNames_t &bl, const std::shared_ptr<ActionResultType> &h,
       if (getenv("SYCL_HIST")) {
          using Helper_t = ROOT::Experimental::SYCLFillHelper<ActionResultType>;
          using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
-         return std::make_unique<Action_t>(Helper_t(h, nSlots), bl, std::move(prevNode), colRegister);
+         return std::make_unique<Action_t>(
+            Helper_t(h, nSlots, prevNode->GetLoopManagerUnchecked()->GetMaxEventsPerBulk()), bl, std::move(prevNode),
+            colRegister);
       }
 #endif
 
@@ -155,7 +157,9 @@ BuildAction(const ColumnNames_t &bl, const std::shared_ptr<ActionResultType> &h,
       if (getenv("CUDA_HIST")) {
          using Helper_t = ROOT::Experimental::CUDAFillHelper<ActionResultType>;
          using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
-         return std::make_unique<Action_t>(Helper_t(h, nSlots), bl, std::move(prevNode), colRegister);
+         return std::make_unique<Action_t>(
+            Helper_t(h, nSlots, prevNode->GetLoopManagerUnchecked()->GetMaxEventsPerBulk()), bl, std::move(prevNode),
+            colRegister);
       }
 #endif
    }
@@ -177,7 +181,8 @@ BuildAction(const ColumnNames_t &bl, const std::shared_ptr<::TH1D> &h, const uns
    if (getenv("SYCL_HIST")) {
       using Helper_t = ROOT::Experimental::SYCLFillHelper<TH1D>;
       using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
-      return std::make_unique<Action_t>(Helper_t(h, nSlots), bl, std::move(prevNode), colRegister);
+      return std::make_unique<Action_t>(Helper_t(h, nSlots, prevNode->GetLoopManagerUnchecked()->GetMaxEventsPerBulk()),
+                                        bl, std::move(prevNode), colRegister);
    }
 #endif
 
@@ -185,7 +190,8 @@ BuildAction(const ColumnNames_t &bl, const std::shared_ptr<::TH1D> &h, const uns
    if (getenv("CUDA_HIST")) {
       using Helper_t = ROOT::Experimental::CUDAFillHelper<::TH1D>;
       using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
-      return std::make_unique<Action_t>(Helper_t(h, nSlots), bl, std::move(prevNode), colRegister);
+      return std::make_unique<Action_t>(Helper_t(h, nSlots, prevNode->GetLoopManagerUnchecked()->GetMaxEventsPerBulk()),
+                                        bl, std::move(prevNode), colRegister);
    }
 #endif
 

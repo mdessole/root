@@ -33,7 +33,7 @@ private:
 
    // Kernel size parameters
    unsigned int                      fNumBlocks;          ///< Number of blocks used in CUDA kernels
-   unsigned int                      fBufferSize;         ///< Number of coordinates to buffer.
+   unsigned int                      fMaxBulkSize;         ///< Number of coordinates to buffer.
    unsigned int                      fMaxSmemSize;        ///< Maximum shared memory size per block on device 0.
    unsigned int                      kStatsSmemSize;      ///< Size of shared memory per block in GetStatsKernel
    unsigned int                      fHistoSmemSize;      ///< Size of shared memory per block in HistoKernel
@@ -42,7 +42,7 @@ private:
 public:
    RHnCUDA() = delete;
 
-   RHnCUDA(std::array<int, Dim> ncells, std::array<double, Dim> xlow, std::array<double, Dim> xhigh,
+   RHnCUDA(size_t maxBulkSize, std::array<int, Dim> ncells, std::array<double, Dim> xlow, std::array<double, Dim> xhigh,
            const double **binEdges = NULL);
 
    ~RHnCUDA();
@@ -59,6 +59,8 @@ public:
    void Fill(const RVecD &coords);
 
    void Fill(const RVecD &coords, const RVecD &weights);
+
+   size_t GetMaxBulkSize() { return fMaxBulkSize; }
 
 protected:
    void GetStats(unsigned int size);
