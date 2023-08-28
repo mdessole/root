@@ -37,6 +37,13 @@ template <class Scalar>
  Scalar mycos(Scalar x)
  {    return cl::sycl::cos(x);}
 
+template <class Scalar> Scalar mysinh(Scalar x){
+      return cl::sycl::sinh(x);}
+
+template <class Scalar>
+ Scalar mycosh(Scalar x)
+ {    return cl::sycl::cosh(x);}
+
 template <class Scalar>
  Scalar myatan2(Scalar x, Scalar y)
  {    return cl::sycl::atan2(x,y);}
@@ -49,6 +56,21 @@ template <class Scalar>
  Scalar myfloor(Scalar x)
  {       return cl::sycl::floor(x);}
 
+template <class Scalar>
+ Scalar myexp(Scalar x)
+ {       return cl::sycl::exp(x);}
+
+template <class Scalar>
+ Scalar mylog(Scalar x)
+ {       return cl::sycl::log(x);}
+
+template <class Scalar>
+ Scalar mytan(Scalar x)
+ {       return cl::sycl::tan(x);}
+
+template <class Scalar>
+ Scalar myfabs(Scalar x)
+ {    return cl::sycl::fabs(x);}
 
 #else 
 

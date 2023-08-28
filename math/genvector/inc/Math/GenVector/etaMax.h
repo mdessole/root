@@ -17,6 +17,7 @@
 #ifndef ROOT_Math_GenVector_etaMax
 #define ROOT_Math_GenVector_etaMax  1
 
+#include "Math/GenVector/MathUtil.h"
 
 #include <limits>
 #include <cmath>
@@ -33,10 +34,9 @@ namespace ROOT {
         long double.
      */
     inline
-    long double etaMax_impl() {
-      using std::log;
-      return log ( std::numeric_limits<long double>::max()/256.0l ) -
-             log ( std::numeric_limits<long double>::denorm_min()*256.0l )
+     double etaMax_impl() {
+      return mylog ( std::numeric_limits< double>::max()/256.0 ) -
+             mylog ( std::numeric_limits< double>::denorm_min()*256.0 )
              + 16.0 * log(2.0);
     // Actual usage of etaMax() simply returns the number 22756, which is
     // the answer this would supply, rounded to a higher integer.

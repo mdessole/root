@@ -20,6 +20,8 @@
 
 #include "Math/GenVector/eta.h"
 
+#include "Math/GenVector/MathUtil.h"
+
 #include <limits>
 #include <cmath>
 
@@ -111,8 +113,7 @@ private:
    inline static Scalar pi() { return Scalar(M_PI); }
    inline void          Restrict()
    {
-      using std::floor;
-      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - floor(fPhi / (2 * pi()) + .5) * 2 * pi();
+      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - myfloor(fPhi / (2 * pi()) + .5) * 2 * pi();
    }
 public:
 
@@ -121,13 +122,13 @@ public:
    Scalar Rho()   const { return fRho; }
    Scalar Z()     const { return fZ;   }
    Scalar Phi()   const { return fPhi; }
-   Scalar X() const { using std::cos; return fRho * cos(fPhi); }
-   Scalar Y() const { using std::sin; return fRho * sin(fPhi); }
+   Scalar X() const { return fRho * mycos(fPhi); }
+   Scalar Y() const { return fRho * mysin(fPhi); }
 
    Scalar Mag2()  const { return fRho*fRho + fZ*fZ;   }
-   Scalar R() const { using std::sqrt; return sqrt(Mag2()); }
+   Scalar R() const { return mysqrt(Mag2()); }
    Scalar Perp2() const { return fRho*fRho;           }
-   Scalar Theta() const { using std::atan2; return (fRho == Scalar(0) && fZ == Scalar(0)) ? Scalar(0) : atan2(fRho, fZ); }
+   Scalar Theta() const { return (fRho == Scalar(0) && fZ == Scalar(0)) ? Scalar(0) : myatan2(fRho, fZ); }
 
    // pseudorapidity - use same implementation as in Cartesian3D
    Scalar Eta() const {

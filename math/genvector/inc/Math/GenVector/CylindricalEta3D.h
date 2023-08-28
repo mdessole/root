@@ -70,9 +70,9 @@ public :
   explicit CylindricalEta3D( const CoordSystem & v ) :
      fRho(v.Rho() ),  fEta(v.Eta() ),  fPhi(v.Phi() )
   {
-     using std::log; 
-     static Scalar bigEta = Scalar(-0.3) * log(std::numeric_limits<Scalar>::epsilon());
-     if (std::fabs(fEta) > bigEta) {
+
+     static Scalar bigEta = Scalar(-0.3) * mylog(std::numeric_limits<Scalar>::epsilon());
+     if (myfabs(fEta) > bigEta) {
         // This gives a small absolute adjustment in rho,
         // which, for large eta, results in a significant
         // improvement in the faithfullness of reproducing z.
@@ -126,8 +126,7 @@ public :
 private:
    inline static Scalar pi() { return M_PI; }
    inline void Restrict() {
-      using std::floor;
-      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - floor(fPhi / (2 * pi()) + .5) * 2 * pi();
+      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - myfloor(fPhi / (2 * pi()) + .5) * 2 * pi();
       return;
    }
 public:
@@ -137,17 +136,15 @@ public:
    T Rho()   const { return fRho; }
    T Eta()   const { return fEta; }
    T Phi()   const { return fPhi; }
-   T X() const { using std::cos; return fRho * cos(fPhi); }
-   T Y() const { using std::sin; return fRho * sin(fPhi); }
+   T X() const { return fRho * mycos(fPhi); }
+   T Y() const { return fRho * mysin(fPhi); }
    T Z() const
    {
-      using std::sinh;
-      return fRho > 0 ? fRho * sinh(fEta) : fEta == 0 ? 0 : fEta > 0 ? fEta - etaMax<T>() : fEta + etaMax<T>();
+      return fRho > 0 ? fRho * mysinh(fEta) : fEta == 0 ? 0 : fEta > 0 ? fEta - etaMax<T>() : fEta + etaMax<T>();
    }
    T R() const
    {
-      using std::cosh;
-      return fRho > 0 ? fRho * cosh(fEta)
+      return fRho > 0 ? fRho * mycosh(fEta)
                       : fEta > etaMax<T>() ? fEta - etaMax<T>() : fEta < -etaMax<T>() ? -fEta - etaMax<T>() : 0;
    }
    T Mag2() const
@@ -156,7 +153,7 @@ public:
       return r * r;
    }
    T Perp2() const { return fRho*fRho;            }
-   T Theta() const { using std::atan; return fRho > 0 ? 2 * atan(exp(-fEta)) : (fEta >= 0 ? 0 : pi()); }
+   T Theta() const { return fRho > 0 ? 2 * myatan(myexp(-fEta)) : (fEta >= 0 ? 0 : pi()); }
 
    // setters (only for data members)
 

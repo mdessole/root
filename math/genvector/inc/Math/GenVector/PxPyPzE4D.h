@@ -22,6 +22,7 @@
 
 #include "Math/GenVector/GenVector_exception.h"
 
+#include "Math/GenVector/MathUtil.h"
 
 #include <cmath>
 
@@ -137,7 +138,7 @@ public :
    /**
       magnitude of spatial components (magnitude of 3-momentum)
    */
-   Scalar P() const { using std::sqrt; return sqrt(P2()); }
+   Scalar P() const {  return mysqrt(P2()); }
    Scalar R() const { return P(); }
 
    /**
@@ -153,13 +154,11 @@ public :
    {
       const Scalar mm = M2();
       if (mm >= 0) {
-         using std::sqrt;
-         return sqrt(mm);
+         return mysqrt(mm);
       } else {
          GenVector::Throw ("PxPyPzE4D::M() - Tachyonic:\n"
                    "    P^2 > E^2 so the mass would be imaginary");
-         using std::sqrt;
-         return -sqrt(-mm);
+         return -mysqrt(-mm);
       }
    }
    Scalar Mag() const    { return M(); }
@@ -173,7 +172,7 @@ public :
    /**
       Transverse spatial component (P_perp or rho)
    */
-   Scalar Pt() const { using std::sqrt; return sqrt(Perp2()); }
+   Scalar Pt() const { return mysqrt(Perp2()); }
    Scalar Perp() const { return Pt();}
    Scalar Rho()  const { return Pt();}
 
@@ -188,13 +187,11 @@ public :
    Scalar Mt() const {
       const Scalar mm = Mt2();
       if (mm >= 0) {
-         using std::sqrt;
-         return sqrt(mm);
+         return mysqrt(mm);
       } else {
          GenVector::Throw ("PxPyPzE4D::Mt() - Tachyonic:\n"
                            "    Pz^2 > E^2 so the transverse mass would be imaginary");
-         using std::sqrt;
-         return -sqrt(-mm);
+         return -mysqrt(-mm);
       }
    }
 
@@ -212,19 +209,18 @@ public :
    */
    Scalar Et() const {
       const Scalar etet = Et2();
-      using std::sqrt;
-      return fT < 0.0 ? -sqrt(etet) : sqrt(etet);
+      return fT < 0.0 ? -mysqrt(etet) : mysqrt(etet);
    }
 
    /**
       azimuthal angle
    */
-   Scalar Phi() const { using std::atan2; return (fX == 0.0 && fY == 0.0) ? 0 : atan2(fY, fX); }
+   Scalar Phi() const { return (fX == 0.0 && fY == 0.0) ? 0 : myatan2(fY, fX); }
 
    /**
       polar angle
    */
-   Scalar Theta() const { using std::atan2; return (fX == 0.0 && fY == 0.0 && fZ == 0.0) ? 0 : atan2(Pt(), fZ); }
+   Scalar Theta() const { return (fX == 0.0 && fY == 0.0 && fZ == 0.0) ? 0 : myatan2(Pt(), fZ); }
 
    /**
        pseudorapidity

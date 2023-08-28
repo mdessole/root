@@ -27,6 +27,7 @@
 #include <cmath>
 
 #include "Math/GenVector/eta.h"
+#include "Math/GenVector/MathUtil.h"
 
 namespace ROOT {
 
@@ -111,10 +112,10 @@ public :
    Scalar Z()     const { return fZ;}
    Scalar Mag2()  const { return fX*fX + fY*fY + fZ*fZ;}
    Scalar Perp2() const { return fX*fX + fY*fY ;}
-   Scalar Rho() const { using std::sqrt; return sqrt(Perp2()); }
-   Scalar R() const { using std::sqrt; return sqrt(Mag2()); }
-   Scalar Theta() const { using std::atan2; return atan2(Rho(), Z()); }
-   Scalar Phi() const { using std::atan2; return atan2(fY, fX); }
+   Scalar Rho() const { return mysqrt(Perp2()); }
+   Scalar R() const { return mysqrt(Mag2()); }
+   Scalar Theta() const { return myatan2(Rho(), Z()); }
+   Scalar Phi() const { return myatan2(fY, fX); }
 
    // pseudorapidity
    Scalar Eta() const {
@@ -197,8 +198,8 @@ public :
       const T rho = v.Rho();
       // re-using this instead of calling v.X() and v.Y()
       // is the speed improvement
-      fX = rho * std::cos(v.Phi());
-      fY = rho * std::sin(v.Phi());
+      fX = rho * mycos(v.Phi());
+      fY = rho * mysin(v.Phi());
    }
    // Technical note:  This works even though only Polar3Dfwd.h is
    // included (and in fact, including Polar3D.h would cause circularity
@@ -209,10 +210,8 @@ public :
    Cartesian3D & operator = (const Polar3D<T2> & v)
    {
       const T rho = v.Rho();
-      using std::cos;
-      fX          = rho * cos(v.Phi());
-      using std::sin;
-      fY          = rho * sin(v.Phi());
+      fX          = rho * mycos(v.Phi());
+      fY          = rho * mysin(v.Phi());
       fZ = v.Z();
       return *this;
    }

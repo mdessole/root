@@ -19,6 +19,7 @@
 
 #include "Math/GenVector/etaMax.h"
 
+#include "Math/GenVector/MathUtil.h"
 
 #include <limits>
 #include <cmath>
@@ -52,15 +53,11 @@ namespace ROOT {
               static const Scalar big_z_scaled = pow(std::numeric_limits<Scalar>::epsilon(), static_cast<Scalar>(-.25));
 
               Scalar z_scaled = z/rho;
-              using std::fabs;
-              if (std::fabs(z_scaled) < big_z_scaled) {
-                 using std::sqrt;
-                 using std::log;
-                 return log(z_scaled + std::sqrt(z_scaled * z_scaled + 1.0));
+              if (myfabs(z_scaled) < big_z_scaled) {
+                 return log(z_scaled + mysqrt(z_scaled * z_scaled + 1.0));
               } else {
                  // apply correction using first order Taylor expansion of sqrt
-                 using std::log;
-                 return z > 0 ? log(2.0 * z_scaled + 0.5 / z_scaled) : -log(-2.0 * z_scaled);
+                 return z > 0 ? mylog(2.0 * z_scaled + 0.5 / z_scaled) : -mylog(-2.0 * z_scaled);
               }
            }
            // case vector has rho = 0
@@ -83,7 +80,7 @@ namespace ROOT {
         */
         template<typename Scalar>
         inline Scalar Eta_FromTheta(Scalar theta, Scalar r) {
-           Scalar tanThetaOver2 = tan(theta / 2.);
+           Scalar tanThetaOver2 = mytan(theta / 2.);
            if (tanThetaOver2 == 0) {
               return r + etaMax<Scalar>();
            }
@@ -91,8 +88,7 @@ namespace ROOT {
               return -r - etaMax<Scalar>();
            }
            else {
-              using std::log;
-              return -log(tanThetaOver2);
+              return -mylog(tanThetaOver2);
            }
 
         }
