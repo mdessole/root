@@ -18,9 +18,8 @@
 #ifndef ROOT_Math_GenVector_PxPyPzM4D
 #define ROOT_Math_GenVector_PxPyPzM4D  1
 
-#include "Math/GenVector/eta.h"
+#undef __MAKECINT__
 
-#include "Math/GenVector/GenVector_exception.h"
 
 #include "Math/GenVector/MathUtil.h"
 
@@ -218,8 +217,8 @@ public :
       if (mm >= 0) {
          return mysqrt(mm);
       } else {
-         GenVector::Throw ("PxPyPzM4D::Mt() - Tachyonic:\n"
-                           "    Pz^2 > E^2 so the transverse mass would be imaginary");
+         //GenVector::Throw ("PxPyPzM4D::Mt() - Tachyonic:\n"
+         //                  "    Pz^2 > E^2 so the transverse mass would be imaginary");
          return -mysqrt(-mm);
       }
    }
@@ -255,7 +254,7 @@ public :
        pseudorapidity
    */
    Scalar Eta() const {
-      return Impl::Eta_FromRhoZ ( Pt(), fZ);
+      return Eta_FromRhoZ ( Pt(), fZ);
    }
 
    // --------- Set Coordinates of this system  ---------------
@@ -303,7 +302,7 @@ public :
       fX = -fX;
       fY = -fY;
       fZ = -fZ;
-      GenVector::Throw ("PxPyPzM4D::Negate - cannot negate the energy - can negate only the spatial components");
+      //GenVector::Throw ("PxPyPzM4D::Negate - cannot negate the energy - can negate only the spatial components");
    }
 
    /**
@@ -358,7 +357,7 @@ private:
    inline void RestrictNegMass() {
       if ( fM >=0 ) return;
       if ( P2() - fM*fM  < 0 ) {
-         GenVector::Throw("PxPyPzM4D::unphysical value of mass, set to closest physical value");
+         //GenVector::Throw("PxPyPzM4D::unphysical value of mass, set to closest physical value");
          fM = - P();
       }
       return;
@@ -384,6 +383,10 @@ private:
 
 #include "Math/GenVector/PxPyPzE4D.h"
 #include "Math/GenVector/PtEtaPhiM4D.h"
+
+#if defined(__MAKECINT__) || defined(G__DICTIONARY)
+#include "Math/GenVector/GenVector_exception.h"
+#endif
 
 namespace ROOT {
 

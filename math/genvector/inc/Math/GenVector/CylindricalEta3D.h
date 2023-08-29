@@ -20,10 +20,10 @@
 #ifndef ROOT_Math_GenVector_CylindricalEta3D
 #define ROOT_Math_GenVector_CylindricalEta3D  1
 
-#include "Math/Math.h"
+#undef __MAKECINT__
+
 
 #include "Math/GenVector/etaMax.h"
-
 
 #include <limits>
 #include <cmath>

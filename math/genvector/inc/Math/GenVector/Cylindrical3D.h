@@ -16,9 +16,7 @@
 #ifndef ROOT_Math_GenVector_Cylindrical3D
 #define ROOT_Math_GenVector_Cylindrical3D  1
 
-#include "Math/Math.h"
-
-#include "Math/GenVector/eta.h"
+#undef __MAKECINT__
 
 #include "Math/GenVector/MathUtil.h"
 
@@ -132,7 +130,7 @@ public:
 
    // pseudorapidity - use same implementation as in Cartesian3D
    Scalar Eta() const {
-      return Impl::Eta_FromRhoZ( fRho, fZ);
+      return Eta_FromRhoZ( fRho, fZ);
    }
 
    // setters (only for data members)

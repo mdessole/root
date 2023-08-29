@@ -18,11 +18,11 @@
 #ifndef ROOT_Math_GenVector_PtEtaPhiM4D
 #define ROOT_Math_GenVector_PtEtaPhiM4D  1
 
-#include "Math/Math.h"
+#undef __MAKECINT__
+
 
 #include "Math/GenVector/etaMax.h"
 
-#include "Math/GenVector/GenVector_exception.h"
 
 #include "Math/GenVector/MathUtil.h"
 
@@ -225,8 +225,8 @@ public :
       if (mm >= 0) {
          return mysqrt(mm);
       } else {
-         GenVector::Throw  ("PtEtaPhiM4D::Mt() - Tachyonic:\n"
-                            "    Pz^2 > E^2 so the transverse mass would be imaginary");
+         //GenVector::Throw  ("PtEtaPhiM4D::Mt() - Tachyonic:\n"
+         //                   "    Pz^2 > E^2 so the transverse mass would be imaginary");
          return -mysqrt(-mm);
       }
    }
@@ -254,7 +254,7 @@ private:
    inline void RestrictNegMass() {
       if (fM < 0) {
          if (P2() - fM * fM < 0) {
-            GenVector::Throw("PtEtaPhiM4D::unphysical value of mass, set to closest physical value");
+            //GenVector::Throw("PtEtaPhiM4D::unphysical value of mass, set to closest physical value");
             fM = -P();
          }
       }
@@ -312,7 +312,7 @@ public:
    void Negate( ) {
       fPhi = ( (fPhi > 0) ? fPhi - pi() : fPhi + pi()  );
       fEta = - fEta;
-      GenVector::Throw ("PtEtaPhiM4D::Negate - cannot negate the energy - can negate only the spatial components");
+      //GenVector::Throw ("PtEtaPhiM4D::Negate - cannot negate the energy - can negate only the spatial components");
    }
 
    /**
@@ -389,7 +389,9 @@ private:
 // move implementations here to avoid circle dependencies
 #include "Math/GenVector/PxPyPzE4D.h"
 
-
+#if defined(__MAKECINT__) || defined(G__DICTIONARY)
+#include "Math/GenVector/GenVector_exception.h"
+#endif
 
 namespace ROOT {
 

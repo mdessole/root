@@ -19,11 +19,10 @@
 #ifndef ROOT_Math_GenVector_PtEtaPhiE4D
 #define ROOT_Math_GenVector_PtEtaPhiE4D  1
 
-#include "Math/Math.h"
+#undef __MAKECINT__
+
 
 #include "Math/GenVector/etaMax.h"
-
-#include "Math/GenVector/GenVector_exception.h"
 
 #include "Math/GenVector/MathUtil.h"
 
@@ -185,8 +184,8 @@ public :
       if (mm >= 0) {
          return mysqrt(mm);
       } else {
-         GenVector::Throw ("PtEtaPhiE4D::M() - Tachyonic:\n"
-                           "    Pt and Eta give P such that P^2 > E^2, so the mass would be imaginary");
+         //GenVector::Throw ("PtEtaPhiE4D::M() - Tachyonic:\n"
+         //                  "    Pt and Eta give P such that P^2 > E^2, so the mass would be imaginary");
          return -mysqrt(-mm);
       }
    }
@@ -211,8 +210,8 @@ public :
       if (mm >= 0) {
          return mysqrt(mm);
       } else {
-         GenVector::Throw ("PtEtaPhiE4D::Mt() - Tachyonic:\n"
-                           "    Pt and Eta give Pz such that Pz^2 > E^2, so the mass would be imaginary");
+         //GenVector::Throw ("PtEtaPhiE4D::Mt() - Tachyonic:\n"
+         //                  "    Pt and Eta give Pz such that Pz^2 > E^2, so the mass would be imaginary");
          return -mysqrt(-mm);
       }
    }
@@ -372,6 +371,7 @@ private:
 #include "Math/GenVector/PxPyPzE4D.h"
 #if defined(__MAKECINT__) || defined(G__DICTIONARY)
 #include "Math/GenVector/PtEtaPhiM4D.h"
+#include "Math/GenVector/GenVector_exception.h"
 #endif
 
 namespace ROOT {

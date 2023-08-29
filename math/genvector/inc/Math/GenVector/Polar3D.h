@@ -19,9 +19,8 @@
 #ifndef ROOT_Math_GenVector_Polar3D
 #define ROOT_Math_GenVector_Polar3D  1
 
-#include "Math/Math.h"
+#undef __MAKECINT__
 
-#include "Math/GenVector/eta.h"
 
 #include "Math/GenVector/MathUtil.h"
 
@@ -124,7 +123,7 @@ public :
    // pseudorapidity
    Scalar Eta() const
    {
-      return Impl::Eta_FromTheta(fTheta, fR);
+      return Eta_FromTheta(fTheta, fR);
    }
 
    // setters (only for data members)

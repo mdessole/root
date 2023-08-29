@@ -19,7 +19,7 @@
 #ifndef ROOT_Math_GenVector_Polar2D
 #define ROOT_Math_GenVector_Polar2D  1
 
-#include "Math/Math.h"
+#undef __MAKECINT__
 
 #include "Math/GenVector/etaMax.h"
 

@@ -33,6 +33,7 @@ namespace ROOT {
         where max and min are the extrema of positive values for type
         long double.
      */
+#ifdef ROOT_MATH_SYCL 
     inline
      double etaMax_impl() {
       return mylog ( std::numeric_limits< double>::max()/256.0 ) -
@@ -41,6 +42,16 @@ namespace ROOT {
     // Actual usage of etaMax() simply returns the number 22756, which is
     // the answer this would supply, rounded to a higher integer.
     }
+#else
+    inline
+     long double etaMax_impl() {
+      return mylog ( std::numeric_limits<long double>::max()/256.0 ) -
+             mylog ( std::numeric_limits<long double>::denorm_min()*256.0 )
+             + 16.0 * log(2.0);
+    // Actual usage of etaMax() simply returns the number 22756, which is
+    // the answer this would supply, rounded to a higher integer.
+    }
+#endif
 
     /**
         Function providing the maximum possible value of pseudorapidity for

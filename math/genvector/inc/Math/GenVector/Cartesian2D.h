@@ -18,10 +18,9 @@
 
 #include "Math/GenVector/Polar2Dfwd.h"
 
-#include "Math/Math.h"
-
 #include "Math/GenVector/MathUtil.h"
 
+#undef __MAKECINT__
 
 namespace ROOT {
 

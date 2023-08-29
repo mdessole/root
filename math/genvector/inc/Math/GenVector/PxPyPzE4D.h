@@ -18,9 +18,7 @@
 #ifndef ROOT_Math_GenVector_PxPyPzE4D
 #define ROOT_Math_GenVector_PxPyPzE4D  1
 
-#include "Math/GenVector/eta.h"
-
-#include "Math/GenVector/GenVector_exception.h"
+#undef __MAKECINT__
 
 #include "Math/GenVector/MathUtil.h"
 
@@ -156,8 +154,8 @@ public :
       if (mm >= 0) {
          return mysqrt(mm);
       } else {
-         GenVector::Throw ("PxPyPzE4D::M() - Tachyonic:\n"
-                   "    P^2 > E^2 so the mass would be imaginary");
+         //GenVector::Throw ("PxPyPzE4D::M() - Tachyonic:\n"
+         //          "    P^2 > E^2 so the mass would be imaginary");
          return -mysqrt(-mm);
       }
    }
@@ -189,8 +187,8 @@ public :
       if (mm >= 0) {
          return mysqrt(mm);
       } else {
-         GenVector::Throw ("PxPyPzE4D::Mt() - Tachyonic:\n"
-                           "    Pz^2 > E^2 so the transverse mass would be imaginary");
+         //GenVector::Throw ("PxPyPzE4D::Mt() - Tachyonic:\n"
+         //                  "    Pz^2 > E^2 so the transverse mass would be imaginary");
          return -mysqrt(-mm);
       }
    }
@@ -226,7 +224,7 @@ public :
        pseudorapidity
    */
    Scalar Eta() const {
-      return Impl::Eta_FromRhoZ ( Pt(), fZ);
+      return Eta_FromRhoZ ( Pt(), fZ);
    }
 
    // --------- Set Coordinates of this system  ---------------
@@ -356,6 +354,8 @@ private:
 
 #include "Math/GenVector/PtEtaPhiE4D.h"
 #include "Math/GenVector/PtEtaPhiM4D.h"
+
+#include "Math/GenVector/GenVector_exception.h"
 
 namespace ROOT {
 

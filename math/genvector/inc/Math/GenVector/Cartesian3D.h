@@ -19,14 +19,13 @@
 #ifndef ROOT_Math_GenVector_Cartesian3D
 #define ROOT_Math_GenVector_Cartesian3D  1
 
-#include "Math/GenVector/Polar3Dfwd.h"
+#undef __MAKECINT__
 
-#include "Math/Math.h"
+#include "Math/GenVector/Polar3Dfwd.h"
 
 #include <limits>
 #include <cmath>
 
-#include "Math/GenVector/eta.h"
 #include "Math/GenVector/MathUtil.h"
 
 namespace ROOT {
@@ -119,7 +118,7 @@ public :
 
    // pseudorapidity
    Scalar Eta() const {
-      return Impl::Eta_FromRhoZ( Rho(), fZ );
+      return Eta_FromRhoZ( Rho(), fZ );
    }
 
    /**
