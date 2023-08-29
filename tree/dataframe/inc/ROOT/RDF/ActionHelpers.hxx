@@ -46,6 +46,7 @@
 #include "TStatistic.h"
 #include "ROOT/RDF/RActionImpl.hxx"
 #include "ROOT/RDF/RMergeableValue.hxx"
+#include "ROOT/RDF/REventMask.hxx"
 
 #include <algorithm>
 #include <functional>
@@ -454,6 +455,8 @@ class R__CLING_PTRCHECK(off) FillHelper : public RActionImpl<FillHelper<HIST>> {
    }
 
 public:
+   static constexpr bool kUseBulk = true;
+
    FillHelper(FillHelper &&) = default;
    FillHelper(const FillHelper &) = delete;
 
@@ -474,6 +477,46 @@ public:
    auto Exec(unsigned int slot, const ValTypes &...x) -> decltype(fObjects[slot]->Fill(x...), void())
    {
       fObjects[slot]->Fill(x...);
+   }
+
+   template <std::size_t... Is, typename... ValTypes>
+   void BulkFill(const ROOT::RDF::Experimental::REventMask &m, std::index_sequence<Is...>, const ValTypes &...x)
+   {
+      // TODO: different types in ValTypes?
+      std::array<std::vector<double>, sizeof...(ValTypes)> filtered;
+      auto maskedInsert = [&](auto &arr, auto &out) {
+         for (std::size_t i = 0ul; i < m.Size(); ++i) {
+            if (m[i])
+               out.emplace_back(arr[i]);
+         }
+      };
+
+      // Mask the arrays in the parameter pack x containing coordinates for each dimension,
+      // RVec(x1, x2, ...), RVec(y1, y2, ...), RVec(z1, z2, ...), ...
+      (maskedInsert(x, filtered[Is]), ...);
+
+      // If the pack does not contain weights, pass a nullptr
+      if constexpr (sizeof...(ValTypes) == 2)
+         fObjects[0]->FillN(int(filtered[0].size()), filtered[Is].data()...);
+      else
+         fObjects[0]->FillN(int(filtered[0].size()), filtered[Is].data()..., static_cast<double *>(nullptr));
+   }
+
+   // Bulk overload
+   template <typename... ValTypes>
+   auto Exec(const ROOT::RDF::Experimental::REventMask &m, const ValTypes &...x)
+   {
+      // If all arguments are doubles and only for TH1D for now
+      if constexpr (std::conjunction_v<std::is_same<RVecD, ValTypes>...> && std::is_same_v<TH1D, HIST>) {
+         BulkFill(m, std::index_sequence_for<ValTypes...>{}, x...);
+      } else {
+         // Non-bulk fall-back
+         for (std::size_t i = 0ul; i < m.Size(); ++i) {
+            if (m[i]) {
+               Exec(0, (x[i])...);
+            }
+         }
+      }
    }
 
    // at least one container argument

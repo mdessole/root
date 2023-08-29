@@ -47,8 +47,8 @@ private:
 public:
    RHnSYCL() = delete;
 
-   RHnSYCL(size_t maxBulkSize, const std::array<int, Dim> &ncells, const std::array<double, Dim> &xlow, const std::array<double, Dim> &xhigh,
-           const double **binEdges = NULL);
+   RHnSYCL(size_t maxBulkSize, const std::array<int, Dim> &ncells, const std::array<double, Dim> &xlow,
+           const std::array<double, Dim> &xhigh, const double **binEdges = NULL);
 
    ~RHnSYCL()
    {

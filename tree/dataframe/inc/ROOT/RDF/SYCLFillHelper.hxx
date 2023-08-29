@@ -219,10 +219,10 @@ public:
    SYCLFillHelper(const SYCLFillHelper &) = delete;
 
    // Initialize fSYCLHist
-   inline void init_sycl(HIST *obj, int i)
+   inline void init_SYCL(HIST *obj, int i, size_t maxBulkSize)
    {
       if (getenv("DBG"))
-         printf("Init sycl hist %d\n", i);
+         printf("Init SYCL hist %d\n", i);
       auto dims = obj->GetDimension();
       std::array<Int_t, dim> ncells;
       std::array<Double_t, dim> xlow;
@@ -248,14 +248,14 @@ public:
             printf("\tdim %d --- nbins: %d xlow: %f xhigh: %f\n", d, ncells[d], xlow[d], xhigh[d]);
       }
 
-      fSYCLHist = std::make_unique<SYCLHist_t>(ncells, xlow, xhigh, binEdges.data());
+      fSYCLHist = std::make_unique<SYCLHist_t>(maxBulkSize, ncells, xlow, xhigh, binEdges.data());
    }
 
-   SYCLFillHelper(const std::shared_ptr<HIST> &h, const unsigned int nSlots)
+   SYCLFillHelper(const std::shared_ptr<HIST> &h, const unsigned int nSlots, std::size_t maxBulkSize)
    {
       // We ignore nSlots and just create one SYCLHist instance that handles the parallelization.
       fObject = h.get();
-      init_sycl(fObject, 0);
+      init_SYCL(fObject, 0, maxBulkSize);
    }
 
    void InitTask(TTreeReader *, unsigned int) {}
@@ -290,7 +290,7 @@ public:
       h->SetEntries(fSYCLHist->GetEntries());
 
       if (getenv("DBG")) {
-         printf("sycl stats:");
+         printf("SYCL stats:");
          for (int j = 0; j < 13; j++) {
             printf("%f ", stats[j]);
          }
@@ -345,7 +345,7 @@ public:
       auto &result = *static_cast<std::shared_ptr<H> *>(newResult);
       ResetIfPossible(result.get());
       UnsetDirectoryIfPossible(result.get());
-      return SYCLFillHelper(result, 1);
+      return SYCLFillHelper(result, 1, fSYCLHist->GetMaxBulkSize());
    }
 };
 
