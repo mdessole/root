@@ -484,16 +484,13 @@ public:
    {
       // TODO: different types in ValTypes?
       std::array<std::vector<double>, sizeof...(ValTypes)> filtered;
-      auto maskedInsert = [&](auto &arr, auto &out) {
-         for (std::size_t i = 0ul; i < m.Size(); ++i) {
-            if (m[i])
-               out.emplace_back(arr[i]);
-         }
-      };
 
       // Mask the arrays in the parameter pack x containing coordinates for each dimension,
       // RVec(x1, x2, ...), RVec(y1, y2, ...), RVec(z1, z2, ...), ...
-      (maskedInsert(x, filtered[Is]), ...);
+      for (std::size_t i = 0ul; i < m.Size(); ++i) {
+         if (m[i])
+            (filtered[Is].emplace_back(x[i]), ...);
+      }
 
       // If the pack does not contain weights, pass a nullptr
       if constexpr (sizeof...(ValTypes) == 2)
