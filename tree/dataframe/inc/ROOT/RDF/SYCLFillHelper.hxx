@@ -201,14 +201,13 @@ class R__CLING_PTRCHECK(off) SYCLFillHelper : public RActionImpl<SYCLFillHelper<
    }
 
    template <std::size_t ColIdx, typename End_t, typename... Its>
-   void ExecLoop(unsigned int slot, End_t end, Its... its)
+   void ExecLoop(End_t end, Its... its)
    {
-      auto *thisSlotH = fObject;
       // loop increments all of the iterators while leaving scalars unmodified
       // TODO this could be simplified with fold expressions or std::apply in C++17
       auto nop = [](auto &&...) {};
       for (; GetNthElement<ColIdx>(its...) != end; nop(++its...)) {
-         thisSlotH->Fill(*its...);
+         fObject->Fill(*its...);
       }
    }
 
@@ -251,7 +250,7 @@ public:
       fSYCLHist = std::make_unique<SYCLHist_t>(maxBulkSize, ncells, xlow, xhigh, binEdges.data());
    }
 
-   SYCLFillHelper(const std::shared_ptr<HIST> &h, const unsigned int nSlots, std::size_t maxBulkSize)
+   SYCLFillHelper(const std::shared_ptr<HIST> &h, std::size_t maxBulkSize)
    {
       // We ignore nSlots and just create one SYCLHist instance that handles the parallelization.
       fObject = h.get();
@@ -265,7 +264,50 @@ public:
    template <typename... ValTypes>
    auto Exec(const ROOT::RDF::Experimental::REventMask &m, const ValTypes &...x)
    {
-      Fill(m, std::index_sequence_for<ValTypes...>{}, x...);
+      if constexpr (std::conjunction_v<std::is_same<ValTypes, RVecD>...>) {
+         Fill(m, std::index_sequence_for<ValTypes...>{}, x...);
+      } else {
+         // Non-bulk fall back for container types
+         for (std::size_t i = 0ul; i < m.Size(); ++i) {
+            if (m[i]) {
+               Exec((x[i])...);
+            }
+         }
+      }
+   }
+
+   // no container arguments
+   template <typename... ValTypes, std::enable_if_t<!Disjunction<IsDataContainer<ValTypes>...>::value, int> = 0>
+   auto Exec(const ValTypes &...x) -> decltype(fObject->Fill(x...), void())
+   {
+      fObject->Fill(x...);
+   }
+
+   // at least one container argument
+   template <typename... Xs, std::enable_if_t<Disjunction<IsDataContainer<Xs>...>::value, int> = 0>
+   auto Exec(const Xs &...xs) -> decltype(fObject->Fill(*MakeBegin(xs)...), void())
+   {
+      // array of bools keeping track of which inputs are containers
+      constexpr std::array<bool, sizeof...(Xs)> isContainer{IsDataContainer<Xs>::value...};
+
+      // index of the first container input
+      constexpr std::size_t colidx = FindIdxTrue(isContainer);
+      // if this happens, there is a bug in the implementation
+      static_assert(colidx < sizeof...(Xs), "Error: index of collection-type argument not found.");
+
+      // get the end iterator to the first container
+      auto const xrefend = std::end(GetNthElement<colidx>(xs...));
+
+      // array of container sizes (1 for scalars)
+      std::array<std::size_t, sizeof...(xs)> sizes = {{GetSize(xs)...}};
+
+      for (std::size_t i = 0; i < sizeof...(xs); ++i) {
+         if (isContainer[i] && sizes[i] != sizes[colidx]) {
+            throw std::runtime_error("Cannot fill histogram with values in containers of different sizes.");
+         }
+      }
+
+      ExecLoop<colidx>(xrefend, MakeBegin(xs)...);
    }
 
    template <typename T = HIST>
@@ -316,6 +358,7 @@ public:
 
    HIST &PartialUpdate(unsigned int slot)
    {
+      (void) slot; // silence unused warnings
       return *fObject;
    }
 
@@ -345,7 +388,7 @@ public:
       auto &result = *static_cast<std::shared_ptr<H> *>(newResult);
       ResetIfPossible(result.get());
       UnsetDirectoryIfPossible(result.get());
-      return SYCLFillHelper(result, 1, fSYCLHist->GetMaxBulkSize());
+      return SYCLFillHelper(result, fSYCLHist->GetMaxBulkSize());
    }
 };
 
