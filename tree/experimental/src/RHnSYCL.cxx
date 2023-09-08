@@ -383,6 +383,7 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(unsigned int size)
    });
 
    std::vector<sycl::event> statsReductions;
+   unsigned int reductionRange = ceil(size / 8.);
 
    statsReductions.push_back(queue.submit([&](sycl::handler &cgh) {
       sycl::accessor weightsAcc{*fBWeights, cgh, sycl::range<1>(size), sycl::read_only};
@@ -390,9 +391,11 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(unsigned int size)
       auto GetSumW = sycl::reduction(&fDIntermediateStats[0], sycl::plus<double>());
       auto GetSumW2 = sycl::reduction(&fDIntermediateStats[1], sycl::plus<double>());
 
-      cgh.parallel_for(sycl::range<1>(size), GetSumW, GetSumW2, [=](sycl::id<1> id, auto &sumw, auto &sumw2) {
-         sumw += weightsAcc[id];
-         sumw2 += weightsAcc[id] * weightsAcc[id];
+      cgh.parallel_for(sycl::range<1>(reductionRange), GetSumW, GetSumW2, [=](sycl::id<1> id, auto &sumw, auto &sumw2) {
+         for (unsigned int gid = id; gid < size; gid += reductionRange) {
+            sumw += weightsAcc[gid];
+            sumw2 += weightsAcc[gid] * weightsAcc[gid];
+         }
       });
    }));
 
@@ -407,10 +410,12 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(unsigned int size)
          // Squares coodinate per axis. E.g., for Dim = 2 this computes Tsumwx2 and Tsumwy2
          auto GetSumWAxis2 = sycl::reduction(&fDIntermediateStats[offset++], sycl::plus<double>());
 
-         cgh.parallel_for(sycl::range<1>(size), GetSumWAxis, GetSumWAxis2,
+         cgh.parallel_for(sycl::range<1>(reductionRange), GetSumWAxis, GetSumWAxis2,
                           [=](sycl::id<1> id, auto &sumwaxis, auto &sumwaxis2) {
-                             sumwaxis += weightsAcc[id] * coordsAcc[d * size + id];
-                             sumwaxis2 += weightsAcc[id] * coordsAcc[d * size + id] * coordsAcc[d * size + id];
+                             for (unsigned int gid = id; gid < size; gid += reductionRange) {
+                                sumwaxis += weightsAcc[gid] * coordsAcc[d * size + gid];
+                                sumwaxis2 += weightsAcc[gid] * coordsAcc[d * size + gid] * coordsAcc[d * size + gid];
+                             }
                           });
       }));
 
@@ -423,8 +428,10 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(unsigned int size)
             // Tsumwxy
             auto GetSumWAxisAxis = sycl::reduction(&fDIntermediateStats[offset++], sycl::plus<double>());
 
-            cgh.parallel_for(sycl::range<1>(size), GetSumWAxisAxis, [=](sycl::id<1> id, auto &sumwaxisaxis) {
-               sumwaxisaxis += weightsAcc[id] * coordsAcc[d * size + id] * coordsAcc[prev_d * size + id];
+            cgh.parallel_for(sycl::range<1>(reductionRange), GetSumWAxisAxis, [=](sycl::id<1> id, auto &sumwaxisaxis) {
+               for (unsigned int gid = id; gid < size; gid += reductionRange) {
+                  sumwaxisaxis += weightsAcc[gid] * coordsAcc[d * size + gid] * coordsAcc[prev_d * size + gid];
+               }
             });
          }));
       }
