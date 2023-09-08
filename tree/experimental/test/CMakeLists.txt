@@ -4,20 +4,17 @@
 # For the licensing terms see $ROOTSYS/LICENSE.
 # For the list of contributors see $ROOTSYS/README/CREDITS.
 
-set (histoRDFLibs ROOTDataFrame)
-
-# TODO: Adapt HistoFill tests to the new Fill interface
+set (testLibs ROOTDataFrame)
 
 if (cuda)
-    # ROOT_ADD_GTEST(HistoFill histoFill.cxx LIBRARIES CUDAHist Hist ROOTDataFrame)
-    list(APPEND histoRDFLibs CUDAHist)
+    list(APPEND testLibs CUDAHist)
 endif()
 
 if (sycl)
-    # ROOT_ADD_GTEST(HistoFillSYCL histoFillSYCL.cxx LIBRARIES SYCLHist Hist ROOTDataFrame)
-    list(APPEND histoRDFLibs SYCLHist)
+    list(APPEND testLibs SYCLHist)
 endif()
 
 if (sycl OR cuda)
-    ROOT_ADD_GTEST(HistoRDF histoRDF.cxx LIBRARIES ${histoRDFLibs})
+    ROOT_ADD_GTEST(HistoFill histoFill.cxx LIBRARIES ${testLibs} Hist)
+    ROOT_ADD_GTEST(HistoRDF histoRDF.cxx LIBRARIES ${testLibs})
 endif()

@@ -7,15 +7,28 @@
 
 #include "ROOT/RDataFrame.hxx"
 #include "RHnCUDA.h"
+#include "RHnSYCL.h"
 #include "TH1.h"
 #include "TAxis.h"
 
 using ROOT::Experimental::RHnCUDA;
+using ROOT::Experimental::RHnSYCL;
 
-// Helper function for toggling ON CUDA histogramming.
-char env[] = "CUDA_HIST";
-void EnableCUDA()
+std::vector<const char *> test_environments = {"CUDA_HIST", "SYCL_HIST"};
+
+/**
+ * Helper functions for toggling ON/OFF GPU histogramming.
+ */
+
+void DisableGPU()
 {
+   for (unsigned int i = 0; i < test_environments.size(); i++)
+      unsetenv(test_environments[i]);
+}
+
+void EnableGPU(const char *env)
+{
+   DisableGPU();
    setenv(env, "1", 1);
 }
 
@@ -73,43 +86,63 @@ void CompareArrays(double *result, double *expected, int n)
 
 // Test "parameters"
 struct OneDim {
-   static constexpr int dim = 1;
+   static constexpr unsigned int dim = 1;
 };
 struct TwoDim {
-   static constexpr int dim = 2;
+   static constexpr unsigned int dim = 2;
 };
 struct ThreeDim {
-   static constexpr int dim = 3;
+   static constexpr unsigned int dim = 3;
 };
 
-template <typename T, class P>
+struct CUDAHist {
+   template <typename T, unsigned int Dim>
+   using type = RHnCUDA<T, Dim>;
+
+   static constexpr int histIdx = 0;
+};
+
+struct SYCLHist {
+   template <typename T, unsigned int Dim>
+   using type = RHnSYCL<T, Dim>;
+
+   static constexpr int histIdx = 1;
+};
+
+template <typename T, class Dim, class Hist>
 struct Case {
-   using type = T;
-   static constexpr int GetDim() { return P::dim; }
+   using dataType = T;
+   using histType = typename Hist::type<T, Dim::dim>;
+
+   static constexpr int GetDim() { return Dim::dim; }
+   static constexpr const char *GetEnv() { return test_environments[Hist::histIdx]; }
 };
 
-template <class TupleType, class TupleParam, std::size_t I>
+template <class TupleType, class TupleDims, class TupleHists, std::size_t I>
 struct make_case {
-   static constexpr std::size_t N = std::tuple_size<TupleParam>::value;
-   using type =
-      Case<typename std::tuple_element<I / N, TupleType>::type, typename std::tuple_element<I % N, TupleParam>::type>;
+   static constexpr std::size_t N = std::tuple_size<TupleDims>::value;
+   static constexpr std::size_t M = std::tuple_size<TupleHists>::value;
+   using type = Case<typename std::tuple_element<I / (N * M), TupleType>::type,
+                     typename std::tuple_element<(I / M) % N, TupleDims>::type,
+                     typename std::tuple_element<I % M, TupleHists>::type>;
 };
 
-template <class T1, class T2, class Is>
+template <class T1, class T2, class T3, class Is>
 struct make_combinations;
 
-template <class TupleType, class TupleParam, std::size_t... Is>
-struct make_combinations<TupleType, TupleParam, std::index_sequence<Is...>> {
-   using tuples = std::tuple<typename make_case<TupleType, TupleParam, Is>::type...>;
+template <class TupleType, class TupleDims, class TupleHists, std::size_t... Is>
+struct make_combinations<TupleType, TupleDims, TupleHists, std::index_sequence<Is...>> {
+   using tuples = std::tuple<typename make_case<TupleType, TupleDims, TupleHists, Is>::type...>;
 };
 
-template <class TupleTypes, class... Params>
+template <class TupleTypes, class TupleDims, class TupleHists>
 using Combinations_t = typename make_combinations<
-   TupleTypes, std::tuple<Params...>,
-   std::make_index_sequence<(std::tuple_size<TupleTypes>::value) * (sizeof...(Params))>>::tuples;
+   TupleTypes, TupleDims, TupleHists,
+   std::make_index_sequence<std::tuple_size<TupleTypes>::value * std::tuple_size<TupleDims>::value *
+                            std::tuple_size<TupleHists>::value>>::tuples;
 
-template <typename T>
-class HistoTestFixture : public ::testing::Test {
+template <typename C>
+class FillTestFixture : public ::testing::Test {
 protected:
    // Includes u/overflow bins. Uneven number chosen to have a center bin.
    const static int numBins = 7;
@@ -119,27 +152,31 @@ protected:
    const double endBin = 4;
 
    // int, double, float
-   using histType = typename T::type;
+   using dataType = typename C::dataType;
 
    // 1, 2, or 3
-   static constexpr int dim = T::GetDim();
+   static constexpr int dim = C::GetDim();
+
+   // cuda or sycl
+   const char *env = C::GetEnv();
 
    // Total number of cells
    const static int nCells = pow(numBins, dim);
-   histType result[nCells], expectedHist[nCells];
+   dataType result[nCells], expectedHist[nCells];
 
    double *stats, *expectedStats;
    int nStats;
 
-   RHnCUDA<histType, dim> histogram;
+   typename C::histType histogram;
 
-   HistoTestFixture() : histogram(Repeat<int, dim>(numBins), Repeat<double, dim>(startBin), Repeat<double, dim>(endBin))
+   FillTestFixture()
+      : histogram(32768, Repeat<int, dim>(numBins), Repeat<double, dim>(startBin), Repeat<double, dim>(endBin))
    {
    }
 
    void SetUp() override
    {
-      EnableCUDA();
+      EnableGPU(env);
       nStats = 2 + 2 * dim;
       if (dim > 1)
          nStats += TMath::Binomial(dim, 2);
@@ -149,12 +186,12 @@ protected:
 
       memset(stats, 0, nStats * sizeof(double));
       memset(expectedStats, 0, nStats * sizeof(double));
-      memset(expectedHist, 0, nCells * sizeof(histType));
+      memset(expectedHist, 0, nCells * sizeof(dataType));
    }
 
    void TearDown() override { delete[] stats; }
 
-   bool UOverflow(std::array<double, dim> coord)
+   bool UOverflow(ROOT::RVecD coord)
    {
       for (auto d = 0; d < dim; d++) {
          if (coord[d] < startBin || coord[d] > endBin)
@@ -163,7 +200,7 @@ protected:
       return false;
    }
 
-   void GetExpectedStats(std::vector<std::array<double, dim>> coords, histType weight)
+   void GetExpectedStats(std::vector<ROOT::RVecD> coords, dataType weight)
    {
       for (auto i = 0; i < (int)coords.size(); i++) {
          if (UOverflow(coords[i]))
@@ -198,22 +235,37 @@ struct Test<std::tuple<T...>> {
    using Types = ::testing::Types<T...>;
 };
 
-using TestTypes = Test<Combinations_t<std::tuple<double, float, int, short>, OneDim, TwoDim, ThreeDim>>::Types;
-TYPED_TEST_SUITE(HistoTestFixture, TestTypes);
+using FillTestTypes = Test<Combinations_t<std::tuple<double, float, int, short>, std::tuple<OneDim, TwoDim, ThreeDim>,
+                                          std::tuple<CUDAHist, SYCLHist>>>::Types;
+TYPED_TEST_SUITE(FillTestFixture, FillTestTypes);
+
+template <class Hist>
+class ClampTestFixture : public ::testing::Test {
+protected:
+   using hist = Hist;
+   ClampTestFixture() {}
+
+   void SetUp() override { EnableGPU(test_environments[Hist::histIdx]); }
+
+   void TearDown() override {}
+};
+
+using ClampTestTypes = ::testing::Types<CUDAHist, SYCLHist>;
+TYPED_TEST_SUITE(ClampTestFixture, ClampTestTypes);
 
 /////////////////////////////////////
 /// Test Cases
 
-TYPED_TEST(HistoTestFixture, FillFixedBins)
+TYPED_TEST(FillTestFixture, FillFixedBins)
 {
    // int, double, or float
-   using t = typename TypeParam::type;
+   using t = typename TestFixture::dataType;
    auto &h = this->histogram;
 
-   std::vector<std::array<double, this->dim>> coords = {
-      Repeat<double, this->dim>(this->startBin - 1),                   // Underflow
-      Repeat<double, this->dim>((this->startBin + this->endBin) / 2.), // Center
-      Repeat<double, this->dim>(this->endBin + 1)                      // OVerflow
+   std::vector<ROOT::RVecD> coords = {
+      ROOT::RVecD(this->dim, this->startBin - 1),                   // Underflow
+      ROOT::RVecD(this->dim, (this->startBin + this->endBin) / 2.), // Center
+      ROOT::RVecD(this->dim, this->endBin + 1)                      // OVerflow
    };
    auto weight = (t)1;
 
@@ -238,24 +290,24 @@ TYPED_TEST(HistoTestFixture, FillFixedBins)
    }
 }
 
-TYPED_TEST(HistoTestFixture, FillFixedBinsWeighted)
+TYPED_TEST(FillTestFixture, FillFixedBinsWeighted)
 {
    // int, double, or float
-   using t = typename TypeParam::type;
+   using t = typename TestFixture::dataType;
    auto &h = this->histogram;
 
-   std::vector<std::array<double, this->dim>> coords = {
-      Repeat<double, this->dim>(this->startBin - 1),                   // Underflow
-      Repeat<double, this->dim>((this->startBin + this->endBin) / 2.), // Center
-      Repeat<double, this->dim>(this->endBin + 1)                      // OVerflow
+   std::vector<ROOT::RVecD> coords = {
+      ROOT::RVecD(this->dim, this->startBin - 1),                   // Underflow
+      ROOT::RVecD(this->dim, (this->startBin + this->endBin) / 2.), // Center
+      ROOT::RVecD(this->dim, this->endBin + 1)                      // OVerflow
    };
-   auto weight = (t)7;
+   auto weight = ROOT::RVecD(1, 7);
 
    std::vector<int> expectedHistBins = {0, this->nCells / 2, this->nCells - 1};
 
    for (auto i = 0; i < (int)coords.size(); i++) {
       h.Fill(coords[i], weight);
-      this->expectedHist[expectedHistBins[i]] = weight;
+      this->expectedHist[expectedHistBins[i]] = (t) weight[0];
    }
 
    h.RetrieveResults(this->result, this->stats);
@@ -267,22 +319,22 @@ TYPED_TEST(HistoTestFixture, FillFixedBinsWeighted)
 
    {
       SCOPED_TRACE("Check statistics");
-      this->GetExpectedStats(coords, weight);
+      this->GetExpectedStats(coords, (t) weight[0]);
       CompareArrays(this->stats, this->expectedStats, this->nStats);
    }
 }
 
-TEST(HistoTestFixture, FillIntClamp)
+TYPED_TEST(ClampTestFixture, FillIntClamp)
 {
-   auto h = RHnCUDA<int, 1>({6}, {0}, {4});
-   h.Fill({0}, INT_MAX);
-   h.Fill({3}, -INT_MAX);
+   auto h = typename TestFixture::hist::type<int, 1>(32768, {6}, {0}, {4});
+   h.Fill({0}, {INT_MAX});
+   h.Fill({3}, {-INT_MAX});
 
    for (int i = 0; i < 100; i++) {     // Repeat to test for race conditions
       h.Fill({0});                     // Should keep max value
-      h.Fill({1}, long(INT_MAX) + 1);  // Clamp positive overflow
-      h.Fill({2}, -long(INT_MAX) - 1); // Clamp negative overflow
-      h.Fill({3}, -1);                 // Should keep min value
+      h.Fill({1}, {long(INT_MAX) + 1});  // Clamp positive overflow
+      h.Fill({2}, {-long(INT_MAX) - 1}); // Clamp negative overflow
+      h.Fill({3}, {-1});                 // Should keep min value
    }
 
    int result[6];
@@ -297,21 +349,21 @@ TEST(HistoTestFixture, FillIntClamp)
    EXPECT_EQ(result[5], 0);
 }
 
-TEST(HistoTestFixture, FillShortClamp)
+TYPED_TEST(ClampTestFixture, FillShortClamp)
 {
-   auto h = RHnCUDA<short, 1>({10}, {0}, {8});
+   auto h = typename TestFixture::hist::type<short, 1>(32768, {10}, {0}, {8});
 
    // Filling short histograms is implemented using atomic operations on integers so we test each case
    // twice to test the for correct filling of the lower and upper bits.
    for (int offset = 0; offset < 2; offset++) {
-      h.Fill({0. + offset}, 32767);
-      h.Fill({2. + offset}, -32767);
+      h.Fill({0. + offset}, {32767});
+      h.Fill({2. + offset}, {-32767});
 
       for (int i = 0; i < 100; i++) {   // Repeat to test for race conditions
          h.Fill({0. + offset});         // Keep max value
-         h.Fill({2. + offset}, -1);     // Keep min value
-         h.Fill({4. + offset}, 32769);  // Clamp positive overflow
-         h.Fill({6. + offset}, -32769); // Clamp negative overflow
+         h.Fill({2. + offset}, {-1});     // Keep min value
+         h.Fill({4. + offset}, {32769});  // Clamp positive overflow
+         h.Fill({6. + offset}, {-32769}); // Clamp negative overflow
       }
    }
 
