@@ -88,48 +88,60 @@ template <class Scalar>
  Scalar myfabs(Scalar x)
  {    return cl::sycl::fabs(x);}
 
+template <class Scalar>
+ Scalar mypow(Scalar x, Scalar y)
+ {    return cl::sycl::pow(x,y);}
+
     template <class T>
-    inline
     T etaMax2() {
       return static_cast<T>(22756.0);
     }
 
 
-        template<typename Scalar>
-        inline Scalar Eta_FromRhoZ(Scalar rho, Scalar z) {
-           if (rho > 0) {
 
-              // value to control Taylor expansion of sqrt
-              static const Scalar big_z_scaled = pow(std::numeric_limits<Scalar>::epsilon(), static_cast<Scalar>(-.25));
+template <typename Scalar>
+inline Scalar Eta_FromRhoZ(Scalar rho, Scalar z)
+{
+    if (rho > 0)
+    {
+        // value to control Taylor expansion of sqrt
+        //static const Scalar
+        Scalar epsilon = static_cast<Scalar>(2e-16);
+        const Scalar big_z_scaled = cl::sycl::pow(epsilon, static_cast<Scalar>(-.25));
 
-              Scalar z_scaled = z/rho;
-              if (myfabs(z_scaled) < big_z_scaled) {
-                 return log(z_scaled + mysqrt(z_scaled * z_scaled + 1.0));
-              } else {
-                 // apply correction using first order Taylor expansion of sqrt
-                 return z > 0 ? mylog(2.0 * z_scaled + 0.5 / z_scaled) : -mylog(-2.0 * z_scaled);
-              }
-           }
-           // case vector has rho = 0
-           else if (z==0) {
-              return 0;
-           }
-           else if (z>0) {
-              return z + etaMax2<Scalar>();
-           }
-           else {
-              return z - etaMax2<Scalar>();
-           }
-
+        Scalar z_scaled = z / rho;
+        if (cl::sycl::fabs(z_scaled) < big_z_scaled)
+        {
+            return cl::sycl::log(z_scaled + cl::sycl::sqrt(z_scaled * z_scaled + 1.0));
         }
-
+        else
+        {
+            // apply correction using first order Taylor expansion of sqrt
+            return z > 0 ? cl::sycl::log(2.0 * z_scaled + 0.5 / z_scaled) : -cl::sycl::log(-2.0 * z_scaled);
+        }
+        return z_scaled;
+    }
+    // case vector has rho = 0
+    else if (z == 0)
+    {
+        return 0;
+    }
+    else if (z > 0)
+    {
+        return z + etaMax2<Scalar>();
+    }
+    else
+    {
+        return z - etaMax2<Scalar>();
+    }
+}
 
         /**
            Implementation of eta from -log(tan(theta/2)).
            This is convenient when theta is already known (for example in a polar coorindate system)
         */
         template<typename Scalar>
-        inline Scalar Eta_FromTheta(Scalar theta, Scalar r) {
+         Scalar Eta_FromTheta(Scalar theta, Scalar r) {
            Scalar tanThetaOver2 = mytan(theta / 2.);
            if (tanThetaOver2 == 0) {
               return r + etaMax2<Scalar>();
@@ -188,6 +200,10 @@ template <class Scalar>
  Scalar myfabs(Scalar x)
  {    return std::fabs(x);}
 
+template <class Scalar>
+ Scalar mypow(Scalar x, Scalar y)
+ {    return std::pow(x,y);}
+
     template <class T>
     inline
     T etaMax2() {
@@ -200,11 +216,11 @@ template <class Scalar>
            if (rho > 0) {
 
               // value to control Taylor expansion of sqrt
-              static const Scalar big_z_scaled = pow(std::numeric_limits<Scalar>::epsilon(), static_cast<Scalar>(-.25));
+              static const Scalar big_z_scaled = mypow(std::numeric_limits<Scalar>::epsilon(), static_cast<Scalar>(-.25));
 
               Scalar z_scaled = z/rho;
               if (myfabs(z_scaled) < big_z_scaled) {
-                 return log(z_scaled + mysqrt(z_scaled * z_scaled + 1.0));
+                 return mylog(z_scaled + mysqrt(z_scaled * z_scaled + 1.0));
               } else {
                  // apply correction using first order Taylor expansion of sqrt
                  return z > 0 ? mylog(2.0 * z_scaled + 0.5 / z_scaled) : -mylog(-2.0 * z_scaled);

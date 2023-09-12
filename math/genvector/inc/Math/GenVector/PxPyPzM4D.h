@@ -23,7 +23,6 @@
 
 #include "Math/GenVector/MathUtil.h"
 
-#include <cmath>
 
 namespace ROOT {
 

@@ -31,7 +31,6 @@
 #include <iostream>
 #endif
 
-#include <cmath>
 
 namespace ROOT {
 
