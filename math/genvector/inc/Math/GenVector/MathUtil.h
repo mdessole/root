@@ -157,50 +157,51 @@ inline Scalar Eta_FromRhoZ(Scalar rho, Scalar z)
 
 #else 
 
-template <class Scalar> Scalar mysin(Scalar x){
+template <class Scalar> inline 
+Scalar mysin(Scalar x){
       return std::sin(x);}
 
-template <class Scalar>
+template <class Scalar> inline
  Scalar mycos(Scalar x)
  {          return std::cos(x);}
 
-template <class Scalar> 
+template <class Scalar> inline
 Scalar mysinh(Scalar x){
       return std::sinh(x);}
 
-template <class Scalar>
+template <class Scalar> inline
  Scalar mycosh(Scalar x)
  {    return std::cosh(x);}
 
-template <class Scalar>
+template <class Scalar> inline
  Scalar myatan2(Scalar x, Scalar y)
  {    return std::atan2(x,y);}
 
-template <class Scalar>
+template <class Scalar> inline
  Scalar mysqrt(Scalar x)
  {      return std::sqrt(x);}
 
-template <class Scalar>
+template <class Scalar> inline
  Scalar myfloor(Scalar x)
  {       return std::floor(x);} 
 
-template <class Scalar>
+template <class Scalar> inline
  Scalar myexp(Scalar x)
  {       return std::exp(x);}
 
-template <class Scalar>
+template <class Scalar> inline
  Scalar mylog(Scalar x)
  {       return std::log(x);}
 
-template <class Scalar>
+template <class Scalar> inline
  Scalar mytan(Scalar x)
  {       return std::tan(x);}
 
-template <class Scalar>
+template <class Scalar> inline
  Scalar myfabs(Scalar x)
  {    return std::fabs(x);}
 
-template <class Scalar>
+template <class Scalar> inline
  Scalar mypow(Scalar x, Scalar y)
  {    return std::pow(x,y);}
 
