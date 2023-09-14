@@ -1,0 +1,7 @@
+digraph {
+	1 [label="TH1D\nMyHisto", style="filled", fillcolor="#e47c7e", shape="box"];
+	2 [label="Define\nZ_idx", style="filled", fillcolor="#4285f4", shape="ellipse"];
+	0 [label="Events", style="filled", fillcolor="#f4b400", shape="ellipse"];
+	2 -> 1;
+	0 -> 2;
+}
