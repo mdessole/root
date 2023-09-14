@@ -21,7 +21,8 @@ if (sycl)
   target_compile_definitions(SYCLHist INTERFACE ROOT_RDF_SYCL CL_TARGET_OPENCL_VERSION=300)
   target_compile_options(SYCLHist INTERFACE -O2)
   target_include_directories(SYCLHist INTERFACE ${OpenSYCL_INCLUDE_DIRS})
-
+  target_link_libraries(GenVector INTERFACE OpenSYCL::hipSYCL-rt)
+  
   add_sycl_to_target(TARGET SYCLHist SOURCES src/RHnSYCL.cxx)
 endif()
 
