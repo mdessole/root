@@ -34,7 +34,7 @@
 
 
 #ifdef ROOT_MATH_SYCL 
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #endif 
 
 #include <limits>
@@ -46,51 +46,51 @@ namespace Math {
 
 #ifdef ROOT_MATH_SYCL 
 template <class Scalar> Scalar mysin(Scalar x){
-      return cl::sycl::sin(x);}
+      return sycl::sin(x);}
 
 template <class Scalar>
  Scalar mycos(Scalar x)
- {    return cl::sycl::cos(x);}
+ {    return sycl::cos(x);}
 
 template <class Scalar> 
 Scalar mysinh(Scalar x){
-      return cl::sycl::sinh(x);}
+      return sycl::sinh(x);}
 
 template <class Scalar>
  Scalar mycosh(Scalar x)
- {    return cl::sycl::cosh(x);}
+ {    return sycl::cosh(x);}
 
 template <class Scalar>
  Scalar myatan2(Scalar x, Scalar y)
- {    return cl::sycl::atan2(x,y);}
+ {    return sycl::atan2(x,y);}
 
 template <class Scalar>
  Scalar mysqrt(Scalar x)
- {      return cl::sycl::sqrt(x);}
+ {      return sycl::sqrt(x);}
 
 template <class Scalar>
  Scalar myfloor(Scalar x)
- {       return cl::sycl::floor(x);}
+ {       return sycl::floor(x);}
 
 template <class Scalar>
  Scalar myexp(Scalar x)
- {       return cl::sycl::exp(x);}
+ {       return sycl::exp(x);}
 
 template <class Scalar>
  Scalar mylog(Scalar x)
- {       return cl::sycl::log(x);}
+ {       return sycl::log(x);}
 
 template <class Scalar>
  Scalar mytan(Scalar x)
- {       return cl::sycl::tan(x);}
+ {       return sycl::tan(x);}
 
 template <class Scalar>
  Scalar myfabs(Scalar x)
- {    return cl::sycl::fabs(x);}
+ {    return sycl::fabs(x);}
 
 template <class Scalar>
  Scalar mypow(Scalar x, Scalar y)
- {    return cl::sycl::pow(x,y);}
+ {    return sycl::pow(x,y);}
 
     template <class T>
     T etaMax2() {
@@ -107,17 +107,17 @@ inline Scalar Eta_FromRhoZ(Scalar rho, Scalar z)
         // value to control Taylor expansion of sqrt
         //static const Scalar
         Scalar epsilon = static_cast<Scalar>(2e-16);
-        const Scalar big_z_scaled = cl::sycl::pow(epsilon, static_cast<Scalar>(-.25));
+        const Scalar big_z_scaled = sycl::pow(epsilon, static_cast<Scalar>(-.25));
 
         Scalar z_scaled = z / rho;
-        if (cl::sycl::fabs(z_scaled) < big_z_scaled)
+        if (sycl::fabs(z_scaled) < big_z_scaled)
         {
-            return cl::sycl::log(z_scaled + cl::sycl::sqrt(z_scaled * z_scaled + 1.0));
+            return sycl::log(z_scaled + sycl::sqrt(z_scaled * z_scaled + 1.0));
         }
         else
         {
             // apply correction using first order Taylor expansion of sqrt
-            return z > 0 ? cl::sycl::log(2.0 * z_scaled + 0.5 / z_scaled) : -cl::sycl::log(-2.0 * z_scaled);
+            return z > 0 ? sycl::log(2.0 * z_scaled + 0.5 / z_scaled) : -sycl::log(-2.0 * z_scaled);
         }
         return z_scaled;
     }
