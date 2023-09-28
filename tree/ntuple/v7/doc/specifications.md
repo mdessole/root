@@ -25,10 +25,33 @@ For the ROOT file embedding, the **ROOT::Experimental::RNTuple** object acts as 
 RNTuple envelopes and pages are wrapped in compression blocks.
 In order to deserialize a page or an envelope, its compressed and ucompressed size needs to be known.
 
-TODO(jblomer): reference or describe the compression block format.
-  - Compressed size == uncompressed size --> uncompressed
-  - Otherwise: connected compressed chunks with the 9 byte header
+If the compressed size == uncompressed size, the data is stored unmodified in uncompressed form.
+Otherwise, data is represented as a series of compressed chunks.
+Each chunk is prepended with the following 9 byte header.
 
+```
+Byte
+0      1      2      3      4      5      6      7      8      9
++------+------+------+------+------+------+------+------+------+...
+|     Algorithm      |  Compressed size   |  Uncompressed size | <COMPRESSED DATA>
++------+------+------+------+------+------+------+------+------+...
+```
+
+_Algorithm_: Identifies the compression algorithm used to compress the data. This can take one of the following values
+
+| Algorithm                | Meaning                                      |
+|--------------------------|----------------------------------------------|
+| 'Z' 'L' '\x08'           | zlib                                         |
+| 'C' 'S' '\x08'           | Old Jean-loup Gailly's deflation algorithm   |
+| 'X' 'Z' '\x00'           | LZMA                                         |
+| 'L' '4' <VERSION_MAJOR>  | LZ4; third byte encodes major version number |
+| 'Z' 'S' '\x01'           | Zstd                                         |
+
+_Compressed size_: An unsigned, little-endian integer that indicates the compressed size of the data that follows the header.
+
+_Uncompressed size_: An unsigned, little-endian integer that indicates the uncompressed size of the data that follows.
+The maximum representable value is $(2^{24})-1$, i.e. 16777215, and thus each compressed chunk can represent up to 16 MiB of uncompressed data.
+If the original data is larger than this value, more compressed chunks will follow.
 
 ## Basic Types
 
@@ -43,7 +66,7 @@ followed by the characters.
 Strings are ASCII encoded; every character is a signed 8bit integer.
 
 _Compression settings_: A 32bit integer containing both a compression algorithm and the compression level.
-The compression settings are encoded according to this formula: $$ settings = algorithm * 100 + level $$
+The compression settings are encoded according to this formula: $settings = algorithm * 100 + level$.
 See Compression.[h/cxx] for details and available algorithms.
 
 The meta-data envelope defines additional basic types (see below).
@@ -348,8 +371,8 @@ Delta + split
   Followed by split encoding.
 
 Zigzag + split
-: Used on signed integers only; it maps x to 2x if x is positive and to -(2x+1) if x is negative.
-  Followed by split encoding
+: Used on signed integers only; it maps $x$ to $2x$ if $x$ is positive and to $-(2x+1)$ if $x$ is negative.
+  Followed by split encoding.
 
 Future versions of the file format may introduce additional column types
 without changing the minimum version of the header.
@@ -667,11 +690,11 @@ A string is stored as a single field with two columns.
 The first (principle) column is of type SplitIndex32.
 The second column is of type Char.
 
-#### std::vector<T> and ROOT::RVec<T>
+#### std::vector\<T\> and ROOT::RVec\<T\>
 
 STL vector and ROOT's RVec have identical on-disk representations.
 They are stored as two fields:
-  - Collection mother field of type SplitIndex32 or SplitIndex64
+  - Collection mother field whose principal column is of type `(Split)Index[64|32]`.
   - Child field of type `T`, which must by a type with RNTuple I/O support.
     The name of the child field is `_0`.
 
@@ -702,13 +725,13 @@ The child fileds are named `_0` and `_1`.
 A tuple is stored using an empty mother field with $n$ subfields of type `T1`, `T2`, ..., `Tn`. All types must have RNTuple I/O support.
 The child fields are named `_0`, `_1`, ...
 
-#### std::bitset<N>
+#### std::bitset\<N\>
 
 A bitset is stored as a repetitive leaf field with an attached `Bit` column.
 The bitset size `N` is stored as repetition parameter in the field meta-data.
 Within the repetition blocks, bits are stored in little-endian order, i.e. the least significant bits come first.
 
-#### std::unique_ptr<T>, std::optional<T>
+#### std::unique_ptr\<T\>, std::optional\<T\>
 
 A unique pointer and an optional type have the same on disk representation.
 They are represented as a collection of `T`s of zero or one elements.
@@ -719,6 +742,21 @@ By default, the mother field has a principal column of type `(Split)Index[64|32]
 This is called sparse representation.
 The alternative, dense representation uses a `Bit` column to mask non-existing instances of the subfield.
 In this second case, a default-constructed `T` (or, if applicable, a `T` constructed by the ROOT I/O constructor) is stored on disk for the non-existing instances.
+
+#### std::set\<T\>
+
+While STL sets by definition are associative containers (i.e., elements are referenced by their keys, which in the case for sets are equal to the values), on disk they are represented as indexed collections.
+This means that they have the same on-disk representation as `std::vector<T>`, using two fields:
+  - Collection mother field whose principal column is of type `(Split)Index[64|32]`.
+  - Child field of type `T`, which must by a type with RNTuple I/O support.
+    The name of the child field is `_0`.
+
+### User-defined enums
+
+User-defined enums are stored as a leaf field with a single subfield named `_0`.
+The mother field has no attached columns.
+The subfield corresponds to the integer type the underlies the enum.
+Unscoped and scoped enums are supported as long as the enum has a dictionary.
 
 ### User-defined classes
 
@@ -746,7 +784,7 @@ User classes that specify a collection proxy behave as collections of a given va
 Associative collections are not currently supported.
 
 The on-disk representation is similar to a `std::vector<T>` where `T` is the value type; specifically, it is stored as two fields:
-  - Collection mother field of type SplitIndex32 or SplitIndex64
+  - Collection mother field whose principal column is of type `(Split)Index[64|32]`.
   - Child field of type `T`, which must by a type with RNTuple I/O support.
     The name of the child field is `_0`.
 

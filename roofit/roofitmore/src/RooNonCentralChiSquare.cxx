@@ -43,7 +43,7 @@ http://wesnoth.repositoryhosting.com/trac/wesnoth_wesnoth/browser/trunk/include/
 #include "RooNonCentralChiSquare.h"
 #include "RooAbsReal.h"
 #include "RooAbsCategory.h"
-#include <math.h>
+#include <cmath>
 #include "TMath.h"
 //#include "RooNumber.h"
 #include "Math/DistFunc.h"
@@ -231,7 +231,7 @@ double RooNonCentralChiSquare::analyticalIntegral(Int_t code, const char* rangeN
 
    double sum = 0;
    double ithTerm = 0;
-   double errorTol = fErrorTol; // for nomralization allow slightly larger error
+   double errorTol = fErrorTol; // for normalization allow slightly larger error
    int MaxIters = fMaxIters; // for normalization use more terms
 
    int iDominant = (int) TMath::Floor(lambda/2);

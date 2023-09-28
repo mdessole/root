@@ -38,9 +38,6 @@ namespace Detail {
 \class ROOT::Experimental::RColumn
 \ingroup NTuple
 \brief A column is a storage-backed array of a simple, fixed-size type, from which pages can be mapped into memory.
-
-On the primitives data layer, the RColumn and RColumnElement are the equivalents to RField and RFieldValue on the
-logical data layer.
 */
 // clang-format on
 class RColumn {
@@ -170,7 +167,6 @@ public:
    {
       if (!fReadPage.Contains(globalIndex)) {
          MapPage(globalIndex);
-         R__ASSERT(fReadPage.Contains(globalIndex));
       }
       const auto elemSize = fElement->GetSize();
       void *from = static_cast<unsigned char *>(fReadPage.GetBuffer()) +
@@ -191,7 +187,6 @@ public:
 
    void ReadV(const NTupleSize_t globalIndex, const ClusterSize_t::ValueType count, void *to)
    {
-      R__ASSERT(count > 0);
       if (!fReadPage.Contains(globalIndex)) {
          MapPage(globalIndex);
       }

@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 import types
 
 import concurrent.futures
@@ -20,6 +19,7 @@ import concurrent.futures
 from typing import Iterable, TYPE_CHECKING
 
 from DistRDF.Backends import build_backends_submodules
+from DistRDF.LiveVisualize import LiveVisualize
 
 if TYPE_CHECKING:
     from DistRDF.Proxy import ResultPtrProxy, ResultMapProxy
@@ -89,8 +89,6 @@ def RunGraphs(proxies: Iterable) -> int:
     """
     # Import here to avoid circular dependencies in main module
     from DistRDF.Proxy import execute_graph
-    import ROOT
-
     if not proxies:
         logger.warning("RunGraphs: Got an empty list of handles, now quitting.")
         return 0
@@ -98,16 +96,11 @@ def RunGraphs(proxies: Iterable) -> int:
     # Get proxies belonging to distinct computation graphs
     uniqueproxies = list({proxy.proxied_node.get_head(): proxy for proxy in proxies}.values())
 
-    if ROOT.IsImplicitMTEnabled():
-        # Submit all computation graphs concurrently from multiple Python threads.
-        # The submission is not computationally intensive
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(uniqueproxies)) as executor:
-            futures = [executor.submit(execute_graph, proxy.proxied_node) for proxy in uniqueproxies]
-            concurrent.futures.wait(futures)
-    else:
-        # Run the graphs sequentially
-        for p in uniqueproxies:
-            execute_graph(p.proxied_node)
+    # Submit all computation graphs concurrently from multiple Python threads.
+    # The submission is not computationally intensive
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(uniqueproxies)) as executor:
+        futures = [executor.submit(execute_graph, proxy.proxied_node) for proxy in uniqueproxies]
+        concurrent.futures.wait(futures)
 
     return len(uniqueproxies)
 
@@ -142,5 +135,6 @@ def create_distributed_module(parentmodule):
     distributed.initialize = initialize
     distributed.RunGraphs = RunGraphs
     distributed.VariationsFor = VariationsFor
+    distributed.LiveVisualize = LiveVisualize
 
     return distributed

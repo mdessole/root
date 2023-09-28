@@ -239,7 +239,7 @@ void ROOT::Experimental::RNTupleReader::Show(NTupleSize_t index, std::ostream &o
    output << "{";
    for (auto iValue = entry->begin(); iValue != entry->end();) {
       output << std::endl;
-      RPrintValueVisitor visitor(*iValue, output, 1 /* level */);
+      RPrintValueVisitor visitor(iValue->GetNonOwningCopy(), output, 1 /* level */);
       iValue->GetField()->AcceptVisitor(visitor);
 
       if (++iValue == entry->end()) {
@@ -339,7 +339,6 @@ void ROOT::Experimental::RNTupleWriter::CommitCluster(bool commitClusterGroup)
       throw RException(R__FAIL("invalid attempt to write a cluster > 512MiB with 'small clusters' option enabled"));
    }
    for (auto &field : *fModel->GetFieldZero()) {
-      field.Flush();
       field.CommitCluster();
    }
    fNBytesCommitted += fSink->CommitCluster(fNEntries);

@@ -12,7 +12,6 @@
 
 #include "RooFit/BatchModeDataHelpers.h"
 #include <RooAbsData.h>
-#include <RooDataHist.h>
 #include <RooHelpers.h>
 #include "RooNLLVarNew.h"
 #include <RooRealVar.h>
@@ -24,15 +23,22 @@
 
 namespace {
 
-std::map<RooFit::Detail::DataKey, RooSpan<const double>>
+// To avoid deleted move assignment.
+template <class T>
+void assignSpan(std::span<T> &to, std::span<T> const &from)
+{
+   to = from;
+}
+
+std::map<RooFit::Detail::DataKey, std::span<const double>>
 getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::string const &prefix,
                    std::stack<std::vector<double>> &buffers, bool skipZeroWeights)
 {
-   std::map<RooFit::Detail::DataKey, RooSpan<const double>> dataSpans; // output variable
+   std::map<RooFit::Detail::DataKey, std::span<const double>> dataSpans; // output variable
 
    auto &nameReg = RooNameReg::instance();
 
-   auto insert = [&](const char *key, RooSpan<const double> span) {
+   auto insert = [&](const char *key, std::span<const double> span) {
       const TNamed *namePtr = nameReg.constPtr((prefix + key).c_str());
       dataSpans[namePtr] = span;
    };
@@ -67,12 +73,12 @@ getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::stri
       auto &bufferSumW2 = buffers.top();
       if (weight.empty()) {
          // If the dataset has no weight, we fill the data spans with a scalar
-         // unity weight so we don't need to check for the existance of weights
+         // unity weight so we don't need to check for the existence of weights
          // later in the likelihood.
          buffer.push_back(1.0);
          bufferSumW2.push_back(1.0);
-         weight = RooSpan<const double>(buffer.data(), 1);
-         weightSumW2 = RooSpan<const double>(bufferSumW2.data(), 1);
+         assignSpan(weight, {buffer.data(), 1});
+         assignSpan(weightSumW2, {bufferSumW2.data(), 1});
          nNonZeroWeight = nEvents;
       } else {
          buffer.reserve(nEvents);
@@ -86,34 +92,18 @@ getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::stri
                hasZeroWeight[i] = true;
             }
          }
-         weight = RooSpan<const double>(buffer.data(), nNonZeroWeight);
-         weightSumW2 = RooSpan<const double>(bufferSumW2.data(), nNonZeroWeight);
+         assignSpan(weight, {buffer.data(), nNonZeroWeight});
+         assignSpan(weightSumW2, {bufferSumW2.data(), nNonZeroWeight});
       }
-      using namespace ROOT::Experimental;
       insert(RooNLLVarNew::weightVarName, weight);
       insert(RooNLLVarNew::weightVarNameSumW2, weightSumW2);
-   }
-
-   // Add also bin volume information if we are dealing with a RooDataHist
-   if (auto dataHist = dynamic_cast<RooDataHist const *>(&data)) {
-      buffers.emplace();
-      auto &buffer = buffers.top();
-      buffer.reserve(nNonZeroWeight);
-
-      for (std::size_t i = 0; i < nEvents; ++i) {
-         if (!hasZeroWeight[i]) {
-            buffer.push_back(dataHist->binVolume(i));
-         }
-      }
-
-      insert("_bin_volume", {buffer.data(), buffer.size()});
    }
 
    // Get the real-valued batches and cast the also to double branches to put in
    // the data map
    for (auto const &item : data.getBatches(0, nEvents)) {
 
-      RooSpan<const double> span{item.second};
+      std::span<const double> span{item.second};
 
       buffers.emplace();
       auto &buffer = buffers.top();
@@ -131,7 +121,7 @@ getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::stri
    // the data map
    for (auto const &item : data.getCategoryBatches(0, nEvents)) {
 
-      RooSpan<const RooAbsCategory::value_type> intSpan{item.second};
+      std::span<const RooAbsCategory::value_type> intSpan{item.second};
 
       buffers.emplace();
       auto &buffer = buffers.top();
@@ -182,7 +172,7 @@ getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::stri
                ++j;
             }
          }
-         dataSpans[item.first] = RooSpan<const double>{buffer, nEvents};
+         assignSpan(dataSpans[item.first], {buffer, nEvents});
       }
    }
 
@@ -196,9 +186,7 @@ getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::stri
 /// Spans with the weights and squared weights will be also stored in the map,
 /// keyed with the names `_weight` and the `_weight_sumW2`. If the dataset is
 /// unweighted, these weight spans will only contain the single value `1.0`.
-/// Entries with zero weight will be skipped. If the input dataset is a
-/// RooDataHist, the output map will also contain an item for the key
-/// `_bin_volume` with the bin volumes.
+/// Entries with zero weight will be skipped.
 ///
 /// \return A `std::map` with spans keyed to name pointers.
 /// \param[in] data The input dataset.
@@ -217,15 +205,15 @@ getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::stri
 ///            be used as memory for the data if the memory in the dataset
 ///            object can't be used directly (e.g. because you used the range
 ///            selection or the splitting by categories).
-std::map<RooFit::Detail::DataKey, RooSpan<const double>>
+std::map<RooFit::Detail::DataKey, std::span<const double>>
 RooFit::BatchModeDataHelpers::getDataSpans(RooAbsData const &data, std::string const &rangeName,
                                            RooSimultaneous const *simPdf, bool skipZeroWeights,
                                            bool takeGlobalObservablesFromData, std::stack<std::vector<double>> &buffers)
 {
-   std::vector<std::pair<std::string, RooAbsData const *>> datas;
+   std::vector<std::pair<std::string, RooAbsData const *>> datasets;
    std::vector<bool> isBinnedL;
    bool splitRange = false;
-   std::vector<std::unique_ptr<RooAbsData>> splittedDataSets;
+   std::vector<std::unique_ptr<RooAbsData>> splitDataSets;
 
    if (simPdf) {
       std::unique_ptr<TList> splits{data.split(*simPdf, true)};
@@ -235,21 +223,21 @@ RooFit::BatchModeDataHelpers::getDataSpans(RooAbsData const &data, std::string c
          if (!simComponent) {
             continue;
          }
-         datas.emplace_back(std::string("_") + d->GetName() + "_", d);
+         datasets.emplace_back(std::string("_") + d->GetName() + "_", d);
          isBinnedL.emplace_back(simComponent->getAttribute("BinnedLikelihoodActive"));
          // The dataset need to be kept alive because the datamap points to their content
-         splittedDataSets.emplace_back(d);
+         splitDataSets.emplace_back(d);
       }
       splitRange = simPdf->getAttribute("SplitRange");
    } else {
-      datas.emplace_back("", &data);
+      datasets.emplace_back("", &data);
       isBinnedL.emplace_back(false);
    }
 
-   std::map<RooFit::Detail::DataKey, RooSpan<const double>> dataSpans; // output variable
+   std::map<RooFit::Detail::DataKey, std::span<const double>> dataSpans; // output variable
 
-   for (std::size_t iData = 0; iData < datas.size(); ++iData) {
-      auto const &toAdd = datas[iData];
+   for (std::size_t iData = 0; iData < datasets.size(); ++iData) {
+      auto const &toAdd = datasets[iData];
       auto spans = getSingleDataSpans(
          *toAdd.second, RooHelpers::getRangeNameForSimComponent(rangeName, splitRange, toAdd.second->GetName()),
          toAdd.first, buffers, skipZeroWeights && !isBinnedL[iData]);
@@ -264,7 +252,7 @@ RooFit::BatchModeDataHelpers::getDataSpans(RooAbsData const &data, std::string c
       buffer.reserve(data.getGlobalObservables()->size());
       for (auto *arg : static_range_cast<RooRealVar const *>(*data.getGlobalObservables())) {
          buffer.push_back(arg->getVal());
-         dataSpans[arg] = RooSpan<const double>{&buffer.back(), 1};
+         assignSpan(dataSpans[arg], {&buffer.back(), 1});
       }
    }
 
@@ -279,9 +267,9 @@ RooFit::BatchModeDataHelpers::getDataSpans(RooAbsData const &data, std::string c
 ///
 /// \return A `std::map` with output sizes for each node in the computation graph.
 /// \param[in] topNode The top node of the computation graph.
-/// \param[in] dataSpans The input data spans.
+/// \param[in] inputSizeFunc A function to get the input sizes.
 std::map<RooFit::Detail::DataKey, std::size_t> RooFit::BatchModeDataHelpers::determineOutputSizes(
-   RooAbsArg const &topNode, std::map<RooFit::Detail::DataKey, RooSpan<const double>> const &dataSpans)
+   RooAbsArg const &topNode, std::function<std::size_t(RooFit::Detail::DataKey)> const &inputSizeFunc)
 {
    std::map<RooFit::Detail::DataKey, std::size_t> output;
 
@@ -289,9 +277,9 @@ std::map<RooFit::Detail::DataKey, std::size_t> RooFit::BatchModeDataHelpers::det
    RooHelpers::getSortedComputationGraph(topNode, serverSet);
 
    for (RooAbsArg *arg : serverSet) {
-      auto found = dataSpans.find(arg->namePtr());
-      if (found != dataSpans.end()) {
-         output[arg] = found->second.size();
+      std::size_t inputSize = inputSizeFunc(arg);
+      if (inputSize > 0) {
+         output[arg] = inputSize;
       }
    }
 

@@ -32,7 +32,7 @@ ROOT_ADD_GTEST(dataframe_redefine dataframe_redefine.cxx LIBRARIES ROOTDataFrame
 ROOT_ADD_GTEST(dataframe_definepersample dataframe_definepersample.cxx LIBRARIES ROOTDataFrame)
 
 if(NOT MSVC OR win_broken_tests)
-  ROOT_ADD_GTEST(dataframe_simple dataframe_simple.cxx LIBRARIES ROOTDataFrame)
+  ROOT_ADD_GTEST(dataframe_simple dataframe_simple.cxx LIBRARIES ROOTDataFrame GenVector)
   target_include_directories(dataframe_simple PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   ROOT_GENERATE_DICTIONARY(DataFrameSimpleDict ${CMAKE_CURRENT_SOURCE_DIR}/MaxSlotHelper.h ${CMAKE_CURRENT_SOURCE_DIR}/SimpleFiller.h MODULE dataframe_simple
                            LINKDEF DataFrameSimpleLinkDef.h OPTIONS -inlineInputHeader DEPENDENCIES ROOTDataFrame Hist)
@@ -90,6 +90,19 @@ endif()
 
 if(root7)
   ROOT_ADD_GTEST(datasource_ntuple datasource_ntuple.cxx LIBRARIES ROOTDataFrame)
+
+  ROOT_STANDARD_LIBRARY_PACKAGE(NTupleStruct
+                                NO_INSTALL_HEADERS
+                                HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/NTupleStruct.hxx
+                                SOURCES NTupleStruct.cxx
+                                LINKDEF NTupleStructLinkDef.h
+                                DEPENDENCIES RIO)
+  configure_file(NTupleStruct.hxx . COPYONLY)
+  if(MSVC)
+    add_custom_command(TARGET NTupleStruct POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/libNTupleStruct.dll
+                                       ${CMAKE_CURRENT_BINARY_DIR}/libNTupleStruct.dll)
+  endif()
 endif()
 
 if(sqlite)

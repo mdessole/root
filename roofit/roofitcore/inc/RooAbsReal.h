@@ -22,10 +22,10 @@
 #include "RooArgSet.h"
 #include "RooArgList.h"
 #include "RooGlobalFunc.h"
-#include "RooSpan.h"
-#include "RooBatchComputeTypes.h"
 #include "RooFit/Detail/DataMap.h"
 #include "RooFit/Detail/CodeSquashContext.h"
+
+#include <ROOT/RSpan.hxx>
 
 class RooDataSet ;
 class RooPlot;
@@ -41,10 +41,8 @@ class RooAbsMoment ;
 class RooDerivative ;
 class RooVectorDataStore ;
 struct TreeReadBuffer; /// A space to attach TBranches
-namespace ROOT {
-namespace Experimental {
-class RooFitDriver ;
-}
+namespace RooBatchCompute {
+struct RunContext;
 }
 
 class TH1;
@@ -135,10 +133,7 @@ public:
 
   virtual double getValV(const RooArgSet* normalisationSet = nullptr) const ;
 
-  virtual RooSpan<const double> getValues(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet = nullptr) const;
-  std::vector<double> getValues(RooAbsData const& data) const;
-
-  double getPropagatedError(const RooFitResult &fr, const RooArgSet &nset = RooArgSet()) const;
+  double getPropagatedError(const RooFitResult &fr, const RooArgSet &nset = {}) const;
 
   bool operator==(double value) const ;
   bool operator==(const RooAbsArg& other) const override;
@@ -199,7 +194,6 @@ public:
   virtual RooFit::OwningPtr<RooAbsReal> createChi2(RooDataSet& data, const RooCmdArg& arg1={},  const RooCmdArg& arg2={},
                const RooCmdArg& arg3={},  const RooCmdArg& arg4={}, const RooCmdArg& arg5={},
                const RooCmdArg& arg6={},  const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) ;
-
 
   virtual RooFit::OwningPtr<RooAbsReal> createProfile(const RooArgSet& paramsOfInterest) ;
 
@@ -395,7 +389,7 @@ public:
   const RooAbsReal* createPlotProjection(const RooArgSet& depVars, const RooArgSet& projVars, RooArgSet*& cloneSet) const ;
   const RooAbsReal *createPlotProjection(const RooArgSet &dependentVars, const RooArgSet *projectedVars,
                      RooArgSet *&cloneSet, const char* rangeName=nullptr, const RooArgSet* condObs=nullptr) const;
-  virtual void computeBatch(cudaStream_t*, double* output, size_t size, RooFit::Detail::DataMap const&) const;
+  virtual void computeBatch(double* output, size_t size, RooFit::Detail::DataMap const&) const;
 
   virtual bool hasGradient() const { return false; }
   virtual void gradient(double *) const {
@@ -417,6 +411,7 @@ protected:
   friend class RooAddHelpers;
   friend class RooAddPdf;
   friend class RooAddModel;
+  friend class AddCacheElem;
   friend class RooFit::Detail::DataMap;
 
   // Hook for objects with normalization-dependent parameters interpretation
@@ -429,8 +424,6 @@ protected:
           RooArgSet& projectedVars, bool silent) const ;
 
   TString integralNameSuffix(const RooArgSet& iset, const RooArgSet* nset=nullptr, const char* rangeName=nullptr, bool omitEmpty=false) const ;
-
-  RooFit::OwningPtr<RooFitResult> chi2FitDriver(RooAbsReal& fcn, RooLinkedList& cmdList);
 
   void plotOnCompSelect(RooArgSet* selNodes) const ;
   RooPlot* plotOnWithErrorBand(RooPlot* frame,const RooFitResult& fr, double Z, const RooArgSet* params, const RooLinkedList& argList, bool method1) const ;
@@ -536,9 +529,6 @@ protected:
 
 
 private:
-  //---------- Interface to access batch data ---------------------------
-  //
-  void checkBatchComputation(const RooBatchCompute::RunContext& evalData, std::size_t evtNo, const RooArgSet* normSet = nullptr, double relAccuracy = 1.E-13) const;
 
   /// Debug version of getVal(), which is slow and does error checking.
   double _DEBUG_getVal(const RooArgSet* normalisationSet) const;
@@ -566,16 +556,6 @@ private:
    static bool _hideOffset;       ///< Offset hiding flag
 
    ClassDefOverride(RooAbsReal,3); // Abstract real-valued variable
-};
-
-
-/// Helper class to access a batch-related part of RooAbsReal's interface, which should not leak to the outside world.
-class BatchInterfaceAccessor {
-  public:
-    static void checkBatchComputation(const RooAbsReal& theReal, const RooBatchCompute::RunContext& evalData, std::size_t evtNo,
-        const RooArgSet* normSet = nullptr, double relAccuracy = 1.E-13) {
-      theReal.checkBatchComputation(evalData, evtNo, normSet, relAccuracy);
-    }
 };
 
 

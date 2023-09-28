@@ -2162,8 +2162,10 @@ void TCling::RegisterModule(const char* modulename,
                   }
                }
                if (scopes.empty() || DC) {
-                  // We know the scope; let's look for the enum.
-                  size_t posEnumName = fwdDeclsLine.find("\"))) ", 32);
+                  // We know the scope; let's look for the enum. For that, look
+                  // for the *last* closing parentheses of an attribute because
+                  // there can be multiple.
+                  size_t posEnumName = fwdDeclsLine.rfind("\"))) ");
                   R__ASSERT(posEnumName != std::string::npos && "Inconsistent enum fwd decl!");
                   posEnumName += 5; // skip "\"))) "
                   while (isspace(fwdDeclsLine[posEnumName]))
@@ -5521,20 +5523,18 @@ int TCling::ReadRootmapFile(const char *rootmapfile, TUniqueString *uniqueString
          if (brpos == string::npos)
             continue;
          lib_name = line.substr(1, brpos - 1);
-         size_t nspaces = 0;
-         while (lib_name[nspaces] == ' ')
-            ++nspaces;
-         if (nspaces)
-            lib_name.replace(0, nspaces, "");
+         // Remove spaces at the beginning and at the end of the library name
+         lib_name.erase(lib_name.find_last_not_of(' ') + 1);
+         lib_name.erase(0, lib_name.find_first_not_of(' '));
          if (gDebug > 3) {
             TString lib_nameTstr(lib_name.c_str());
             TObjArray *tokens = lib_nameTstr.Tokenize(" ");
             const char *lib = ((TObjString *)tokens->At(0))->GetName();
             const char *wlib = gSystem->DynamicPathName(lib, kTRUE);
             if (wlib) {
-               Info("ReadRootmapFile", "new section for %s", lib_nameTstr.Data());
+               Info("ReadRootmapFile", "%s: New section for %s", rootmapfile, lib_nameTstr.Data());
             } else {
-               Info("ReadRootmapFile", "section for %s (library does not exist)", lib_nameTstr.Data());
+               Info("ReadRootmapFile", "%s: Section for %s (library does not exist)", rootmapfile, lib_nameTstr.Data());
             }
             delete[] wlib;
             delete tokens;
@@ -5547,25 +5547,31 @@ int TCling::ReadRootmapFile(const char *rootmapfile, TUniqueString *uniqueString
          // Do not make a copy, just start after the key
          const char *keyname = line.c_str() + keyLen;
          if (gDebug > 6)
-            Info("ReadRootmapFile", "class %s in %s", keyname, lib_name.c_str());
+            Info("ReadRootmapFile", "%s: class %s in %s", rootmapfile, keyname, lib_name.c_str());
          TEnvRec *isThere = fMapfile->Lookup(keyname);
          if (isThere) {
             if (lib_name != isThere->GetValue()) { // the same key for two different libs
                if (firstChar == 'n') {
                   if (gDebug > 3)
-                     Info("ReadRootmapFile", "namespace %s found in %s is already in %s", keyname, lib_name.c_str(),
-                          isThere->GetValue());
+                     Info("ReadRootmapFile",
+                          "While processing %s, namespace %s was found to be associated to %s although it is already "
+                          "associated to %s",
+                          rootmapfile, keyname, lib_name.c_str(), isThere->GetValue());
                } else if (firstChar == 'h') { // it is a header: add the libname to the list of libs to be loaded.
                   lib_name += " ";
                   lib_name += isThere->GetValue();
                   fMapfile->SetValue(keyname, lib_name.c_str());
                } else if (!TClassEdit::IsSTLCont(keyname)) {
-                  Warning("ReadRootmapFile", "%s %s found in %s is already in %s", line.substr(0, keyLen).c_str(),
-                          keyname, lib_name.c_str(), isThere->GetValue());
+                  Warning("ReadRootmapFile",
+                          "While processing %s, %s %s was found to be associated to %s although it is already "
+                          "associated to %s",
+                          rootmapfile, line.substr(0, keyLen - 1).c_str(), keyname, lib_name.c_str(),
+                          isThere->GetValue());
                }
             } else { // the same key for the same lib
                if (gDebug > 3)
-                  Info("ReadRootmapFile", "Key %s was already defined for %s", keyname, lib_name.c_str());
+                  Info("ReadRootmapFile", "While processing %s, key %s was found to be already defined for %s",
+                       rootmapfile, keyname, lib_name.c_str());
             }
          } else {
             fMapfile->SetValue(keyname, lib_name.c_str());
@@ -7023,6 +7029,11 @@ static std::string GetClassSharedLibsForModule(const char *cls, cling::LookupHel
 const char* TCling::GetClassSharedLibs(const char* cls)
 {
    if (fCxxModulesEnabled) {
+      // Lock the interpreter mutex before interacting with cling.
+      // TODO: Can we move this further deep? In principle the lock should be in
+      // GetClassSharedLibsForModule, but it might be needed also for
+      // getLookupHelper?
+      R__LOCKGUARD(gInterpreterMutex);
       llvm::StringRef className = cls;
       // If we get a class name containing lambda, we cannot parse it and we
       // can exit early.
@@ -7421,6 +7432,8 @@ int TCling::GetSecurityError() const
 
 int TCling::LoadFile(const char* path) const
 {
+   // Modifying the interpreter state needs locking.
+   R__LOCKGUARD(gInterpreterMutex);
    cling::Interpreter::CompilationResult compRes;
    HandleInterpreterException(GetMetaProcessorImpl(), TString::Format(".L %s", path), compRes, /*cling::Value*/nullptr);
    return compRes == cling::Interpreter::kFailure;
@@ -7567,6 +7580,8 @@ void TCling::SetTempLevel(int val) const
 
 int TCling::UnloadFile(const char* path) const
 {
+   // Modifying the interpreter state needs locking.
+   R__LOCKGUARD(gInterpreterMutex);
    cling::DynamicLibraryManager* DLM = fInterpreter->getDynamicLibraryManager();
    std::string canonical = DLM->lookupLibrary(path);
    if (canonical.empty()) {
@@ -8926,6 +8941,7 @@ void TCling::MethodInfo_Delete(MethodInfo_t* minfo) const
 void TCling::MethodInfo_CreateSignature(MethodInfo_t* minfo, TString& signature) const
 {
    TClingMethodInfo* info = (TClingMethodInfo*) minfo;
+   // The next call locks the interpreter mutex.
    info->CreateSignature(signature);
 }
 
@@ -8966,6 +8982,7 @@ MethodInfo_t* TCling::MethodInfo_FactoryCopy(MethodInfo_t* minfo) const
 void* TCling::MethodInfo_InterfaceMethod(MethodInfo_t* minfo) const
 {
    TClingMethodInfo* info = (TClingMethodInfo*) minfo;
+   // The next call locks the interpreter mutex.
    return info->InterfaceMethod();
 }
 
@@ -9006,6 +9023,7 @@ int TCling::MethodInfo_Next(MethodInfo_t* minfo) const
 Long_t TCling::MethodInfo_Property(MethodInfo_t* minfo) const
 {
    TClingMethodInfo* info = (TClingMethodInfo*) minfo;
+   // The next call locks the interpreter mutex.
    return info->Property();
 }
 
@@ -9014,6 +9032,7 @@ Long_t TCling::MethodInfo_Property(MethodInfo_t* minfo) const
 Long_t TCling::MethodInfo_ExtraProperty(MethodInfo_t* minfo) const
 {
    TClingMethodInfo* info = (TClingMethodInfo*) minfo;
+   // The next call locks the interpreter mutex.
    return info->ExtraProperty();
 }
 
@@ -9022,6 +9041,7 @@ Long_t TCling::MethodInfo_ExtraProperty(MethodInfo_t* minfo) const
 TypeInfo_t* TCling::MethodInfo_Type(MethodInfo_t* minfo) const
 {
    TClingMethodInfo* info = (TClingMethodInfo*) minfo;
+   // The next call locks the interpreter mutex.
    return (TypeInfo_t*)info->Type();
 }
 
@@ -9031,6 +9051,7 @@ const char* TCling::MethodInfo_GetMangledName(MethodInfo_t* minfo) const
 {
    TClingMethodInfo* info = (TClingMethodInfo*) minfo;
    TTHREAD_TLS_DECL(TString, mangled_name);
+   // The next call locks the interpreter mutex.
    mangled_name = info->GetMangledName();
    return mangled_name;
 }
@@ -9040,6 +9061,7 @@ const char* TCling::MethodInfo_GetMangledName(MethodInfo_t* minfo) const
 const char* TCling::MethodInfo_GetPrototype(MethodInfo_t* minfo) const
 {
    TClingMethodInfo* info = (TClingMethodInfo*) minfo;
+   // The next call locks the interpreter mutex.
    return info->GetPrototype();
 }
 
@@ -9048,6 +9070,7 @@ const char* TCling::MethodInfo_GetPrototype(MethodInfo_t* minfo) const
 const char* TCling::MethodInfo_Name(MethodInfo_t* minfo) const
 {
    TClingMethodInfo* info = (TClingMethodInfo*) minfo;
+   // The next call locks the interpreter mutex.
    return info->Name();
 }
 
@@ -9056,6 +9079,7 @@ const char* TCling::MethodInfo_Name(MethodInfo_t* minfo) const
 const char* TCling::MethodInfo_TypeName(MethodInfo_t* minfo) const
 {
    TClingMethodInfo* info = (TClingMethodInfo*) minfo;
+   // The next call locks the interpreter mutex.
    return info->TypeName();
 }
 
@@ -9064,6 +9088,7 @@ const char* TCling::MethodInfo_TypeName(MethodInfo_t* minfo) const
 std::string TCling::MethodInfo_TypeNormalizedName(MethodInfo_t* minfo) const
 {
    TClingMethodInfo* info = (TClingMethodInfo*) minfo;
+   // The next part locks the interpreter mutex.
    if (info && info->IsValid())
       return info->Type()->NormalizedName(*fNormalizedCtxt);
    else
@@ -9075,6 +9100,7 @@ std::string TCling::MethodInfo_TypeNormalizedName(MethodInfo_t* minfo) const
 const char* TCling::MethodInfo_Title(MethodInfo_t* minfo) const
 {
    TClingMethodInfo* info = (TClingMethodInfo*) minfo;
+   // The next call locks the interpreter mutex.
    return info->Title();
 }
 

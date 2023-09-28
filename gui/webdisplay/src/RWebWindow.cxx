@@ -29,7 +29,7 @@
 #include <algorithm>
 #include <fstream>
 
-using namespace ROOT::Experimental;
+using namespace ROOT;
 using namespace std::string_literals;
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -46,7 +46,7 @@ RWebWindow::WebConn::~WebConn()
 }
 
 
-/** \class ROOT::Experimental::RWebWindow
+/** \class ROOT::RWebWindow
 \ingroup webdisplay
 
 Represents web window, which can be shown in web browser or any other supported environment
@@ -171,7 +171,7 @@ THttpServer *RWebWindow::GetServer()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 /// Show window in specified location
-/// \see ROOT::Experimental::RWebWindowsManager::Show for more info
+/// \see ROOT::RWebWindowsManager::Show for more info
 /// \return (future) connection id (or 0 when fails)
 
 unsigned RWebWindow::Show(const RWebDisplayArgs &args)
@@ -182,7 +182,7 @@ unsigned RWebWindow::Show(const RWebDisplayArgs &args)
 //////////////////////////////////////////////////////////////////////////////////////////
 /// Start headless browser for specified window
 /// Normally only single instance is used, but many can be created
-/// See ROOT::Experimental::RWebWindowsManager::Show() docu for more info
+/// See ROOT::RWebWindowsManager::Show() docu for more info
 /// returns (future) connection id (or 0 when fails)
 
 unsigned RWebWindow::MakeHeadless(bool create_new)
@@ -676,16 +676,6 @@ std::string RWebWindow::GetConnToken() const
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
-/// Internal method to verify and thread id has to be assigned from manager again
-/// Special case when ProcessMT was enabled just until thread id will be assigned
-
-void RWebWindow::CheckThreadAssign()
-{
-   if (fProcessMT && fMgr->fExternalProcessEvents)
-      fMgr->AssignWindowThreadId(*this);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
 /// Processing of websockets call-backs, invoked from RWebWindowWSHandler
 /// Method invoked from http server thread, therefore appropriate mutex must be used on all relevant data
 
@@ -855,6 +845,7 @@ bool RWebWindow::ProcessWS(THttpCallArg &arg)
    if (nchannel == 0) {
       // special system channel
       if ((cdata.compare(0, 6, "READY=") == 0) && !conn->fReady) {
+
          std::string key = cdata.substr(6);
 
          if (key.empty() && IsNativeOnlyConn()) {
@@ -1479,6 +1470,7 @@ void RWebWindow::SendBinary(unsigned connid, const void *data, std::size_t len)
 void RWebWindow::AssignThreadId()
 {
    fUseServerThreads = false;
+   fUseProcessEvents = false;
    fProcessMT = false;
    fCallbacksThrdIdSet = true;
    fCallbacksThrdId = std::this_thread::get_id();
@@ -1500,6 +1492,7 @@ void RWebWindow::AssignThreadId()
 void RWebWindow::UseServerThreads()
 {
    fUseServerThreads = true;
+   fUseProcessEvents = false;
    fCallbacksThrdIdSet = false;
    fProcessMT = true;
 }
@@ -1564,7 +1557,8 @@ void RWebWindow::StopThread()
 
 void RWebWindow::SetDataCallBack(WebWindowDataCallback_t func)
 {
-   if (!fUseServerThreads) AssignThreadId();
+   if (!fUseServerThreads && !fUseProcessEvents)
+      AssignThreadId();
    fDataCallback = func;
 }
 
@@ -1573,7 +1567,8 @@ void RWebWindow::SetDataCallBack(WebWindowDataCallback_t func)
 
 void RWebWindow::SetConnectCallBack(WebWindowConnectCallback_t func)
 {
-   if (!fUseServerThreads) AssignThreadId();
+   if (!fUseServerThreads && !fUseProcessEvents)
+      AssignThreadId();
    fConnCallback = func;
 }
 
@@ -1582,7 +1577,8 @@ void RWebWindow::SetConnectCallBack(WebWindowConnectCallback_t func)
 
 void RWebWindow::SetDisconnectCallBack(WebWindowConnectCallback_t func)
 {
-   if (!fUseServerThreads) AssignThreadId();
+   if (!fUseServerThreads && !fUseProcessEvents)
+      AssignThreadId();
    fDisconnCallback = func;
 }
 
@@ -1600,7 +1596,8 @@ void RWebWindow::SetClearOnClose(const std::shared_ptr<void> &handle)
 
 void RWebWindow::SetCallBacks(WebWindowConnectCallback_t conn, WebWindowDataCallback_t data, WebWindowConnectCallback_t disconn)
 {
-   if (!fUseServerThreads) AssignThreadId();
+   if (!fUseServerThreads && !fUseProcessEvents)
+      AssignThreadId();
    fConnCallback = conn;
    fDataCallback = data;
    fDisconnCallback = disconn;

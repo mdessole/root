@@ -1284,7 +1284,12 @@ void TPad::Draw(Option_t *option)
       if (oldMother != fMother || fPixmapID == -1) ResizePad();
    }
 
-   Paint();
+   if (fCanvas && fCanvas->IsWeb()) {
+      Modified();
+      fCanvas->UpdateAsync();
+   } else {
+      Paint();
+   }
 
    if (gPad->IsRetained() && gPad != this && fMother)
       if (fMother->GetListOfPrimitives()) fMother->GetListOfPrimitives()->Add(this, option);
@@ -2827,6 +2832,18 @@ void TPad::SetSelected(TObject *obj)
 void TPad::Update()
 {
    if (fCanvas) fCanvas->Update();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Asynchronous pad update.
+/// In case of web-based canvas triggers update of the canvas on the client side,
+/// but does not wait that real update is completed. Avoids blocking of caller thread.
+/// Have to be used if called from other web-based widget to avoid logical dead-locks.
+/// In case of normal canvas just canvas->Update() is performed.
+
+void TPad::UpdateAsync()
+{
+   if (fCanvas) fCanvas->UpdateAsync();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -5182,7 +5199,7 @@ void TPad::Print(const char *filename, Option_t *option)
    if (strstr(opt,"Preview"))
       gSystem->Exec(TString::Format("epstool --quiet -t6p %s %s", psname.Data(), psname.Data()).Data());
    if (strstr(opt,"EmbedFonts")) {
-      gSystem->Exec(TString::Format("gs -quiet -dSAFER -dNOPLATFONTS -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dUseCIEColor -dCompatibilityLevel=1.4 -dPDFSETTINGS=/printer -dCompatibilityLevel=1.4 -dMaxSubsetPct=100 -dSubsetFonts=true -dEmbedAllFonts=true -sOutputFile=pdf_temp.pdf -f %s",
+      gSystem->Exec(TString::Format("gs -quiet -dSAFER -dNOPLATFONTS -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/printer -dCompatibilityLevel=1.4 -dMaxSubsetPct=100 -dSubsetFonts=true -dEmbedAllFonts=true -sOutputFile=pdf_temp.pdf -f %s",
                           psname.Data()).Data());
       gSystem->Rename("pdf_temp.pdf", psname.Data());
    }
@@ -6583,9 +6600,12 @@ void TPad::Streamer(TBuffer &b)
 
          //Set the kCanDelete bit in all objects in the pad such that when the pad
          //is deleted all objects in the pad are deleted too.
+         //Also set must cleanup bit which normally set for all primitives add to pad,
+         // but may be reset in IO like TH1::Streamer does
          TIter next(fPrimitives);
          while ((obj = next())) {
             obj->SetBit(kCanDelete);
+            obj->SetBit(kMustCleanup);
          }
 
          fModified = kTRUE;

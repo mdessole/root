@@ -42,7 +42,7 @@ ROOT_ADD_GTEST(testRooRealVar testRooRealVar.cxx LIBRARIES RooFitCore
     LIBRARIES RooFitCore
     COPY_TO_BUILDDIR ${CMAKE_CURRENT_SOURCE_DIR}/testRooAbsReal_1.root ${CMAKE_CURRENT_SOURCE_DIR}/testRooAbsReal_2.root)
 if(NOT MSVC OR win_broken_tests)
-  # Dsiabled on Windows because it causes the following error:
+  # Disabled on Windows because it causes the following error:
   # unknown file: error: SEH exception with code 0xc0000005 thrown in the test body.
   # According to the internet, this has to do with gtest, so it's not a RooFit problem
   ROOT_ADD_GTEST(testRooRealIntegral testRooRealIntegral.cxx LIBRARIES RooFitCore)
@@ -64,6 +64,7 @@ ROOT_ADD_GTEST(testRooPolyFunc testRooPolyFunc.cxx LIBRARIES Gpad RooFitCore)
 ROOT_ADD_GTEST(testSumW2Error testSumW2Error.cxx LIBRARIES Gpad RooFitCore)
 ROOT_ADD_GTEST(testRooHist testRooHist.cxx LIBRARIES RooFitCore)
 ROOT_ADD_GTEST(testRooHistPdf testRooHistPdf.cxx LIBRARIES RooFitCore)
+ROOT_ADD_GTEST(testRooRombergIntegrator testRooRombergIntegrator.cxx LIBRARIES MathCore RooFitCore)
 if (roofit_multiprocess)
   ROOT_ADD_GTEST(testTestStatisticsPlot TestStatistics/testPlot.cxx LIBRARIES RooFitMultiProcess RooFitCore RooFit
                    COPY_TO_BUILDDIR ${CMAKE_CURRENT_SOURCE_DIR}/TestStatistics/TestStatistics_ref.root)

@@ -24,7 +24,7 @@
 #include "RooAbsCategory.h"
 #include "RooRealVar.h"
 #include "RooHelpers.h"
-#include <math.h>
+#include <cmath>
 #include "TMath.h"
 
 
@@ -182,7 +182,7 @@ list<double>* RooParamHistFunc::plotSamplingHint(RooAbsRealLValue& obs, double x
   // Check that observable is in dataset, if not no hint is generated
   RooAbsLValue* lvarg = dynamic_cast<RooAbsLValue*>(_dh.get()->find(obs.GetName())) ;
   if (!lvarg) {
-    return 0 ;
+    return nullptr ;
   }
 
   // Retrieve position of all bin boundaries
@@ -219,7 +219,7 @@ std::list<double>* RooParamHistFunc::binBoundaries(RooAbsRealLValue& obs, double
   // Check that observable is in dataset, if not no hint is generated
   RooAbsLValue* lvarg = dynamic_cast<RooAbsLValue*>(_dh.get()->find(obs.GetName())) ;
   if (!lvarg) {
-    return 0 ;
+    return nullptr ;
   }
 
   // Retrieve position of all bin boundaries
@@ -246,9 +246,8 @@ Int_t RooParamHistFunc::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& a
                   const RooArgSet* /*normSet*/, const char* /*rangeName*/) const
 {
   // Simplest scenario, integrate over all dependents
-  RooAbsCollection *allVarsCommon = allVars.selectCommon(_x) ;
-  bool intAllObs = (allVarsCommon->getSize()==_x.getSize()) ;
-  delete allVarsCommon ;
+  std::unique_ptr<RooAbsCollection> allVarsCommon{allVars.selectCommon(_x)};
+  bool intAllObs = (allVarsCommon->size()==_x.size()) ;
   if (intAllObs && matchArgs(allVars,analVars,_x)) {
     return 1 ;
   }

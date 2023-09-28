@@ -192,13 +192,20 @@ static Int_t IVERSQ()
 
 static Int_t IDATQQ(const char *date)
 {
+   if (!date) {
+      Error("TSystem::IDATQQ", "nullptr date string, expected e.g. 'Dec 21 2022'");
+      return -1;
+   }
+
    static const char *months[] = {"Jan","Feb","Mar","Apr","May",
                                   "Jun","Jul","Aug","Sep","Oct",
                                   "Nov","Dec"};
-
    char  sm[12];
    Int_t yy, mm=0, dd;
-   sscanf(date, "%s %d %d", sm, &dd, &yy);
+   if (sscanf(date, "%s %d %d", sm, &dd, &yy) != 3) {
+      Error("TSystem::IDATQQ", "Cannot parse date string '%s', expected e.g. 'Dec 21 2022'", date);
+      return -1;
+   }
    for (int i = 0; i < 12; i++)
       if (!strncmp(sm, months[i], 3)) {
          mm = i+1;
@@ -1133,11 +1140,13 @@ namespace {
 
 void TROOT::CloseFiles()
 {
+   // Close files without deleting the objects (`ResetGlobals` will be called
+   // next; see `EndOfProcessCleanups()` below.)
    if (fFiles && fFiles->First()) {
       R__ListSlowClose(static_cast<TList*>(fFiles));
    }
    // and Close TROOT itself.
-   Close("slow");
+   Close("nodelete");
    // Now sockets.
    if (fSockets && fSockets->First()) {
       if (nullptr==fCleanups->FindObject(fSockets) ) {
@@ -1216,14 +1225,17 @@ void TROOT::EndOfProcessCleanups()
    CloseFiles();
 
    if (gInterpreter) {
+      // This might delete some of the objects 'held' by the TFiles (hence
+      // `CloseFiles` must not delete them)
       gInterpreter->ResetGlobals();
    }
 
-   // Now delete the objects 'held' by the TFiles so that it
+   // Now delete the objects still 'held' by the TFiles so that it
    // is done before the tear down of the libraries.
    if (fClosedObjects && fClosedObjects->First()) {
       R__ListSlowDeleteContent(static_cast<TList*>(fClosedObjects));
    }
+   fList->Delete("slow");
 
    // Now a set of simpler things to delete.  See the same ordering in
    // TROOT::~TROOT

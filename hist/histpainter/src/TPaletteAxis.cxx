@@ -144,7 +144,7 @@ TPaletteAxis::TPaletteAxis(Double_t x1, Double_t y1, Double_t x2, Double_t  y2, 
 TPaletteAxis::TPaletteAxis(Double_t x1, Double_t y1, Double_t x2, Double_t  y2, Double_t min, Double_t max)
    : TPave(x1, y1, x2, y2)
 {
-   fH    = 0;
+   fH    = nullptr;
    fAxis.SetWmin(min);
    fAxis.SetWmax(max);
    SetName("palette");
@@ -158,7 +158,7 @@ TPaletteAxis::TPaletteAxis(Double_t x1, Double_t y1, Double_t x2, Double_t  y2, 
 TPaletteAxis::TPaletteAxis(Double_t x1, Double_t y1, Double_t x2, Double_t  y2, TAxis *ax)
    : TPave(x1, y1, x2, y2)
 {
-   fH = 0;
+   fH = nullptr;
    SetName("palette");
    fAxis.ImportAxisAttributes(ax);
    if (gPad->GetView()) SetBit(kHasView);
@@ -551,8 +551,8 @@ void TPaletteAxis::Paint(Option_t *)
          }
          // make sure labels dont overlap
          if (i == 0 || (b1 - prevlab) > 1.5*lsize_user) {
-            if (kHorizontal) label->PaintLatex(b1, ymin - lof, 0, lsize, Form("%g", zlab));
-            else             label->PaintLatex(xmax + lof, b1, 0, lsize, Form("%g", zlab));
+            if (kHorizontal) label->PaintLatex(b1, ymin - lof, 0, lsize, TString::Format("%g", zlab));
+            else             label->PaintLatex(xmax + lof, b1, 0, lsize, TString::Format("%g", zlab));
             prevlab = b1;
          }
          if (kHorizontal) line->PaintLine(b2, ymin+tlength, b2, ymin);
@@ -560,8 +560,8 @@ void TPaletteAxis::Paint(Option_t *)
          if (i == ndivz-1) {
             // label + tick at top of axis
             if (fH && (b2 - prevlab > 1.5*lsize_user)) {
-               if (kHorizontal) label->PaintLatex(b2, ymin - lof, 0, lsize, Form("%g",fH->GetMaximum()));
-               else             label->PaintLatex(xmax + lof, b2, 0, lsize, Form("%g",fH->GetMaximum()));
+               if (kHorizontal) label->PaintLatex(b2, ymin - lof, 0, lsize, TString::Format("%g",fH->GetMaximum()));
+               else             label->PaintLatex(xmax + lof, b2, 0, lsize, TString::Format("%g",fH->GetMaximum()));
             }
             if (kHorizontal) line->PaintLine(b1, ymin+tlength, b1, ymin);
             else             line->PaintLine(xmax-tlength, b2, xmax, b2);

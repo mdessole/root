@@ -24,7 +24,6 @@
 using namespace std::string_literals;
 
 namespace ROOT {
-namespace Experimental {
 
 /// just wrapper to deliver websockets call-backs to the RWebWindow class
 
@@ -128,9 +127,7 @@ public:
    Bool_t ProcessWS(THttpCallArg *arg) override
    {
       if (!arg || IsDisabled()) return kFALSE;
-      auto res = fWindow.ProcessWS(*arg);
-      fWindow.CheckThreadAssign();
-      return res;
+      return fWindow.ProcessWS(*arg);
    }
 
    /// Allow processing of WS actions in arbitrary thread
@@ -145,7 +142,6 @@ public:
    static int GetBoolEnv(const std::string &name, int dfl = -1);
 };
 
-} // namespace Experimental
 } // namespace ROOT
 
 #endif

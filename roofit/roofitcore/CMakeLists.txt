@@ -13,6 +13,18 @@ if (roofit_multiprocess)
   set(RooFitMPTestStatisticsSources src/TestStatistics/LikelihoodJob.cxx src/TestStatistics/LikelihoodGradientJob.cxx)
 endif()
 
+if(roofit_multiprocess)
+  list(APPEND EXTRA_LIBRARIES RooFitMultiProcess)
+endif()
+
+if(cuda)
+  list(APPEND EXTRA_LIBRARIES RooFitCuda)
+endif()
+
+if(roofit_multiprocess)
+  list(APPEND EXTRA_DEPENDENCIES Minuit2)
+endif()
+
 set (EXTRA_DICT_OPTS)
 if (runtime_cxxmodules AND WIN32)
   set (EXTRA_DICT_OPTS NO_CXXMODULE)
@@ -26,6 +38,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooFit/Detail/CodeSquashContext.h
     RooFit/Detail/DataMap.h
     RooFit/Detail/NormalizationHelpers.h
+    RooFit/Evaluator.h
     RooFit/Floats.h
     RooFit/ModelConfig.h
     Roo1DTable.h
@@ -127,9 +140,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooHist.h
     RooHistPdf.h
     RooImproperIntegrator1D.h
-    RooIntegrator1D.h
-    RooIntegrator2D.h
-    RooIntegratorBinding.h
+    RooRombergIntegrator.h
     RooInvTransform.h
     RooLinearCombination.h
     RooLinearVar.h
@@ -178,7 +189,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooRandomizeParamMCSModule.h
     RooRangeBinning.h
     RooRangeBoolean.h
-    RooRealAnalytic.h
     RooRealBinding.h
     RooRealConstant.h
     RooRealIntegral.h
@@ -194,8 +204,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooSTLRefCountList.h
     RooResolutionModel.h
     RooSecondMoment.h
-    RooSegmentedIntegrator1D.h
-    RooSegmentedIntegrator2D.h
     RooSetProxy.h
     RooSharedProperties.h
     RooSimGenContext.h
@@ -236,15 +244,14 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooFit/TestStatistics/RooRealL.h
     RooFit/TestStatistics/RooUnbinnedL.h
     RooFit/TestStatistics/buildLikelihood.h
-    RunContext.h
   SOURCES
     src/ConstraintHelpers.cxx
     src/BatchModeHelpers.cxx
     src/BatchModeDataHelpers.cxx
-    src/CUDAHelpers.cxx
     src/Buffers.cxx
     src/BidirMMapPipe.cxx
     src/BidirMMapPipe.h
+    src/FitHelpers.cxx
     src/ModelConfig.cxx
     src/NormalizationHelpers.cxx
     src/Roo1DTable.cxx
@@ -349,9 +356,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooHistFunc.cxx
     src/RooHistPdf.cxx
     src/RooImproperIntegrator1D.cxx
-    src/RooIntegrator1D.cxx
-    src/RooIntegrator2D.cxx
-    src/RooIntegratorBinding.cxx
+    src/RooRombergIntegrator.cxx
     src/RooInvTransform.cxx
     src/RooLinearCombination.cxx
     src/RooLinearVar.cxx
@@ -369,7 +374,8 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooMultiCategory.cxx
     src/RooMultiVarGaussian.cxx
     src/RooNameReg.cxx
-    src/RooFitDriver.cxx
+    src/RooFit/Evaluator.cxx
+    src/RooEvaluatorWrapper.cxx
     src/RooNLLVar.cxx
     src/RooNLLVarNew.cxx
     src/RooNormSetCache.cxx
@@ -403,7 +409,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooRandomizeParamMCSModule.cxx
     src/RooRangeBinning.cxx
     src/RooRangeBoolean.cxx
-    src/RooRealAnalytic.cxx
     src/RooRealBinding.cxx
     src/RooRealConstant.cxx
     src/RooRealIntegral.cxx
@@ -412,12 +417,9 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooRealSumPdf.cxx
     src/RooRealVar.cxx
     src/RooRecursiveFraction.cxx
-    src/RooRefCountList.cxx
     src/RooSTLRefCountList.cxx
     src/RooResolutionModel.cxx
     src/RooSecondMoment.cxx
-    src/RooSegmentedIntegrator1D.cxx
-    src/RooSegmentedIntegrator2D.cxx
     src/RooSentinel.cxx
     src/RooSharedProperties.cxx
     src/RooSimGenContext.cxx
@@ -446,7 +448,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooBinSamplingPdf.cxx
     src/RooBinWidthFunction.cxx
     src/RooFitLegacy/RooCatTypeLegacy.cxx
-    src/RunContext.cxx
     src/RooFit/Detail/CodeSquashContext.cxx
     src/RooFit/Detail/DataMap.cxx
     src/TestStatistics/ConstantTermsOptimizer.cxx
@@ -466,7 +467,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     "-writeEmptyRootPCM"
   LIBRARIES
     RooBatchCompute
-    RooFitCommon
+    ${EXTRA_LIBRARIES}
   DEPENDENCIES
     Core
     Hist
@@ -474,21 +475,15 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     Matrix
     Tree
     Minuit
-    Minuit2
     RIO
     MathCore
     Foam
     Smatrix
+    ${EXTRA_DEPENDENCIES}
   LINKDEF
     inc/LinkDef.h
   ${EXTRA_DICT_OPTS}
 )
-
-if (roofit_multiprocess)
-  target_link_libraries(RooFitCore PRIVATE RooFitMultiProcess)
-  set(RooFitCore_MultiProcess_TestStatistics_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/res")
-  target_include_directories(RooFitCore PRIVATE ${RooFitCore_MultiProcess_TestStatistics_INCLUDE_DIR})
-endif()
 
 # For recent clang, this can facilitate auto-vectorisation.
 # In RooFit, the errno side effect is not needed, anyway:

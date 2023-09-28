@@ -786,9 +786,17 @@ sap.ui.define(['rootui5/eve7/lib/EveManager'], function (EveManager)
       {
          if (this.TestRnr("hit", hit, rnr_data)) return null;
 
+         let txName;
+         if (hit.fMarkerStyle == 3)
+            txName = "star5-32a.png";
+         else if (hit.fMarkerStyle == 2)
+            txName = "square-32a.png";
+         else
+            txName = "dot-32a.png"
+
          let s = this.RcMakeZSprite(hit.fMarkerColor, hit.fMarkerSize, hit.fSize,
             rnr_data.vtxBuff, hit.fTexX, hit.fTexY,
-            "star5-32a.png");
+            txName);
 
          this.RcPickable(hit, s);
 
@@ -1376,8 +1384,9 @@ sap.ui.define(['rootui5/eve7/lib/EveManager'], function (EveManager)
          let geom = this.makeEveGeometry(rnr_data, false);
 
          let fcol = RcCol(egs.fFillColor);
+         let mop = 1 - egs.fMainTransparency/100;
 
-         let mat = this.RcFancyMaterial(fcol, 0.2);
+         let mat = this.RcFancyMaterial(fcol, mop);
          mat.side = RC.FRONT_AND_BACK_SIDE;
          mat.shininess = 50;
          mat.normalFlat = true;
@@ -1401,11 +1410,12 @@ sap.ui.define(['rootui5/eve7/lib/EveManager'], function (EveManager)
          let ib_len = rnr_data.idxBuff.length;
 
          let fcol = RcCol(psp.fMainColor);
+         let mop = Math.min( 1, 1 - psp.fMainTransparency/100);
 
-         let material = this.RcFlatMaterial(fcol, 0.4);
+         let material = this.RcFlatMaterial(fcol, mop);
          material.side = RC.FRONT_AND_BACK_SIDE;
 
-         let line_mat = this.RcLineMaterial(fcol);
+         let line_mat = this.RcLineMaterial(fcol, mop);
 
          let meshes = [];
          for (let ib_pos = 0; ib_pos < ib_len;)

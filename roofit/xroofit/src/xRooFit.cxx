@@ -281,7 +281,7 @@ xRooFit::generateFrom(RooAbsPdf &pdf, const std::shared_ptr<const RooFitResult> 
          // do subpdf's individually
          _obs->add(w);
          _out.first.reset(new RooDataSet(
-            uuid, TString::Format("%s %s", _pdf->GetTitle(), (expected) ? "Expected" : "Toy"), *_obs, "weightVar"));
+            uuid.Data(), TString::Format("%s %s", _pdf->GetTitle(), (expected) ? "Expected" : "Toy").Data(), *_obs, "weightVar"));
 
          for (auto &c : s->indexCat()) {
 #if ROOT_VERSION_CODE >= ROOT_VERSION(6, 22, 00)
@@ -866,11 +866,11 @@ xRooFit::minimize(RooAbsReal &nll, const std::shared_ptr<ROOT::Fit::FitConfig> &
          }
          if (limit_status == 900) {
             if (printLevel >= 0)
-               Warning("miminize", "BOUNDCHK: Parameters within %g%% limit in fit result: %s", boundaryCheck * 100,
+               Warning("minimize", "BOUNDCHK: Parameters within %g%% limit in fit result: %s", boundaryCheck * 100,
                        listpars.c_str());
          } else if (limit_status > 0) {
             if (printLevel >= 0)
-               Warning("miminize", "BOUNDCHK: Parameters near limit in fit result");
+               Warning("minimize", "BOUNDCHK: Parameters near limit in fit result");
          }
 
          // store the limit check result

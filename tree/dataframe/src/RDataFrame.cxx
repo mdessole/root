@@ -77,12 +77,13 @@ You can directly see RDataFrame in action in our [tutorials](https://root.cern.c
    - [Special helper columns: `rdfentry_` and `rdfslot_`](\ref helper-cols)
    - [Just-in-time compilation: column type inference and explicit declaration of column types](\ref jitting)
    - [User-defined custom actions](\ref generic-actions)
-   - [Friend trees](\ref friends)
+   - [Dataset joins with friend trees](\ref friends)
    - [Reading data formats other than ROOT trees](\ref other-file-formats)
    - [Computation graphs (storing and reusing sets of transformations)](\ref callgraphs)
    - [Visualizing the computation graph](\ref representgraph)
    - [Activating RDataFrame execution logs](\ref rdf-logging)
    - [Creating an RDataFrame from a dataset specification file](\ref rdf-from-spec)
+   - [Adding a progress bar](\ref progressbar)
 - [Efficient analysis in Python](\ref python)
 - <a class="el" href="classROOT_1_1RDataFrame.html#reference" onclick="javascript:toggleInherit('pub_methods_classROOT_1_1RDF_1_1RInterface')">Class reference</a>
 
@@ -813,6 +814,66 @@ Without this, two partial histograms resulting from two distributed tasks would 
 to errors when merging them. Failing to pass a histogram model will raise an error on the client side, before starting
 the distributed execution.
 
+### Live visualization in distributed mode with dask
+
+The live visualization feature allows real-time data representation of plots generated during the execution 
+of a distributed RDataFrame application. 
+It enables visualizing intermediate results as they are computed across multiple nodes of a Dask cluster
+by creating a canvas and continuously updating it as partial results become available. 
+
+The LiveVisualize() function can be imported from the Python package **ROOT.RDF.Experimental.Distributed**:
+
+~~~{.py}
+import ROOT
+
+LiveVisualize = ROOT.RDF.Experimental.Distributed.LiveVisualize
+~~~
+
+The function takes drawable objects (e.g. histograms) and optional callback functions as argument, it accepts 4 different input formats:
+
+- Passing a list or tuple of drawables: 
+You can pass a list or tuple containing the plots you want to visualize. For example:
+
+~~~{.py}
+LiveVisualize([h_gaus, h_exp, h_random])
+~~~
+
+- Passing a list or tuple of drawables with a global callback function: 
+You can also include a global callback function that will be applied to all plots. For example:
+
+~~~{.py}
+def set_fill_color(hist):
+    hist.SetFillColor(ROOT.kBlue)
+
+LiveVisualize([h_gaus, h_exp, h_random], set_fill_color)
+~~~
+
+- Passing a Dictionary of drawables and callback functions: 
+For more control, you can create a dictionary where keys are plots and values are corresponding (optional) callback functions. For example:
+
+~~~{.py}
+plot_callback_dict = {
+    graph: set_marker,
+    h_exp: fit_exp,
+    tprofile_2d: None
+}
+
+LiveVisualize(plot_callback_dict)
+~~~
+
+- Passing a Dictionary of drawables and callback functions with a global callback function: 
+You can also combine a dictionary of plots and callbacks with a global callback function:
+
+~~~{.py}
+LiveVisualize(plot_callback_dict, write_to_tfile)
+~~~
+
+\note The allowed operations to pass to LiveVisualize are:
+      - Histo1D(), Histo2D(), Histo3D()
+      - Graph()
+      - Profile1D(), Profile2D()
+
+\warning The Live Visualization feature is only supported for the Dask backend.
 
 \anchor parallel-execution
 ## Performance tips and parallel execution
@@ -1232,26 +1293,56 @@ Notice how we created one `double` variable for each processing slot and later m
 
 
 \anchor friends
-### Friend trees
-Friend TTrees are supported by RDataFrame.
-Friend TTrees with a TTreeIndex are supported starting from ROOT v6.24.
+### Dataset joins with friend trees
 
-To use friend trees in RDataFrame, it is necessary to add the friends directly to
-the tree and instantiate an RDataFrame with the main tree:
+Vertically concatenating multiple trees that have the same columns (creating a logical dataset with the same columns and
+more rows) is trivial in RDataFrame: just pass the tree name and a list of file names to RDataFrame's constructor, or create a TChain
+out of the desired trees and pass that to RDataFrame.
+
+Horizontal concatenations of trees or chains (creating a logical dataset with the same number of rows and the union of the
+columns of multiple trees) leverages TTree's "friend" mechanism.
+
+Simple joins of trees that do not have the same number of rows are also possible with indexed friend trees (see below).
+
+To use friend trees in RDataFrame, set up trees with the appropriate relationships and then instantiate an RDataFrame
+with the main tree:
 
 ~~~{.cpp}
-TTree t([...]);
-TTree ft([...]);
-t.AddFriend(&ft, "myFriend");
+TTree main([...]);
+TTree friend([...]);
+main.AddFriend(&friend, "myFriend");
 
-RDataFrame d(t);
-auto f = d.Filter("myFriend.MyCol == 42");
+RDataFrame df(main);
+auto df2 = df.Filter("myFriend.MyCol == 42");
 ~~~
 
-Columns coming from the friend trees can be referred to by their full name, like in the example above,
+The same applies for TChains. Columns coming from the friend trees can be referred to by their full name, like in the example above,
 or the friend tree name can be omitted in case the column name is not ambiguous (e.g. "MyCol" could be used instead of
-      "myFriend.MyCol" in the example above).
+"myFriend.MyCol" in the example above if there is no column "MyCol" in the main tree).
 
+\note A common source of confusion is that trees that are written out from a multi-thread Snapshot() call will have their
+      entries (block-wise) shuffled with respect to the original tree. Such trees cannot be used as friends of the original
+      one: rows will be mismatched.
+
+Indexed friend trees provide a way to perform simple joins of multiple trees over a common column.
+When a certain entry in the main tree (or chain) is loaded, the friend trees (or chains) will then load an entry where the
+"index" columns have a value identical to the one in the main one. For example, in Python:
+
+~~~{.py}
+main_tree = ...
+aux_tree = ...
+
+# If a friend tree has an index on `commonColumn`, when the main tree loads
+# a given row, it also loads the row of the friend tree that has the same
+# value of `commonColumn`
+aux_tree.BuildIndex("commonColumn")
+
+mainTree.AddFriend(aux_tree)
+
+df = ROOT.RDataFrame(mainTree)
+~~~
+
+RDataFrame supports indexed friend TTrees from ROOT v6.24 in single-thread mode and from v6.28/02 in multi-thread mode.
 
 \anchor other-file-formats
 ### Reading data formats other than ROOT trees
@@ -1401,6 +1492,31 @@ df.DefinePerSample("name", "rdfsampleinfo_.GetSampleName()")
 
 An example implementation of the "FromSpec" method is available in tutorial: df106_HiggstoFourLeptons.py, which also
 provides a corresponding exemplary JSON file for the dataset specification.
+
+\anchor progressbar
+### Adding a progress bar 
+
+A progress bar showing the processed event statistics can be added to any RDataFrame program.
+The event statistics include elapsed time, currently processed file, currently processed events, the rate of event processing 
+and an estimated remaining time (per file being processed). It is recorded and printed in the terminal every m events and every 
+n seconds (by default m = 1000 and n = 1). The ProgressBar can be also added when the multithread (MT) mode is enabled. 
+
+ProgressBar is added after creating the dataframe object (df):
+~~~{.cpp}
+ROOT::RDataFrame df("tree", "file.root");
+ROOT::RDF::Experimental::AddProgressbar(df);
+~~~
+
+Alternatively, RDataFrame can be cast to an RNode first, giving the user more flexibility 
+For example, it can be called at any computational node, such as Filter or Define, not only the head node,
+with no change to the Progressbar function itself: 
+~~~{.cpp}
+ROOT::RDataFrame df("tree", "file.root");
+auto df_1 = ROOT::RDF::RNode(df.Filter("x>1"));
+ROOT::RDF::Experimental::AddProgressbar(df_1);
+~~~
+Examples of implemented progress bars can be seen by running [Higgs to Four Lepton tutorial](https://root.cern/doc/master/df106__HiggsToFourLeptons_8py_source.html) and [Dimuon tutorial](https://root.cern/doc/master/df102__NanoAODDimuonAnalysis_8C.html). 
+
 */
 // clang-format on
 
@@ -1524,12 +1640,18 @@ RDataFrame::RDataFrame(std::unique_ptr<ROOT::RDF::RDataSource> ds, const ColumnN
 /// A dataset specification includes trees and file names,
 /// as well as an optional friend list and/or entry range.
 ///
-/// ### Example usage:
+/// ### Example usage from Python:
 /// ~~~{.py}
-/// spec = ROOT.RDF.Experimental.RDatasetSpec("tree", "file.root", (3, 5))
-/// spec.AddFriend([("tree1", "a.root"), ("tree2", "b.root")], "alias")
+/// spec = (
+///     ROOT.RDF.Experimental.RDatasetSpec()
+///     .AddSample(("data", "tree", "file.root"))
+///     .WithGlobalFriends("friendTree", "friend.root", "alias")
+///     .WithGlobalRange((100, 200))
+/// )
 /// df = ROOT.RDataFrame(spec)
 /// ~~~
+///
+/// See also ROOT::RDataFrame::FromSpec().
 RDataFrame::RDataFrame(ROOT::RDF::Experimental::RDatasetSpec spec)
    : RInterface(std::make_shared<RDFDetail::RLoopManager>(std::move(spec)))
 {

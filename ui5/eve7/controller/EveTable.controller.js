@@ -33,6 +33,8 @@ sap.ui.define([
       onTableObjectMatched: function (oEvent) {
          let args = oEvent.getParameter("arguments");
          this.setupManagerAndViewType(EVE.$eve7tmp.eveViewerId, EVE.$eve7tmp.mgr);
+
+         this.mgr.controllers[0].setToolbarExpandedAction(this);
          delete EVE.$eve7tmp;
       },
       setupManagerAndViewType: function(eveViewerId, mgr)
@@ -426,6 +428,7 @@ sap.ui.define([
                let oModel = new JSONModel();
                let oSuggestionData = this.eveTable.fPublicFunctions;
                oModel.setData(oSuggestionData);
+               oModel.setSizeLimit(10000);// default limit is 100
                exprIn.setModel(oModel);
                exprIn.bindAggregation("suggestionRows", "/", oTableItemTemplate);
 

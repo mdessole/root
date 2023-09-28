@@ -1235,7 +1235,7 @@ xRooNode xRooNode::Add(const xRooNode &child, Option_t *opt)
       TString fac(child.GetName());
       if (!fac.Contains("["))
          fac += "[1]";
-      return xRooNode(*fParent->get<RooWorkspace>()->factory(fac), fParent);
+      return xRooNode(*fParent->get<RooWorkspace>()->factory(fac.Data()), fParent);
    } else if (strcmp(GetName(), ".datasets()") == 0) {
       // create a dataset - only allowed for pdfs or workspaces
       if (auto _ws = ws(); _ws && fParent) {
@@ -2071,7 +2071,7 @@ xRooNode xRooNode::Multiply(const xRooNode &child, Option_t *opt)
                i++;
             }
          }
-         // then scale the relevant bin ... if the relevent bin is a "1" then just drop in our factor (inside a
+         // then scale the relevant bin ... if the relevant bin is a "1" then just drop in our factor (inside a
          // RooProduct though, to avoid it getting modified by subsequent multiplies)
          auto _bin = binFactors->bins().at(fBinNumber - 1);
          if (auto phf = binFactors->get<ParamHistFunc>(); phf && _bin) {
@@ -2175,7 +2175,7 @@ xRooNode xRooNode::Multiply(const xRooNode &child, Option_t *opt)
          return out;
       } else if (sOpt == "func" && ws()) {
          // need to get way to get dependencies .. can't pass all as causes circular dependencies issues.
-         if (auto arg = ws()->factory(TString("expr::") + child.GetName())) {
+         if (auto arg = ws()->factory(std::string("expr::") + child.GetName())) {
             auto out = Multiply(*arg);
             if (get() /* can happen this is null if on a bin node with no shapeFactors*/)
                Info("Multiply", "Scaled %s by new func factor %s",
@@ -3638,7 +3638,7 @@ std::shared_ptr<TObject> xRooNode::convertForAcquisition(xRooNode &acquirer, con
    } else if (!get() && sName.BeginsWith("factory:") && acquirer.ws()) {
       TString s(sName);
       s = TString(s(8, s.Length()));
-      fComp.reset(acquirer.ws()->factory(s), [](TObject *) {});
+      fComp.reset(acquirer.ws()->factory(s.Data()), [](TObject *) {});
       return fComp;
    }
 
@@ -4424,7 +4424,7 @@ xRooNode xRooNode::components() const
            // get unconditional fit if we can ...
            std::string dName = (strcmp(GetName(),"otherDatasets")==0) ? "*" : GetName();
            long total = 0;
-           if(auto _ufits = p->GetEntrys(p->BuildSelection(dName, std::map<std::string, double>{})); !_ufits.empty()) {
+           if(auto _ufits = p->GetEntries(p->BuildSelection(dName, std::map<std::string, double>{})); !_ufits.empty()) {
                for(auto i : _ufits) {
                    auto _fr = p->GetFit(i);
                    TUUID uuid(_fr->GetName());
@@ -4446,7 +4446,7 @@ xRooNode xRooNode::components() const
                if (total >= _nentries) break;
                if (_par->getAttribute("Constant")) continue;
                //auto _sel = p->BuildSelection(dName,{{_par->GetName(),
-   {dynamic_cast<RooRealVar*>(_par)->getMin(),dynamic_cast<RooRealVar*>(_par)->getMax()}}}); if (auto n = p->GetEntrys(
+   {dynamic_cast<RooRealVar*>(_par)->getMin(),dynamic_cast<RooRealVar*>(_par)->getMax()}}}); if (auto n = p->GetEntries(
                            p->BuildSelection(dName, {{_par->GetName(), std::numeric_limits<double>::quiet_NaN()}}),
    1).size();n > 0) {
                //if (p->get()->GetEntries(_sel) > 0) {
@@ -4457,7 +4457,7 @@ xRooNode xRooNode::components() const
        } else if(depth==2) {
            std::string dName = (strcmp(fParent->GetName(),"otherDatasets")==0) ? "*" : fParent->GetName();
            //std::cout << p->BuildSelection(dName,{{GetName(),std::numeric_limits<double>::quiet_NaN()}}).GetTitle() <<
-   std::endl; for(auto& i : p->GetEntrys( p->BuildSelection(dName, {{GetName(),
+   std::endl; for(auto& i : p->GetEntries( p->BuildSelection(dName, {{GetName(),
    std::numeric_limits<double>::quiet_NaN()}}), -1)) { auto _fr = p->GetFit(i); TString _name =
    TString::Format("%f;%s",dynamic_cast<RooAbsReal*>(_fr->constPars().find(GetName()))->getVal(),TUUID(_fr->GetName()).GetTime().AsString());
                if (auto _existing = find(_name.Data()); _existing) {
@@ -4496,7 +4496,7 @@ xRooNode xRooNode::components() const
                // std::cout << " type = " << _pdf->get()->ClassName() << std::endl;
                out.emplace_back(std::make_shared<xRooNode>(fr->GetName(), *fr, _pdf));
                // for a while, this node's parent pointed to something of type Node2!!
-               // how to fix??? - I fxied it with a new constructo to avoid the shared_ptr<Node2> calling the const
+               // how to fix??? - I fxied it with a new constructor to avoid the shared_ptr<Node2> calling the const
                // Node2& constructor via getting wrapped in a Node2(shared_ptr<TObject>) call
                // out.back()->fParent = _pdf;
                // std::cout << " type2 = " << out.back()->fParent->get()->ClassName() << std::endl;
@@ -7547,7 +7547,7 @@ void xRooNode::Draw(Option_t *opt)
             if (!commonSuffix.empty() && TString(_title).EndsWith(commonSuffix.c_str()))
                _title = _title.substr(0, _title.length() - commonSuffix.length());
 
-            // style hists according to availble styles ... creating if necessary
+            // style hists according to available styles ... creating if necessary
             // keeping this code here because style() method would be for the stack instead of
             // for the components
             std::shared_ptr<TStyle> _style; // use to keep alive for access from GetStyle below, in case getObject has

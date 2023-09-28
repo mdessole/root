@@ -37,7 +37,6 @@ generator context specific for binned pdfs.
 using namespace std;
 
 ClassImp(RooBinnedGenContext);
-;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,9 +90,9 @@ void RooBinnedGenContext::attach(const RooArgSet& args)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// One-time initialization of generator contex. Attach theEvent
+/// One-time initialization of generator context. Attach theEvent
 /// to internal p.d.f clone and forward initialization call to
-/// the component generators
+/// the component generators.
 
 void RooBinnedGenContext::initGenerator(const RooArgSet &theEvent)
 {
@@ -123,7 +122,7 @@ RooDataSet *RooBinnedGenContext::generate(double nEvt, bool /*skipInit*/, bool e
     if (!_pdf->canBeExtended()) {
       coutE(InputArguments) << "RooAbsPdf::generateBinned(" << GetName()
              << ") ERROR: No event count provided and p.d.f does not provide expected number of events" << endl ;
-      return 0 ;
+      return nullptr ;
     } else {
       // Don't round in expectedData mode
       if (_expectedData || extended) {

@@ -1,11 +1,10 @@
 # JSROOT changelog
 
-## Changes in dev
-
+## Changes in 7.5
 1. Correctly implement TH2 projections like MERCATOR or PARABOLIC
 2. Use https://github.com/georgealways/lil-gui/ instead of dat.GUI
 3. Let configure material and scene properties in geom control gui
-4. Upgrade three.js r151 -> r153, replace dat.gui by lil.gui
+4. Upgrade three.js r151 -> r155
 5. Let toggle vertical/horizontal flag for color palette via context menu
 6. Provide "Bring to front" menu command for different objects like pave, box, marker, ...
 7. Handle "dark mode" in geom painter - automatically adjust background
@@ -15,6 +14,34 @@
 11. Use "col" as default draw option for TH2, "box2" for TH3
 12. Support "mollweide" projection for TH2
 13. Basic latex support when drawing axes labels and titles in 3D
+14. Support orthographic camera for lego and surface plots
+15. Implement "tri1", "tri2", "triw" draw options for `TGraph2D` with Delaunay algorithm
+16. Draw axes grids in front of objects - making it equivalent to original ROOT
+17. Put `gl` in "devDependencies" of package.json. One can skip it installation with `npm i --production`.
+18. Add support of `TPaveClass`
+19. Support `inspectN` draw option, allows automatically expand object content to specified level
+20. Implement `allfunc` draw option for histograms, force drawing disregard of TF1::kNotDraw bit
+21. Use `eslint` for static code checking, add testing of interactive features
+22. Provide `Build legend` context menu command for the pad
+23. Reset pad enlarge state when pressing Escape key #265
+24. Support canvas grayscale, let toggle via context menu
+25. Fix - correct scaling of axis labels when tilt them by 25 degree, make this angle configurable
+26. Fix - legend multi-columns drawing and labels scaling
+27. Fix - graph "B" bar widths as in native ROOT
+28. Fix - use pad and not frame size for TText/TLatex scaling 
+
+
+## Changes in 7.4.3
+1. Fix - correctly use GMT specifier in time format
+2. Fix - logical error in `decodeUrl`
+3. Fix - member-wise streaming of std::map   #262
+
+
+## Changes in 7.4.2
+1. Fix - unzoom z on lego2 plots
+2. Fix - browsing TLists with nullptr inside
+3. Fix - check NaN values when performing TTree::Draw()
+4. Fix - support standard log function in TF1/TF2
 
 
 ## Changes in 7.4.1

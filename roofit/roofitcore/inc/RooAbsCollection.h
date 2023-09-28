@@ -27,9 +27,9 @@
 // The range casts are not used in this file, but if you want to work with
 // RooFit collections you also want to have static_range_cast and
 // dynamic_range_cast available without including RangeCast.h every time.
-#include "ROOT/RRangeCast.hxx"
+#include <ROOT/RRangeCast.hxx>
 
-#include "ROOT/RSpan.hxx"
+#include <ROOT/RSpan.hxx>
 
 #include <string>
 #include <unordered_map>
@@ -116,7 +116,7 @@ public:
   // List content management
   virtual bool add(const RooAbsArg& var, bool silent=false) ;
 // The following function is not memory safe, because it takes ownership of var
-// without moving it. It is not publically available in the memory safe
+// without moving it. It is not publicly available in the memory safe
 // interfaces mode.
 #ifdef ROOFIT_MEMORY_SAFE_INTERFACES
 protected:

@@ -29,6 +29,11 @@ foreach(policy ${policy_new})
   endif()
 endforeach()
 
+# ignore JAVA_ROOT when find_package(Java 1.8 ...) called
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.27)
+  cmake_policy(SET CMP0144 OLD)
+endif()
+
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
   cmake_policy(SET CMP0135 OLD)
 endif()
@@ -81,26 +86,34 @@ else()
 endif()
 
 function(SET_VERSION_FROM_FILE)
-  file(READ ${CMAKE_SOURCE_DIR}/build/version_number versionstr)
-  string(STRIP ${versionstr} versionstr)
-  string(REGEX REPLACE "([0-9]+)[.][0-9]+[/][0-9]+" "\\1" ROOT_MAJOR_VERSION ${versionstr})
-  string(REGEX REPLACE "[0-9]+[.]([0-9]+)[/][0-9]+" "\\1" ROOT_MINOR_VERSION ${versionstr})
-  string(REGEX REPLACE "[0-9]+[.][0-9]+[/]([0-9]+)" "\\1" ROOT_PATCH_VERSION ${versionstr})
-  set(ROOT_VERSION "${ROOT_MAJOR_VERSION}.${ROOT_MINOR_VERSION}.${ROOT_PATCH_VERSION}" PARENT_SCOPE)
+  # See https://stackoverflow.com/questions/47066115/cmake-get-version-from-multiline-text-file
+  file(READ "${CMAKE_SOURCE_DIR}/core/foundation/inc/ROOT/RVersion.hxx" versionstr)
+  string(REGEX MATCH "#define ROOT_VERSION_MAJOR ([0-9]*)" _ ${versionstr})
+  set(ROOT_MAJOR_VERSION ${CMAKE_MATCH_1})
+  string(REGEX MATCH "#define ROOT_VERSION_MINOR ([0-9]*)" _ ${versionstr})
+  set(ROOT_MINOR_VERSION ${CMAKE_MATCH_1})
+  string(REGEX MATCH "#define ROOT_VERSION_PATCH ([0-9]*)" _ ${versionstr})
+  set(ROOT_PATCH_VERSION ${CMAKE_MATCH_1})
+
   set(ROOT_MAJOR_VERSION "${ROOT_MAJOR_VERSION}" PARENT_SCOPE)
   set(ROOT_MINOR_VERSION "${ROOT_MINOR_VERSION}" PARENT_SCOPE)
   set(ROOT_PATCH_VERSION "${ROOT_PATCH_VERSION}" PARENT_SCOPE)
 endfunction()
 
-if(GIT_DESCRIBE_ERRCODE)
-  SET_VERSION_FROM_FILE()
-else()
+SET_VERSION_FROM_FILE()
+
+set(ROOT_VERSION "${ROOT_MAJOR_VERSION}.${ROOT_MINOR_VERSION}.${ROOT_PATCH_VERSION}")
+set(ROOT_FULL_VERSION "${ROOT_VERSION}")
+
+math(EXPR ROOT_PATCH_VERSION_ODD ${ROOT_PATCH_VERSION}%2)
+# For release versions (even patch version number) we use the number from
+# core/foundation/inc/ROOT/RVersion.hxx, not that of git: it's more stable / reliable.
+if(NOT GIT_DESCRIBE_ERRCODE AND ${ROOT_PATCH_VERSION_ODD} EQUAL 1)
   execute_process(COMMAND ${GIT_EXECUTABLE} --git-dir=${CMAKE_SOURCE_DIR}/.git describe --always
                   OUTPUT_VARIABLE GIT_DESCRIBE_ALWAYS
                   ERROR_QUIET
                   OUTPUT_STRIP_TRAILING_WHITESPACE)
   string(TIMESTAMP GIT_TIMESTAMP "%b %d %Y, %H:%M:%S" UTC)
-  string(REGEX REPLACE "^v([0-9]+)-([0-9]+)-(.*)" "\\1.\\2.\\3" ROOT_FULL_VERSION ${GIT_DESCRIBE_ALWAYS})
 
   if("${GIT_DESCRIBE_ALL}" MATCHES "^tags/v[0-9]+-[0-9]+-[0-9]+.*")
     # GIT_DESCRIBE_ALWAYS: v6-16-00-rc1
@@ -109,6 +122,7 @@ else()
     string(REGEX REPLACE "^tags/v([0-9]+)-.*" "\\1" ROOT_MAJOR_VERSION ${GIT_DESCRIBE_ALL})
     string(REGEX REPLACE "^tags/v[0-9]+-([0-9]+).*" "\\1" ROOT_MINOR_VERSION ${GIT_DESCRIBE_ALL})
     string(REGEX REPLACE "^tags/v[0-9]+-[0-9]+-([0-9]+).*" "\\1" ROOT_PATCH_VERSION ${GIT_DESCRIBE_ALL})
+    string(REGEX REPLACE "^v([0-9]+)-([0-9]+)-(.*)" "\\1.\\2.\\3" ROOT_FULL_VERSION ${GIT_DESCRIBE_ALWAYS})
   elseif("${GIT_DESCRIBE_ALL}" MATCHES "/v[0-9]+-[0-9]+.*-patches$")
     # GIT_DESCRIBE_ALWAYS: v6-16-00-rc1-47-g9ba56ef4a3
     # GIT_DESCRIBE_ALL: heads/v6-16-00-patches
@@ -118,12 +132,12 @@ else()
   else()
     # GIT_DESCRIBE_ALWAYS: v6-13-04-2163-g7e8d27ea66
     # GIT_DESCRIBE_ALL: heads/master or remotes/origin/master
-    SET_VERSION_FROM_FILE()
-    set(ROOT_FULL_VERSION "${ROOT_MAJOR_VERSION}.${ROOT_MINOR_VERSION}.${ROOT_PATCH_VERSION}")
+
+    # Use what was set above in SET_VERSION_FROM_FILE().
   endif()
-  set(ROOT_VERSION "${ROOT_MAJOR_VERSION}.${ROOT_MINOR_VERSION}.${ROOT_PATCH_VERSION}")
-  message(STATUS "Detected ROOT_VERSION ${ROOT_VERSION}")
 endif()
+
+message(STATUS "Building ROOT version ${ROOT_FULL_VERSION}")
 
 #---Try to download a file to check internet connection-----------------------------------------
 message(STATUS "Checking internet connectivity")
@@ -189,7 +203,7 @@ function(relatedrepo_GetClosestMatch)
 
   # `current_head` is a well-known branch, e.g. master, or v6-28-00-patches.  Use the matching branch
   # upstream as the fork repository may be out-of-sync
-  string(REGEX MATCH "(master|latest-stable|v[0-9]+-[0-9]+-[0-9]+(-patches)?)" known_head ${current_head})
+  string(REGEX MATCH "^(master|latest-stable|v[0-9]+-[0-9]+-[0-9]+(-patches)?)$" known_head ${current_head})
   if(NOT "${known_head}" STREQUAL "")
     if("${current_head}" STREQUAL "latest-stable")
       # Resolve the 'latest-stable' branch to the latest merged head/tag
@@ -463,7 +477,6 @@ add_subdirectory (net)
 add_subdirectory (graf2d)
 add_subdirectory (graf3d)
 add_subdirectory (gui)
-add_subdirectory (proof)
 add_subdirectory (html)
 add_subdirectory (montecarlo)
 add_subdirectory (geom)
@@ -472,6 +485,9 @@ add_subdirectory (misc)
 add_subdirectory (main)
 add_subdirectory (bindings)
 add_subdirectory (sql)
+if(proof)
+  add_subdirectory(proof)
+endif()
 if(tmva)
   add_subdirectory(tmva)
 endif()

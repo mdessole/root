@@ -802,8 +802,8 @@ void TGraphPainter::DrawPanelHelper(TGraph *theGraph)
    }
    TVirtualPadEditor *editor = TVirtualPadEditor::GetPadEditor();
    editor->Show();
-   gROOT->ProcessLine(Form("((TCanvas*)0x%zx)->Selected((TVirtualPad*)0x%zx,(TObject*)0x%zx,1)",
-                           (size_t)gPad->GetCanvas(), (size_t)gPad, (size_t)theGraph));
+   gROOT->ProcessLine(TString::Format("((TCanvas*)0x%zx)->Selected((TVirtualPad*)0x%zx,(TObject*)0x%zx,1)",
+                                      (size_t)gPad->GetCanvas(), (size_t)gPad, (size_t)theGraph));
 }
 
 
@@ -1400,14 +1400,14 @@ void TGraphPainter::PaintGraph(TGraph *theGraph, Int_t npoints, const Double_t *
          rwxmax = uxmax;
          npt = 100;
          if (theNpoints > npt) npt = theNpoints;
-         TH1F *h = new TH1F(Form("%s_h",GetName()),GetTitle(),npt,rwxmin,rwxmax);
+         TH1F *h = new TH1F(TString::Format("%s_h",GetName()),GetTitle(),npt,rwxmin,rwxmax);
          theGraph->SetHistogram(h);
          if (!theGraph->GetHistogram()) return;
          theGraph->GetHistogram()->SetMinimum(rwymin);
          theGraph->GetHistogram()->SetMaximum(rwymax);
          theGraph->GetHistogram()->GetYaxis()->SetLimits(rwymin,rwymax);
          theGraph->GetHistogram()->SetBit(TH1::kNoStats);
-         theGraph->GetHistogram()->SetDirectory(0);
+         theGraph->GetHistogram()->SetDirectory(nullptr);
          theGraph->GetHistogram()->Sumw2(kFALSE);
          theGraph->GetHistogram()->Paint(chopth); // Draw histogram axis, title and grid
       } else {
@@ -3751,7 +3751,7 @@ void TGraphPainter::PaintGraphPolar(TGraph *theGraph, Option_t* options)
    // Check for existing TGraphPolargram in the Pad
    if (gPad) {
       // Existing polargram
-      if (thePolargram) if (!gPad->FindObject(thePolargram->GetName())) thePolargram=0;
+      if (thePolargram) if (!gPad->FindObject(thePolargram->GetName())) thePolargram=nullptr;
       if (!thePolargram) {
          // Find any other Polargram in the Pad
          TListIter padObjIter(gPad->GetListOfPrimitives());
@@ -4366,6 +4366,53 @@ void TGraphPainter::PaintScatter(TScatter *theScatter, Option_t* chopt)
       }
    }
 
+   // Make sure minimum and maximum values are different
+   Double_t d, e = 0.1;
+   if (minx == maxx) {
+      if (theX[0] == 0.) {
+         minx = -e;
+         maxx = e;
+      } else {
+         d = TMath::Abs(theX[0]*e);
+         minx = theX[0] - d;
+         maxx = theX[0] + d;
+      }
+   }
+   if (miny == maxy) {
+      if (theY[0] == 0.) {
+         miny = -e;
+         maxy = e;
+      } else {
+         d = TMath::Abs(theY[0]*e);
+         miny = theY[0] - d;
+         maxy = theY[0] + d;
+      }
+   }
+   if (theColor) {
+      if (minc == maxc) {
+         if (theColor[0] == 0.) {
+            minc = -e;
+            maxc = e;
+         } else {
+            d = TMath::Abs(theColor[0]*e);
+            minc = theColor[0] - d;
+            maxc = theColor[0] + d;
+         }
+      }
+   }
+   if (theSize) {
+      if (mins == maxs) {
+         if (theSize[0] == 0.) {
+            mins = -e;
+            maxs = e;
+         } else {
+            d = TMath::Abs(theSize[0]*e);
+            mins = theSize[0] - d;
+            maxs = theSize[0] + d;
+         }
+      }
+   }
+
    TH2F *h = theScatter->GetHistogram();
    if (optionAxis) h->Paint(" ");
 
@@ -4379,12 +4426,12 @@ void TGraphPainter::PaintScatter(TScatter *theScatter, Option_t* chopt)
          if (view) {
             if (!palette->TestBit(TPaletteAxis::kHasView)) {
                functions->Remove(palette);
-               delete palette; palette = 0;
+               delete palette; palette = nullptr;
             }
          } else {
             if (palette->TestBit(TPaletteAxis::kHasView)) {
                functions->Remove(palette);
-               delete palette; palette = 0;
+               delete palette; palette = nullptr;
             }
          }
       }
@@ -4713,7 +4760,7 @@ void TGraphPainter::PaintStats(TGraph *theGraph, TF1 *fit)
    if (stats) dofit  = stats->GetOptFit();
    else       dofit  = gStyle->GetOptFit();
 
-   if (!dofit) fit = 0;
+   if (!dofit) fit = nullptr;
    if (!fit) return;
    if (dofit  == 1) dofit  =  111;
    Int_t nlines = 0;

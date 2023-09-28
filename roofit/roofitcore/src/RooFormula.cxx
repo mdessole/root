@@ -54,7 +54,6 @@ Check the tutorial rf506_msgservice.C for details.
 **/
 
 #include "RooFormula.h"
-#include "BracketAdapters.h"
 #include "RooAbsReal.h"
 #include "RooAbsCategory.h"
 #include "RooArgList.h"
@@ -106,12 +105,12 @@ void convertArobaseReferences(std::string &formula)
       formula += ']';
 }
 
-/// Replace all occurences of `what` with `with` inside of `inout`.
-void replaceAll(std::string &inout, std::string_view what, std::string_view with)
+/// Replace all occurrences of `what` with `with` inside of `inOut`.
+void replaceAll(std::string &inOut, std::string_view what, std::string_view with)
 {
-   for (std::string::size_type pos{}; inout.npos != (pos = inout.find(what.data(), pos, what.length()));
+   for (std::string::size_type pos{}; inOut.npos != (pos = inOut.find(what.data(), pos, what.length()));
         pos += with.length()) {
-      inout.replace(pos, what.length(), with.data(), with.length());
+      inOut.replace(pos, what.length(), with.data(), with.length());
    }
 }
 
@@ -173,7 +172,7 @@ void replaceVarNamesWithIndexStyle(std::string &formula, RooArgList const &varLi
          else if (nNew < nOld)
             isWordBoundary.erase(wbIter + nNew, wbIter + nOld);
 
-         // Do the actual replacment
+         // Do the actual replacement
          formula.replace(pos, varName.length(), replacement);
       }
 
@@ -417,12 +416,14 @@ double RooFormula::eval(const RooArgSet* nset) const
   return _tFormula->EvalPar(pars.data());
 }
 
-void RooFormula::computeBatch(cudaStream_t*, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
+void RooFormula::computeBatch(double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
 {
   const int nPars=_origList.size();
-  std::vector<RooSpan<const double>> inputSpans(nPars);
-  for (int i=0; i<nPars; i++)
-    inputSpans[i] = dataMap.at( static_cast<const RooAbsReal*>(&_origList[i]) );
+  std::vector<std::span<const double>> inputSpans(nPars);
+  for (int i=0; i<nPars; i++) {
+    std::span<const double> rhs = dataMap.at( static_cast<const RooAbsReal*>(&_origList[i]) );
+    inputSpans[i] = rhs;
+  }
 
   std::vector<double> pars(nPars);
   for (size_t i=0; i<nEvents; i++)
@@ -451,7 +452,7 @@ void RooFormula::printMultiline(ostream& os, Int_t /*contents*/, bool /*verbose*
 
 void RooFormula::printValue(ostream& os) const
 {
-  os << const_cast<RooFormula*>(this)->eval(0) ;
+  os << const_cast<RooFormula*>(this)->eval(nullptr) ;
 }
 
 

@@ -24,20 +24,20 @@
 #include <TSystem.h>
 
 RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, std::string const &funcBody,
-                               RooArgSet const &paramSet, const RooAbsData *data /*=nullptr*/,
-                               RooSimultaneous const *simPdf)
-   : RooAbsReal{name, title}, _params{"!params", "List of parameters", this}
+                               RooArgSet const &paramSet, const RooAbsData *data, RooSimultaneous const *simPdf,
+                               bool createGradient)
+   : RooAbsReal{name, title}, _params{"!params", "List of parameters", this}, _hasGradient{createGradient}
 {
    // Declare the function and create its derivative.
-   declareAndDiffFunction(name, funcBody);
+   declareAndDiffFunction(name, funcBody, createGradient);
 
    // Load the parameters and observables.
    loadParamsAndData(name, nullptr, paramSet, data, simPdf);
 }
 
 RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, RooAbsReal const &obj, RooArgSet const &normSet,
-                               const RooAbsData *data /*=nullptr*/, RooSimultaneous const *simPdf)
-   : RooAbsReal{name, title}, _params{"!params", "List of parameters", this}
+                               const RooAbsData *data, RooSimultaneous const *simPdf, bool createGradient)
+   : RooAbsReal{name, title}, _params{"!params", "List of parameters", this}, _hasGradient{createGradient}
 {
    std::string func;
 
@@ -48,9 +48,9 @@ RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, RooAbsReal c
    RooArgSet paramSet;
    obj.getParameters(data ? data->get() : nullptr, paramSet);
    RooArgSet floatingParamSet;
-   for (RooAbsArg * param : paramSet) {
-      if(!param->isConstant()) {
-        floatingParamSet.add(*param);
+   for (RooAbsArg *param : paramSet) {
+      if (!param->isConstant()) {
+         floatingParamSet.add(*param);
       }
    }
 
@@ -60,7 +60,7 @@ RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, RooAbsReal c
    func = buildCode(*pdf);
 
    // Declare the function and create its derivative.
-   declareAndDiffFunction(name, func);
+   declareAndDiffFunction(name, func, createGradient);
 }
 
 RooFuncWrapper::RooFuncWrapper(const RooFuncWrapper &other, const char *name)
@@ -68,6 +68,7 @@ RooFuncWrapper::RooFuncWrapper(const RooFuncWrapper &other, const char *name)
      _params("!params", this, other._params),
      _func(other._func),
      _grad(other._grad),
+     _hasGradient(other._hasGradient),
      _gradientVarBuffer(other._gradientVarBuffer),
      _observables(other._observables)
 {
@@ -78,7 +79,7 @@ void RooFuncWrapper::loadParamsAndData(std::string funcName, RooAbsArg const *he
 {
    // Extract observables
    std::stack<std::vector<double>> vectorBuffers; // for data loading
-   std::map<RooFit::Detail::DataKey, RooSpan<const double>> spans;
+   std::map<RooFit::Detail::DataKey, std::span<const double>> spans;
 
    if (data) {
       spans = RooFit::BatchModeDataHelpers::getDataSpans(*data, "", simPdf, true, false, vectorBuffers);
@@ -111,11 +112,15 @@ void RooFuncWrapper::loadParamsAndData(std::string funcName, RooAbsArg const *he
    _gradientVarBuffer.resize(_params.size());
 
    if (head) {
-      _nodeOutputSizes = RooFit::BatchModeDataHelpers::determineOutputSizes(*head, spans);
+      _nodeOutputSizes =
+         RooFit::BatchModeDataHelpers::determineOutputSizes(*head, [&spans](RooFit::Detail::DataKey key) {
+            auto found = spans.find(key);
+            return found != spans.end() ? found->second.size() : 0;
+         });
    }
 }
 
-void RooFuncWrapper::declareAndDiffFunction(std::string funcName, std::string const &funcBody)
+void RooFuncWrapper::declareAndDiffFunction(std::string funcName, std::string const &funcBody, bool createGradient)
 {
    std::string gradName = funcName + "_grad_0";
    std::string requestName = funcName + "_req";
@@ -134,6 +139,9 @@ void RooFuncWrapper::declareAndDiffFunction(std::string funcName, std::string co
       throw std::runtime_error(errorMsg.str().c_str());
    }
    _func = reinterpret_cast<Func>(gInterpreter->ProcessLine((funcName + ";").c_str()));
+
+   if (!createGradient)
+      return;
 
    // Calculate gradient
    gInterpreter->ProcessLine("#include <Math/CladDerivator.h>");

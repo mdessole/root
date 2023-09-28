@@ -44,7 +44,7 @@ ClassImp(RooPolyVar);
 /// Construct polynomial in x with coefficients in coefList. If
 /// lowestOrder is not zero, then the first element in coefList is
 /// interpreted as as the 'lowestOrder' coefficients and all
-/// subsequent coeffient elements are shifted by a similar amount.
+/// subsequent coefficient elements are shifted by a similar amount.
 RooPolyVar::RooPolyVar(const char *name, const char *title, RooAbsReal &x, const RooArgList &coefList,
                        Int_t lowestOrder)
    : RooAbsReal(name, title),
@@ -130,7 +130,7 @@ void RooPolyVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
                  ctx.buildCall("RooFit::Detail::EvaluateFuncs::polynomialEvaluate", _coefList, sz, _lowestOrder, _x));
 }
 
-void RooPolyVar::computeBatchImpl(cudaStream_t *stream, double *output, size_t nEvents,
+void RooPolyVar::computeBatchImpl(RooAbsArg const* caller, double *output, size_t nEvents,
                                   RooFit::Detail::DataMap const &dataMap, RooAbsReal const &x, RooArgList const &coefs,
                                   int lowestOrder)
 {
@@ -148,23 +148,22 @@ void RooPolyVar::computeBatchImpl(cudaStream_t *stream, double *output, size_t n
    const double zero = 1.0;
    const double one = 1.0;
    for (int i = lowestOrder - 1; i >= 0; --i) {
-      vars.push_back(i == 0 ? RooSpan<const double>{&one, 1} : RooSpan<const double>{&zero, 1});
+      vars.push_back(i == 0 ? std::span<const double>{&one, 1} : std::span<const double>{&zero, 1});
    }
 
    for (RooAbsArg *coef : coefs) {
       vars.push_back(dataMap.at(coef));
    }
    vars.push_back(dataMap.at(&x));
-   auto dispatch = stream ? RooBatchCompute::dispatchCUDA : RooBatchCompute::dispatchCPU;
    RooBatchCompute::ArgVector extraArgs{double(vars.size() - 1)};
-   dispatch->compute(stream, RooBatchCompute::Polynomial, output, nEvents, vars, extraArgs);
+   RooBatchCompute::compute(dataMap.config(caller), RooBatchCompute::Polynomial, output, nEvents, vars, extraArgs);
 }
 
 /// Compute multiple values of Polynomial.
-void RooPolyVar::computeBatch(cudaStream_t *stream, double *output, size_t nEvents,
+void RooPolyVar::computeBatch(double *output, size_t nEvents,
                               RooFit::Detail::DataMap const &dataMap) const
 {
-   computeBatchImpl(stream, output, nEvents, dataMap, _x.arg(), _coefList, _lowestOrder);
+   computeBatchImpl(this, output, nEvents, dataMap, _x.arg(), _coefList, _lowestOrder);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

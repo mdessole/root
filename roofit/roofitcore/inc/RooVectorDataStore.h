@@ -123,7 +123,7 @@ public:
 
   RooAbsData::RealSpans getBatches(std::size_t first, std::size_t len) const override;
   RooAbsData::CategorySpans getCategoryBatches(std::size_t /*first*/, std::size_t len) const override;
-  RooSpan<const double> getWeightBatch(std::size_t first, std::size_t len) const override;
+  std::span<const double> getWeightBatch(std::size_t first, std::size_t len) const override;
 
   // Change observable name
   bool changeObservableName(const char* from, const char* to) override;
@@ -289,32 +289,32 @@ public:
       *_nativeBuf = *_buf ;
     }
 
-    RooSpan<const double> getRange(std::size_t first, std::size_t last) const {
+    std::span<const double> getRange(std::size_t first, std::size_t last) const {
       auto beg = std::min(_vec.cbegin() + first, _vec.cend());
       auto end = std::min(_vec.cbegin() + last,  _vec.cend());
 
-      return RooSpan<const double>(&*beg, std::distance(beg, end));
+      return std::span<const double>(&*beg, std::distance(beg, end));
     }
 
     std::size_t size() const { return _vec.size() ; }
 
-    void resize(Int_t siz) {
-      if (siz < Int_t(_vec.capacity()) / 2 && _vec.capacity() > (VECTOR_BUFFER_SIZE / sizeof(double))) {
+    void resize(Int_t newSize) {
+      if (newSize < Int_t(_vec.capacity()) / 2 && _vec.capacity() > (VECTOR_BUFFER_SIZE / sizeof(double))) {
         // do an expensive copy, if we save at least a factor 2 in size
         std::vector<double> tmp;
-        tmp.reserve(std::max(siz, Int_t(VECTOR_BUFFER_SIZE / sizeof(double))));
+        tmp.reserve(std::max(newSize, Int_t(VECTOR_BUFFER_SIZE / sizeof(double))));
         if (!_vec.empty())
-          tmp.assign(_vec.begin(), std::min(_vec.end(), _vec.begin() + siz));
-        if (Int_t(tmp.size()) != siz)
-          tmp.resize(siz);
+          tmp.assign(_vec.begin(), std::min(_vec.end(), _vec.begin() + newSize));
+        if (Int_t(tmp.size()) != newSize)
+          tmp.resize(newSize);
         _vec.swap(tmp);
       } else {
-        _vec.resize(siz);
+        _vec.resize(newSize);
       }
     }
 
-    void reserve(Int_t siz) {
-      _vec.reserve(siz);
+    void reserve(Int_t newSize) {
+      _vec.reserve(newSize);
     }
 
     const std::vector<double>& data() const {
@@ -394,18 +394,18 @@ public:
       if (_bufEH) *_bufEH = _vecEH[idx];
     }
 
-    void resize(Int_t siz) {
-      RealVector::resize(siz);
-      if(_bufE) _vecE.resize(siz);
-      if(_bufEL) _vecEL.resize(siz);
-      if(_bufEH) _vecEH.resize(siz);
+    void resize(Int_t newSize) {
+      RealVector::resize(newSize);
+      if(_bufE) _vecE.resize(newSize);
+      if(_bufEL) _vecEL.resize(newSize);
+      if(_bufEH) _vecEH.resize(newSize);
     }
 
-    void reserve(Int_t siz) {
-      RealVector::reserve(siz);
-      if(_bufE) _vecE.reserve(siz);
-      if(_bufEL) _vecEL.reserve(siz);
-      if(_bufEH) _vecEH.reserve(siz);
+    void reserve(Int_t newSize) {
+      RealVector::reserve(newSize);
+      if(_bufE) _vecE.reserve(newSize);
+      if(_bufEL) _vecEL.reserve(newSize);
+      if(_bufEH) _vecEH.reserve(newSize);
     }
 
     double* bufE() const { return _bufE; }
@@ -496,33 +496,33 @@ public:
       *_nativeBuf = *_buf;
     }
 
-    RooSpan<const RooAbsCategory::value_type> getRange(std::size_t first, std::size_t last) const {
+    std::span<const RooAbsCategory::value_type> getRange(std::size_t first, std::size_t last) const {
       auto beg = std::min(_vec.cbegin() + first, _vec.cend());
       auto end = std::min(_vec.cbegin() + last,  _vec.cend());
 
-      return RooSpan<const RooAbsCategory::value_type>(&*beg, std::distance(beg, end));
+      return std::span<const RooAbsCategory::value_type>(&*beg, std::distance(beg, end));
     }
 
 
     std::size_t size() const { return _vec.size() ; }
 
-    void resize(Int_t siz) {
-      if (siz < Int_t(_vec.capacity()) / 2 && _vec.capacity() > VECTOR_BUFFER_SIZE) {
+    void resize(Int_t newSize) {
+      if (newSize < Int_t(_vec.capacity()) / 2 && _vec.capacity() > VECTOR_BUFFER_SIZE) {
         // do an expensive copy, if we save at least a factor 2 in size
         std::vector<RooAbsCategory::value_type> tmp;
-        tmp.reserve(std::max(siz, VECTOR_BUFFER_SIZE));
+        tmp.reserve(std::max(newSize, VECTOR_BUFFER_SIZE));
         if (!_vec.empty())
-          tmp.assign(_vec.begin(), std::min(_vec.end(), _vec.begin() + siz));
-        if (Int_t(tmp.size()) != siz)
-          tmp.resize(siz);
+          tmp.assign(_vec.begin(), std::min(_vec.end(), _vec.begin() + newSize));
+        if (Int_t(tmp.size()) != newSize)
+          tmp.resize(newSize);
         _vec.swap(tmp);
       } else {
-        _vec.resize(siz);
+        _vec.resize(newSize);
       }
     }
 
-    void reserve(Int_t siz) {
-      _vec.reserve(siz);
+    void reserve(Int_t newSize) {
+      _vec.reserve(newSize);
     }
 
     void setBufArg(RooAbsCategory* arg) { _cat = arg; }

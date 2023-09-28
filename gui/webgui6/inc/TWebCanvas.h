@@ -64,6 +64,8 @@ protected:
       std::queue<std::string> fSend;   ///<! send queue, processed after sending draw data
 
       WebConn(unsigned id) : fConnId(id) {}
+      bool is_batch() const { return fConnId == 0; }
+      bool match(unsigned id) const { return !is_batch() && ((fConnId == id) || (id == 0)); }
       void reset()
       {
          fCheckedVersion = fSendVersion = fDrawVersion = 0;
@@ -83,7 +85,7 @@ protected:
 
    std::map<TPad*, PadStatus> fPadsStatus; ///<! map of pads in canvas and their status flags
 
-   std::shared_ptr<ROOT::Experimental::RWebWindow> fWindow; ///!< configured display
+   std::shared_ptr<ROOT::RWebWindow> fWindow; ///!< configured display
 
    Bool_t fReadOnly{kFALSE};       ///<! in read-only mode canvas cannot be changed from client side
    Long64_t fCanvVersion{1};       ///<! actual canvas version, changed with every new Modified() call
@@ -118,7 +120,7 @@ protected:
    Bool_t IsLocked() override { return kFALSE; }
 
    Bool_t IsWeb() const override { return kTRUE; }
-   Bool_t PerformUpdate() override;
+   Bool_t PerformUpdate(Bool_t async) override;
    TVirtualPadPainter *CreatePadPainter() override;
 
    UInt_t CalculateColorsHash();
@@ -135,15 +137,15 @@ protected:
 
    void AddSendQueue(unsigned connid, const std::string &msg);
 
-   void CheckDataToSend(unsigned connid = 0);
+   Bool_t CheckDataToSend(unsigned connid = 0);
 
    Bool_t WaitWhenCanvasPainted(Long64_t ver);
 
    virtual Bool_t IsJSSupportedClass(TObject *obj, Bool_t many_primitives = kFALSE);
 
-   Bool_t IsFirstConn(unsigned connid) const { return (connid != 0) && (fWebConn.size() > 0) && (fWebConn[0].fConnId == connid); }
+   Bool_t IsFirstConn(unsigned connid) const { return (connid != 0) && (fWebConn.size() > 1) && (fWebConn[1].fConnId == connid); }
 
-   Bool_t IsFirstDrawn() const { return (fWebConn.size() > 0) && (fWebConn[0].fDrawVersion > 0); }
+   Bool_t IsFirstDrawn() const { return (fWebConn.size() > 1) && (fWebConn[1].fDrawVersion > 0); }
 
    void ShowCmd(const std::string &arg, Bool_t show);
 
@@ -167,9 +169,9 @@ public:
    TWebCanvas(TCanvas *c, const char *name, Int_t x, Int_t y, UInt_t width, UInt_t height, Bool_t readonly = kTRUE);
    ~TWebCanvas() override;
 
-   void ShowWebWindow(const ROOT::Experimental::RWebDisplayArgs &user_args = "");
+   void ShowWebWindow(const ROOT::RWebDisplayArgs &user_args = "");
 
-   const std::shared_ptr<ROOT::Experimental::RWebWindow> &GetWebWindow() const { return fWindow; }
+   const std::shared_ptr<ROOT::RWebWindow> &GetWebWindow() const { return fWindow; }
 
    virtual Bool_t IsReadOnly() const { return fReadOnly; }
 

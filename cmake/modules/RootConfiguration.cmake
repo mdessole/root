@@ -75,11 +75,6 @@ if(IS_ABSOLUTE ${CMAKE_INSTALL_DATADIR})
 else()
   set(datadir ${prefix}/${CMAKE_INSTALL_DATADIR})
 endif()
-if(IS_ABSOLUTE ${CMAKE_INSTALL_ELISPDIR})
-  set(elispdir ${CMAKE_INSTALL_ELISPDIR})
-else()
-  set(elispdir ${prefix}/${CMAKE_INSTALL_ELISPDIR})
-endif()
 if(IS_ABSOLUTE ${CMAKE_INSTALL_FONTDIR})
   set(ttffontdir ${CMAKE_INSTALL_FONTDIR})
 else()
@@ -332,16 +327,13 @@ set(dicttype ${ROOT_DICTTYPE})
 find_program(PERL_EXECUTABLE perl)
 set(perl ${PERL_EXECUTABLE})
 
-# --- workaround for Ubuntu 20.04, where snap chrome has problem with arguments translation, to be remove once problem fixed
-find_program(CHROME_EXECUTABLE NAMES chrome PATHS "/snap/chromium/current/usr/lib/chromium-browser/" NO_DEFAULT_PATH)
-
-find_program(CHROME_EXECUTABLE NAMES chrome.exe chromium chromium-browser chrome chrome-browser Google\ Chrome
+find_program(CHROME_EXECUTABLE NAMES chrome.exe chromium chromium-browser chrome chrome-browser google-chrome-stable Google\ Chrome
              PATH_SUFFIXES "Google/Chrome/Application")
 if(CHROME_EXECUTABLE)
   set(chromeexe ${CHROME_EXECUTABLE})
 endif()
 
-find_program(FIREFOX_EXECUTABLE NAMES firefox firefox.exe
+find_program(FIREFOX_EXECUTABLE NAMES firefox firefox-bin firefox.exe
              PATH_SUFFIXES "Mozilla Firefox")
 if(FIREFOX_EXECUTABLE)
   set(firefoxexe ${FIREFOX_EXECUTABLE})
@@ -427,6 +419,11 @@ if((tbb OR builtin_tbb) AND NOT MSVC)
   set(hastbb define)
 else()
   set(hastbb undef)
+endif()
+if(minuit2)
+  set(hasminuit2 define)
+else()
+  set(hasminuit2 undef)
 endif()
 
 set(uselz4 undef)
@@ -524,7 +521,6 @@ CHECK_CXX_SOURCE_COMPILES("#include <string_view>
 if(found_stdstringview)
   set(hasstdstringview define)
   if(cuda)
-    if(CUDA_NVCC_EXECUTABLE)
       if (WIN32)
         set(PLATFORM_NULL_FILE "nul")
       else()
@@ -533,13 +529,12 @@ if(found_stdstringview)
       execute_process(
         COMMAND "echo"
           "-e" "#include <string_view>\nint main() { char arr[3] = {'B', 'a', 'r'}; std::string_view strv(arr, sizeof(arr)); return 0;}"
-        COMMAND "${CUDA_NVCC_EXECUTABLE}" "-std=c++${CMAKE_CUDA_STANDARD}" "-o" "${PLATFORM_NULL_FILE}" "-x" "c++" "-"
+        COMMAND "${CMAKE_CUDA_COMPILER}" "-std=c++${CMAKE_CUDA_STANDARD}" "-o" "${PLATFORM_NULL_FILE}" "-x" "c++" "-"
         RESULT_VARIABLE nvcc_compiled_string_view)
       unset(PLATFORM_NULL_FILE CACHE)
       if (nvcc_compiled_string_view EQUAL "0")
         set(cudahasstdstringview define)
       endif()
-    endif()
   endif()
 else()
   set(hasstdstringview undef)
@@ -656,7 +651,7 @@ else()
 endif()
 
 if(root7 AND webgui)
-   set(root_browser_class "ROOT::Experimental::RWebBrowserImp")
+   set(root_browser_class "ROOT::RWebBrowserImp")
 else()
    set(root_browser_class "TRootBrowser")
 endif()
@@ -854,7 +849,6 @@ configure_file(${CMAKE_SOURCE_DIR}/config/setxrd.csh ${CMAKE_RUNTIME_OUTPUT_DIRE
 configure_file(${CMAKE_SOURCE_DIR}/config/setxrd.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/setxrd.sh COPYONLY)
 configure_file(${CMAKE_SOURCE_DIR}/config/proofserv.in ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/proofserv @ONLY NEWLINE_STYLE UNIX)
 configure_file(${CMAKE_SOURCE_DIR}/config/roots.in ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/roots @ONLY NEWLINE_STYLE UNIX)
-configure_file(${CMAKE_SOURCE_DIR}/config/root-help.el.in root-help.el @ONLY NEWLINE_STYLE UNIX)
 configure_file(${CMAKE_SOURCE_DIR}/config/rootssh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rootssh @ONLY NEWLINE_STYLE UNIX)
 if(xproofd AND xrootd AND ssl AND XROOTD_NOMAIN)
   configure_file(${CMAKE_SOURCE_DIR}/config/xproofd.in ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/xproofd @ONLY NEWLINE_STYLE UNIX)
@@ -926,8 +920,6 @@ install(FILES ${CMAKE_BINARY_DIR}/etc/root.mimes
               ${CMAKE_BINARY_DIR}/etc/system.rootauthrc
               ${CMAKE_BINARY_DIR}/etc/system.rootdaemonrc
               DESTINATION ${CMAKE_INSTALL_SYSCONFDIR})
-
-install(FILES ${CMAKE_BINARY_DIR}/root-help.el DESTINATION ${CMAKE_INSTALL_ELISPDIR})
 
 if(NOT gnuinstall)
   install(FILES ${CMAKE_BINARY_DIR}/config/Makefile.comp

@@ -23,7 +23,7 @@ namespace Detail {
 /// \note The implementation was copy-pasted from `TSystem.cxx`.
 /// characters with underscores.
 /// @param in The input string.
-/// @return A new string vaild variable name.
+/// @return A new string valid variable name.
 std::string CodeSquashContext::makeValidVarName(TString in) const
 {
 
@@ -251,7 +251,7 @@ std::string CodeSquashContext::buildArg(RooAbsCollection const &in)
    return savedName;
 }
 
-std::string CodeSquashContext::buildArg(RooSpan<const double> arr)
+std::string CodeSquashContext::buildArg(std::span<const double> arr)
 {
    unsigned int n = arr.size();
    std::string arrName = getTmpVarName();
