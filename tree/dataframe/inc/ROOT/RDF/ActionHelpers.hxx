@@ -160,6 +160,9 @@ public:
    {
       // check that the decayed types of Args are the same as the branch types
       static_assert(std::is_same<TypeList<std::decay_t<Args>...>, ColumnTypes_t>::value, "");
+      if (getenv("DBG")) {
+      std::cout << "slot " << slot << "\n";
+      }
       fCallable(slot, std::forward<Args>(args)...);
    }
 

@@ -1319,7 +1319,16 @@ public:
 
       const auto validColumnNames = GetValidatedColumnNames(nColumns, columns);
       CheckAndFillDSColumns(validColumnNames, ColTypes_t());
+      
+#ifdef RDF_SYCL
+      using Helper_t = RDFInternal::ForeachSlotHelper<F>;
+      using Action_t = RDFInternal::RAction<Helper_t, Proxied>;
 
+      auto action = std::make_unique<Action_t>(Helper_t(std::move(f)), validColumnNames, fProxiedPtr, fColRegister);
+
+      fLoopManager->Run(); 
+      return;
+#endif
       using Helper_t = RDFInternal::ForeachSlotHelper<F>;
       using Action_t = RDFInternal::RAction<Helper_t, Proxied>;
 

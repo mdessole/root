@@ -136,7 +136,7 @@ void df103_NanoAODHiggsAnalysis(const bool run_fast = true)
 
    // In fast mode, take samples from */cms_opendata_2012_nanoaod_skimmed/*, which has
    // the preselections from the selection_* functions already applied.
-   std::string path = "./rootfiles/";
+   std::string path = "/home/mdessole/Projects/ROOT/rootfiles/";
 
    // Create dataframes for signal, background and data samples
 
@@ -173,15 +173,13 @@ void df103_NanoAODHiggsAnalysis(const bool run_fast = true)
    print_info(df_bkg_2el2mu);
    print_info(df_data_doublemu);
    print_info(df_data_doublemu);
-
-   auto df_sig_4mu_reco = reco_higgs(df_sig_4l);
-
     
    TStopwatch timer;
    timer.Start();
 
    std::vector<std::string> columns = {"Muon_pt", "Muon_eta", "Muon_phi", "Muon_mass", "Muon_charge"};
-
+   auto column = "Muon_mass";
+   //df_sig_4l.Histo1D(column);//
    df_sig_4l.Foreach(void_reco_zz_to_4l, columns);
    
    std::cout << "Foreach time " << timer.RealTime() << std::endl;
