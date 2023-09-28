@@ -21,9 +21,7 @@
 
 #undef __MAKECINT__
 
-
 #include "Math/GenVector/etaMax.h"
-
 #include "Math/GenVector/MathUtil.h"
 
 //#define TRACE_CE

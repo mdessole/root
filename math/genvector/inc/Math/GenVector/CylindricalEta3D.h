@@ -23,6 +23,7 @@
 #undef __MAKECINT__
 
 
+#include "Math/GenVector/MathUtil.h"
 #include "Math/GenVector/etaMax.h"
 
 #include <limits>

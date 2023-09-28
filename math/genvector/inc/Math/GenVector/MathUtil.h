@@ -65,6 +65,10 @@ template <class Scalar>
  {    return sycl::atan2(x,y);}
 
 template <class Scalar>
+ Scalar myatan(Scalar x)
+ {    return sycl::atan(x);}
+
+template <class Scalar>
  Scalar mysqrt(Scalar x)
  {      return sycl::sqrt(x);}
 
@@ -176,6 +180,10 @@ template <class Scalar> inline
 template <class Scalar> inline
  Scalar myatan2(Scalar x, Scalar y)
  {    return std::atan2(x,y);}
+
+ template <class Scalar>
+ Scalar myatan(Scalar x)
+ {    return std::atan(x);}
 
 template <class Scalar> inline
  Scalar mysqrt(Scalar x)
