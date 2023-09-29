@@ -33,13 +33,15 @@ ROOT_LINKER_LIBRARY(GenVector
 )
 
 if (sycl)
-  #set_target_properties(GenVector PROPERTIES LINKER_LANGUAGE CXX)
-  target_compile_definitions(GenVector INTERFACE CL_TARGET_OPENCL_VERSION=300)
   target_compile_definitions(GenVector PUBLIC ROOT_MATH_SYCL)
-  target_compile_options(GenVector INTERFACE -O2)
-  target_include_directories(GenVector INTERFACE ${OpenSYCL_INCLUDE_DIRS})
-  target_link_libraries(GenVector INTERFACE OpenSYCL::hipSYCL-rt)
-  add_sycl_to_target(TARGET GenVector inc/Math/GenVector/MathUtil.h)
+  add_sycl_to_root_target(TARGET GenVector SOURCES inc/Math/GenVector/MathUtil.h)
+  #set_target_properties(GenVector PROPERTIES LINKER_LANGUAGE CXX)
+  #target_compile_definitions(GenVector INTERFACE CL_TARGET_OPENCL_VERSION=300)
+  
+  #target_compile_options(GenVector INTERFACE -O2)
+  #target_include_directories(GenVector INTERFACE ${OpenSYCL_INCLUDE_DIRS})
+  #target_link_libraries(GenVector INTERFACE OpenSYCL::hipSYCL-rt)
+  #add_sycl_to_target(TARGET GenVector inc/Math/GenVector/MathUtil.h)
 endif()
 
 ROOT_GENERATE_DICTIONARY(G__GenVector
@@ -167,12 +169,14 @@ ROOT_GENERATE_DICTIONARY(G__GenVector
 
 if (sycl)
   #set_target_properties(GenVector PROPERTIES LINKER_LANGUAGE CXX)
-  target_compile_definitions(G__GenVector INTERFACE CL_TARGET_OPENCL_VERSION=300)
+  #target_compile_definitions(G__GenVector INTERFACE CL_TARGET_OPENCL_VERSION=300)
+  #target_compile_definitions(G__GenVector PUBLIC ROOT_MATH_SYCL)
+  #target_compile_options(G__GenVector INTERFACE -O2)
+  #target_include_directories(G__GenVector INTERFACE ${OpenSYCL_INCLUDE_DIRS})
+  #target_link_libraries(G__GenVector INTERFACE OpenSYCL::hipSYCL-rt)
+  #add_sycl_to_target(TARGET G__GenVector inc/Math/GenVector/MathUtil.h)
   target_compile_definitions(G__GenVector PUBLIC ROOT_MATH_SYCL)
-  target_compile_options(G__GenVector INTERFACE -O2)
-  target_include_directories(G__GenVector INTERFACE ${OpenSYCL_INCLUDE_DIRS})
-  target_link_libraries(G__GenVector INTERFACE OpenSYCL::hipSYCL-rt)
-  add_sycl_to_target(TARGET G__GenVector inc/Math/GenVector/MathUtil.h)
+  add_sycl_to_root_target(TARGET G__GenVector SOURCES inc/Math/GenVector/MathUtil.h)
 endif()
 
 

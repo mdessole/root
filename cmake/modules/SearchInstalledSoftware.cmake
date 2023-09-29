@@ -1700,14 +1700,145 @@ endif()
 
 #---Check for SYCL-----------------------------------------------------------------------
 
-if (sycl)
-  find_package(OpenSYCL)
-  if (NOT OpenSYCL_FOUND)
+message(STATUS "Looking for SYCL")
+
+#
+# Compile with CMAKE_CXX_COMPILER set to icpx and SYCL_HOST_COMPILER set to e.g. GNU compiler
+#
+if (oneapi)
+  find_package(IntelSYCL)
+  if (IntelSYCL_FOUND)
+    set(sycl ON)
+    if (NOT SYCL_HOST_COMPILER)
+      set(SYCL_HOST_COMPILER /usr/bin/c++)
+    endif()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl-host-compiler=${SYCL_HOST_COMPILER}")
+
+    function(add_sycl_to_root_target)
+      CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES" ${ARGN})
+      get_target_property(_library_name ${ARG_TARGET} OUTPUT_NAME)
+      message(STATUS "Output library name: ${_library_name}")
+      target_include_directories(${ARG_TARGET} PUBLIC ${SYCL_INCLUDE_DIR})
+
+      # Get include directories for the SYCL target
+      get_target_property(_inc_dirs ${ARG_TARGET} INCLUDE_DIRECTORIES)
+      if (_inc_dirs)
+        foreach(dir ${_inc_dirs})
+            list(APPEND _inc_list -I${dir})
+        endforeach()
+        list(REMOVE_DUPLICATES _inc_list)
+      endif()
+
+      # Set flags for sycl objects and remove fsycl-host-compiler
+      set(SYCL_FLAGS "-fsycl -sycl-std=2020 -fsycl-unnamed-lambda ${CMAKE_CXX_FLAGS}")
+      string(REPLACE "-fsycl-host-compiler=${SYCL_HOST_COMPILER}" "" SYCL_FLAGS ${SYCL_FLAGS})
+      message(STATUS "SYCL :${SYCL_FLAGS}")
+      separate_arguments(SYCL_FLAGS NATIVE_COMMAND ${SYCL_FLAGS})
+
+      foreach(src ${ARG_SOURCES})
+        target_compile_options(${ARG_TARGET} PUBLIC -include ${src}.sycl)
+        set(_output_path ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/${src}${CMAKE_CXX_OUTPUT_EXTENSION})
+        add_custom_command(OUTPUT ${_output_path}
+                          COMMAND ${SYCL_COMPILER} ${SYCL_FLAGS} -c
+                                  ${_inc_list}
+                                  -o ${_output_path}
+                                  ${CMAKE_CURRENT_SOURCE_DIR}/${src}
+                          # COMMAND ${SYCL_COMPILER} -fsycl -fsycl-device-only -Xclang -fsycl-int-header=${src}.sycl ${src}
+                          DEPENDS ${ARG_TARGET}
+                          COMMENT "Building SYCL object ${_output_path}"
+                          MAIN_DEPENDENCY ${src})
+
+        add_custom_command(TARGET ${ARG_TARGET} PRE_LINK
+                          COMMENT "Linking SYCL target ${ARG_TARGET}"
+        )
+      endforeach()
+    endfunction()
+
+    message(STATUS "Using SYCL Host Compiler: ${SYCL_COMPILER} (modify with: SYCL_HOST_COMPILER)")
+
+#
+# Compile with default CMAKE_CXX_COMPILER and find sycl compiler based on SYCL_ROOT_DIR
+#
+
+# if (oneapi)
+#   SET(_sycl_search_dirs ${SYCL_ROOT_DIR} /usr/lib /usr/local/lib /opt/intel/oneapi/compiler/latest/linux)
+#   find_program(SYCL_COMPILER
+#                NAMES icpx dpcpp clang++
+#                HINTS ${_sycl_search_dirs}
+#                PATH_SUFFIXES bin)
+#   find_path(SYCL_INCLUDE_DIR
+#             NAMES sycl/sycl.hpp
+#             HINTS ${_sycl_search_dirs})
+
+#   if (SYCL_COMPILER)
+#     set(sycl ON)
+
+#     function(add_sycl_to_root_target)
+#       CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES" ${ARGN})
+#       get_target_property(_library_name ${ARG_TARGET} OUTPUT_NAME)
+#       message(STATUS "Output library name: ${_library_name}")
+#       target_include_directories(${ARG_TARGET} PUBLIC ${SYCL_INCLUDE_DIR})
+
+#       # Get include directories for the SYCL target
+#       get_target_property(_inc_dirs ${ARG_TARGET} INCLUDE_DIRECTORIES)
+#       if (_inc_dirs)
+#         foreach(dir ${_inc_dirs})
+#           list(APPEND _inc_list -I${dir})
+#         endforeach()
+#         list(REMOVE_DUPLICATES _inc_list)
+#       endif()
+
+#       # Compile the sycl source files with the found sycl compiler
+#       set(SYCL_FLAGS "-fsycl -sycl-std=2020 ${CMAKE_CXX_FLAGS}")
+#       message(STATUS "SYCL flags: ${SYCL_FLAGS}")
+#       separate_arguments(SYCL_FLAGS NATIVE_COMMAND ${SYCL_FLAGS})
+#       foreach(src ${ARG_SOURCES})
+#         set(_output_path ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/${src}${CMAKE_CXX_OUTPUT_EXTENSION})
+#         add_custom_command(OUTPUT ${_output_path}
+#                            COMMAND ${SYCL_COMPILER} ${SYCL_FLAGS} -c
+#                                    ${_inc_list}
+#                                    -o ${_output_path}
+#                                    ${CMAKE_CURRENT_SOURCE_DIR}/${src}
+#                            DEPENDS ${ARG_TARGET}
+#                            COMMENT "Building SYCL object ${_output_path}"
+#                            MAIN_DEPENDENCY ${src})
+#       endforeach()
+#     endfunction()
+
+#     message(STATUS "Found Intel OneAPI SYCL: ${SYCL_INCLUDE_DIR}  (modify with: SYCL_ROOT_DIR)")
+#     message(STATUS "Using SYCL Host Compiler: ${SYCL_COMPILER}")
+else()
     if(fail-on-missing)
-      message(FATAL_ERROR "Open SYCL library not found")
+       message(FATAL_ERROR "OpenAPI SYCL library not found")
+     else()
+       message(STATUS "OpenAPI SYCL library not found")
+       set(sycl OFF CACHE BOOL "Disabled because no SYCL implementation is not found" FORCE)
+     endif()
+   endif()
+ endif()
+
+if (opensycl)
+  if (oneapi)
+    message(WARNING "Disable OneAPI to load OpenSYCL")
+    set(sycl OFF CACHE BOOL "Disabled because OpenSYCL is enabled" FORCE)
+  else()
+    find_package(OpenSYCL)
+    if (OpenSYCL_FOUND)
+      set(sycl ON)
+      function(add_sycl_to_root_target)
+        CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES" ${ARGN})
+        add_sycl_to_target(TARGET ${ARG_TARGET}  SOURCES ${ARG_SOURCES})
+        target_include_directories(${ARG_TARGET} INTERFACE ${OpenSYCL_INCLUDE_DIRS})
+        target_link_libraries(${ARG_TARGET} INTERFACE OpenSYCL::hipSYCL-rt)
+      endfunction()
+      message(STATUS "OpenSYCL sycl enabled")
     else()
-      message(STATUS "Open SYCL library not found")
-      set(sycl OFF CACHE BOOL "Disabled because Open SYCL is not found" FORCE)
+      if(fail-on-missing)
+        message(FATAL_ERROR "Open SYCL library not found")
+      else()
+        message(STATUS "Open SYCL library not found")
+        set(sycl OFF CACHE BOOL "Disabled because no SYCL implementation is not found" FORCE)
+      endif()
     endif()
   endif()
 endif()
