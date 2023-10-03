@@ -56,6 +56,18 @@ Scalar mycos(Scalar x)
 }
 
 template <class Scalar>
+Scalar myasin(Scalar x)
+{
+   return sycl::asin(x);
+}
+
+template <class Scalar>
+Scalar myacos(Scalar x)
+{
+   return sycl::acos(x);
+}
+
+template <class Scalar>
 Scalar mysinh(Scalar x)
 {
    return sycl::sinh(x);
@@ -184,6 +196,18 @@ template <class Scalar>
 inline Scalar mycos(Scalar x)
 {
    return std::cos(x);
+}
+
+template <class Scalar>
+inline Scalar myasin(Scalar x)
+{
+   return std::asin(x);
+}
+
+template <class Scalar>
+inline Scalar myacos(Scalar x)
+{
+   return std::acos(x);
 }
 
 template <class Scalar>

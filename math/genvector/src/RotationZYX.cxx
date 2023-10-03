@@ -87,7 +87,7 @@ RotationZYX RotationZYX::operator * (const RotationZ  & r) const {
    //         the r.Angle() to phi.
    Scalar newPhi = fPhi + r.Angle();
    if ( newPhi <= -Pi()|| newPhi > Pi() ) {
-      newPhi = newPhi - std::floor( newPhi/(2*Pi()) +.5 ) * 2*Pi();
+      newPhi = newPhi - myfloor( newPhi/(2*Pi()) +.5 ) * 2*Pi();
    }
    return RotationZYX ( newPhi, fTheta, fPsi );
 }
@@ -113,7 +113,7 @@ void RotationZYX::Rectify()
 
    Scalar theta2 = fTheta + M_PI_2;
    if ( theta2 < 0 || theta2 > Pi() ) {
-      Scalar t = theta2 - std::floor( theta2/(2*Pi() ) ) * 2*Pi();
+      Scalar t = theta2 - myfloor( theta2/(2*Pi() ) ) * 2*Pi();
       if ( t <= Pi() ) {
          theta2 = t;
       } else {
@@ -126,11 +126,11 @@ void RotationZYX::Rectify()
    }
 
    if ( fPhi <= -Pi()|| fPhi > Pi() ) {
-      fPhi = fPhi - std::floor( fPhi/(2*Pi()) +.5 ) * 2*Pi();
+      fPhi = fPhi - myfloor( fPhi/(2*Pi()) +.5 ) * 2*Pi();
    }
 
    if ( fPsi <= -Pi()|| fPsi > Pi() ) {
-      fPsi = fPsi - std::floor( fPsi/(2*Pi()) +.5 ) * 2*Pi();
+      fPsi = fPsi - myfloor( fPsi/(2*Pi()) +.5 ) * 2*Pi();
    }
 
 } // Rectify()

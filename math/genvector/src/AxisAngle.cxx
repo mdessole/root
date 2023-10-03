@@ -75,8 +75,8 @@ DisplacementVector3D< Cartesian3D<double> >
 AxisAngle::
 operator() (const XYZVector & v) const
 {
-   Scalar c = std::cos(fAngle);
-   Scalar s = std::sin(fAngle);
+   Scalar c = mycos(fAngle);
+   Scalar s = mysin(fAngle);
    Scalar p = fAxis.Dot(v) * ( 1 - c );
    return  DisplacementVector3D< Cartesian3D<double> >
       (

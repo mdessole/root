@@ -13,6 +13,7 @@
 //
 // Created by: Mark Fischler Mon Nov 1  2005
 //
+#include "Math/GenVector/MathUtil.h"
 #include "Math/GenVector/BoostZ.h"
 #include "Math/GenVector/LorentzVector.h"
 #include "Math/GenVector/PxPyPzE4D.h"
@@ -33,12 +34,12 @@ void BoostZ::SetComponents (Scalar bz) {
    // set component
    Scalar bp2 = bz*bz;
    if (bp2 >= 1) {
-      GenVector::Throw (
-                              "Beta Vector supplied to set BoostZ represents speed >= c");
+      //GenVector::Throw (
+      //                        "Beta Vector supplied to set BoostZ represents speed >= c");
       return;
    }
    fBeta = bz;
-   fGamma = 1.0 / std::sqrt(1.0 - bp2);
+   fGamma = 1.0 / mysqrt(1.0 - bp2);
 }
 
 void BoostZ::GetComponents (Scalar& bz) const {
@@ -68,8 +69,8 @@ void BoostZ::Rectify() {
    // again.
 
    if (fGamma <= 0) {
-      GenVector::Throw (
-                              "Attempt to rectify a boost with non-positive gamma");
+      //GenVector::Throw (
+      //                        "Attempt to rectify a boost with non-positive gamma");
       return;
    }
    Scalar beta = fBeta;

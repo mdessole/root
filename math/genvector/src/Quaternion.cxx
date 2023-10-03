@@ -14,6 +14,7 @@
 //
 // Last update: $Id$
 //
+#include "Math/GenVector/MathUtil.h"
 #include "Math/GenVector/Quaternion.h"
 
 #include <cmath>
@@ -42,7 +43,7 @@ void Quaternion::Rectify()
       fU = - fU; fI = - fI; fJ = - fJ; fK = - fK;
    }
 
-   Scalar a = 1.0 / std::sqrt(fU*fU + fI*fI + fJ*fJ + fK*fK);
+   Scalar a = 1.0 / mysqrt(fU*fU + fI*fI + fJ*fJ + fK*fK);
    fU *= a;
    fI *= a;
    fJ *= a;

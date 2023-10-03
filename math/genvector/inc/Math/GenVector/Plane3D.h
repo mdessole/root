@@ -18,7 +18,7 @@
 #define ROOT_Math_GenVector_Plane3D  1
 
 #include <type_traits>
-
+#include "Math/GenVector/MathUtil.h"
 #include "Math/GenVector/DisplacementVector3D.h"
 #include "Math/GenVector/PositionVector3D.h"
 
@@ -218,8 +218,7 @@ protected:
    void Normalize()
    {
       // normalize the plane
-      using std::sqrt;
-      const SCALAR s = sqrt(fA * fA + fB * fB + fC * fC);
+      const SCALAR s = mysqrt(fA * fA + fB * fB + fC * fC);
       // what to do if s = 0 ?
       if (s == SCALAR(0)) {
          fD = SCALAR(0);
@@ -239,8 +238,7 @@ protected:
    void Normalize()
    {
       // normalize the plane
-      using std::sqrt;
-      SCALAR s = sqrt(fA * fA + fB * fB + fC * fC);
+      SCALAR s = mysqrt(fA * fA + fB * fB + fC * fC);
       // what to do if s = 0 ?
       const auto m = (s == SCALAR(0));
       // set zero entries to 1 in the vector to avoid /0 later on

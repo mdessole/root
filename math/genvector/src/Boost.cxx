@@ -13,6 +13,7 @@
 //
 // Created by: Mark Fischler Mon Nov 1  2005
 //
+#include "Math/GenVector/MathUtil.h"
 #include "Math/GenVector/Boost.h"
 #include "Math/GenVector/LorentzVector.h"
 #include "Math/GenVector/PxPyPzE4D.h"
@@ -77,12 +78,12 @@ void Boost::SetComponents (Scalar bx, Scalar by, Scalar bz) {
    // set the boost beta as 3 components
    Scalar bp2 = bx*bx + by*by + bz*bz;
    if (bp2 >= 1) {
-      GenVector::Throw (
-                              "Beta Vector supplied to set Boost represents speed >= c");
+      //GenVector::Throw (
+      //                        "Beta Vector supplied to set Boost represents speed >= c");
       // SetIdentity();
       return;
    }
-   Scalar gamma = 1.0 / std::sqrt(1.0 - bp2);
+   Scalar gamma = 1.0 / mysqrt(1.0 - bp2);
    Scalar bgamma = gamma * gamma / (1.0 + gamma);
    fM[kXX] = 1.0 + bgamma * bx * bx;
    fM[kYY] = 1.0 + bgamma * by * by;
@@ -127,8 +128,8 @@ void Boost::Rectify() {
    // again.
 
    if (fM[kTT] <= 0) {
-      GenVector::Throw (
-                              "Attempt to rectify a boost with non-positive gamma");
+      //GenVector::Throw (
+      //                        "Attempt to rectify a boost with non-positive gamma");
       return;
    }
    DisplacementVector3D< Cartesian3D<Scalar> > beta ( fM[kXT], fM[kYT], fM[kZT] );

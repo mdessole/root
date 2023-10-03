@@ -34,7 +34,7 @@ ROOT_LINKER_LIBRARY(GenVector
 
 if (sycl)
   target_compile_definitions(GenVector PUBLIC ROOT_MATH_SYCL)
-  #add_sycl_to_root_target(TARGET GenVector SOURCES inc/Math/GenVector/MathUtil.h)
+  add_sycl_to_root_target(TARGET GenVector SOURCES inc/Math/GenVector/MathUtil.h)
 endif()
 
 ROOT_GENERATE_DICTIONARY(G__GenVector
@@ -169,7 +169,7 @@ if (sycl)
   #target_link_libraries(G__GenVector INTERFACE OpenSYCL::hipSYCL-rt)
   #add_sycl_to_target(TARGET G__GenVector inc/Math/GenVector/MathUtil.h)
   target_compile_definitions(G__GenVector PUBLIC ROOT_MATH_SYCL)
-  add_sycl_to_root_target(TARGET G__GenVector SOURCES inc/Math/GenVector/MathUtil.h)
+  #add_sycl_to_root_target(TARGET G__GenVector SOURCES inc/Math/GenVector/MathUtil.h)
 endif()
 
 
@@ -190,6 +190,18 @@ ROOT_GENERATE_DICTIONARY(G__GenVector32
     Core
     MathCore
 )
+
+if (sycl)
+  #set_target_properties(GenVector PROPERTIES LINKER_LANGUAGE CXX)
+  #target_compile_definitions(G__GenVector INTERFACE CL_TARGET_OPENCL_VERSION=300)
+  #target_compile_definitions(G__GenVector PUBLIC ROOT_MATH_SYCL)
+  #target_compile_options(G__GenVector INTERFACE -O2)
+  #target_include_directories(G__GenVector INTERFACE ${OpenSYCL_INCLUDE_DIRS})
+  #target_link_libraries(G__GenVector INTERFACE OpenSYCL::hipSYCL-rt)
+  #add_sycl_to_target(TARGET G__GenVector inc/Math/GenVector/MathUtil.h)
+  target_compile_definitions(G__GenVector32 PUBLIC ROOT_MATH_SYCL)
+  #add_sycl_to_root_target(TARGET G__GenVector SOURCES inc/Math/GenVector/MathUtil.h)
+endif()
 
 ROOT_ADD_TEST_SUBDIRECTORY(test)
 

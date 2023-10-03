@@ -1724,8 +1724,10 @@ message(STATUS "Looking for SYCL")
      function(add_sycl_to_root_target)
        CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES" ${ARGN})
        get_target_property(_library_name ${ARG_TARGET} OUTPUT_NAME)
+       get_target_property(_deps ${ARG_TARGET} LINK_LIBRARIES)
+
        message(STATUS "Output library name: ${_library_name}")
-       target_include_directories(${ARG_TARGET} PUBLIC ${SYCL_INCLUDE_DIR})
+       target_include_directories(${ARG_TARGET} PUBLIC ${SYCL_INCLUDE_DIR} ${SYCL_INCLUDE_DIR}/sycl)
 
        # Get include directories for the SYCL target
        get_target_property(_inc_dirs ${ARG_TARGET} INCLUDE_DIRECTORIES)
@@ -1735,21 +1737,26 @@ message(STATUS "Looking for SYCL")
          endforeach()
          list(REMOVE_DUPLICATES _inc_list)
        endif()
+       #list(APPEND _inc_list -I${SYCL_INCLUDE_DIR}/sycl)
+       #list(APPEND _inc_list -I${SYCL_INCLUDE_DIR}/sycl/CL)
+       message(STATUS "_inc_list: ${_inc_list}")
+       message(STATUS "SYCL_INCLUDE_DIR: ${SYCL_INCLUDE_DIR}")
 
        # Compile the sycl source files with the found sycl compiler
-       set(SYCL_FLAGS "-fsycl -sycl-std=2020 ${CMAKE_CXX_FLAGS}")
+       set(SYCL_FLAGS "-fsycl -fsycl-unnamed-lambda -fsycl-device-only -Xclang ") #-fsycl-targets=nvptx64-nvidia-cuda
        message(STATUS "SYCL flags: ${SYCL_FLAGS}")
        separate_arguments(SYCL_FLAGS NATIVE_COMMAND ${SYCL_FLAGS})
        foreach(src ${ARG_SOURCES})
          set(_output_path ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/${src}${CMAKE_CXX_OUTPUT_EXTENSION})
          add_custom_command(OUTPUT ${_output_path}
-                            COMMAND ${SYCL_COMPILER} ${SYCL_FLAGS} -c
-                                    ${_inc_list}
-                                    -o ${_output_path}
-                                    ${CMAKE_CURRENT_SOURCE_DIR}/${src}
-                            DEPENDS ${ARG_TARGET}
+                            COMMAND ${SYCL_COMPILER} ${SYCL_FLAGS}  -c
+                            ${_inc_list}
+                            -o ${_output_path}
+                            ${CMAKE_CURRENT_SOURCE_DIR}/${src}
+                            DEPENDS ${_deps} ${ARG_TARGET}
                             COMMENT "Building SYCL object ${_output_path}"
                             MAIN_DEPENDENCY ${src})
+        
        endforeach()
      endfunction()
 

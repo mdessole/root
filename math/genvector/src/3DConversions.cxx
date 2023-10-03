@@ -19,6 +19,7 @@
 //        The intention is to seraparte them into a few .cpp files instead,
 //        so that users needing one form need not incorporate code for them all.
 
+#include "Math/GenVector/MathUtil.h"
 #include "Math/GenVector/3DConversions.h"
 
 #include "Math/Math.h"
@@ -211,7 +212,7 @@ void convert( Rotation3D const & from, Quaternion  & to)
    // choose the largest to avoid dividing two small numbers and losing accuracy.
 
    if ( d0 >= d1 && d0 >= d2 && d0 >= d3 ) {
-      const double q0 = .5*std::sqrt(1+d0);
+      const double q0 = .5*mysqrt(1+d0);
       const double f  = .25/q0;
       const double q1 = f*(m[kZY]-m[kYZ]);
       const double q2 = f*(m[kXZ]-m[kZX]);
@@ -220,7 +221,7 @@ void convert( Rotation3D const & from, Quaternion  & to)
       to.Rectify();
       return;
    } else if ( d1 >= d2 && d1 >= d3 ) {
-      const double q1 = .5*std::sqrt(1+d1);
+      const double q1 = .5*mysqrt(1+d1);
       const double f  = .25/q1;
       const double q0 = f*(m[kZY]-m[kYZ]);
       const double q2 = f*(m[kXY]+m[kYX]);
@@ -229,7 +230,7 @@ void convert( Rotation3D const & from, Quaternion  & to)
       to.Rectify();
       return;
    } else if ( d2 >= d3 ) {
-      const double q2 = .5*std::sqrt(1+d2);
+      const double q2 = .5*mysqrt(1+d2);
       const double f  = .25/q2;
       const double q0 = f*(m[kXZ]-m[kZX]);
       const double q1 = f*(m[kXY]+m[kYX]);
@@ -238,7 +239,7 @@ void convert( Rotation3D const & from, Quaternion  & to)
       to.Rectify();
       return;
    } else {
-      const double q3 = .5*std::sqrt(1+d3);
+      const double q3 = .5*mysqrt(1+d3);
       const double f  = .25/q3;
       const double q0 = f*(m[kYX]-m[kXY]);
       const double q1 = f*(m[kXZ]+m[kZX]);
@@ -354,8 +355,8 @@ void convert( AxisAngle const & from, Rotation3D  & to)
 {
    // conversion from AxixAngle to Rotation3D
 
-   const double sinDelta = std::sin( from.Angle() );
-   const double cosDelta = std::cos( from.Angle() );
+   const double sinDelta = mysin( from.Angle() );
+   const double cosDelta = mycos( from.Angle() );
    const double oneMinusCosDelta = 1.0 - cosDelta;
 
    const AxisAngle::AxisVector & u = from.Axis();
@@ -394,10 +395,10 @@ void convert( AxisAngle const & from, Quaternion  & to)
 {
    // conversion from AxixAngle to Quaternion
 
-   double s = std::sin (from.Angle()/2);
+   double s = mysin (from.Angle()/2);
    DisplacementVector3D< Cartesian3D<double> > axis = from.Axis();
 
-   to.SetComponents( std::cos(from.Angle()/2),
+   to.SetComponents( mycos(from.Angle()/2),
                      s*axis.X(),
                      s*axis.Y(),
                      s*axis.Z()
@@ -422,12 +423,12 @@ void convert( EulerAngles const & from, Rotation3D  & to)
    // conversion from EulerAngles to Rotation3D
 
    typedef double Scalar;
-   const Scalar sPhi   = std::sin( from.Phi()   );
-   const Scalar cPhi   = std::cos( from.Phi()   );
-   const Scalar sTheta = std::sin( from.Theta() );
-   const Scalar cTheta = std::cos( from.Theta() );
-   const Scalar sPsi   = std::sin( from.Psi()   );
-   const Scalar cPsi   = std::cos( from.Psi()   );
+   const Scalar sPhi   = mysin( from.Phi()   );
+   const Scalar cPhi   = mycos( from.Phi()   );
+   const Scalar sTheta = mysin( from.Theta() );
+   const Scalar cTheta = mycos( from.Theta() );
+   const Scalar sPsi   = mysin( from.Psi()   );
+   const Scalar cPsi   = mycos( from.Psi()   );
    to.SetComponents
       (  cPsi*cPhi-sPsi*cTheta*sPhi,  cPsi*sPhi+sPsi*cTheta*cPhi, sPsi*sTheta
          , -sPsi*cPhi-cPsi*cTheta*sPhi, -sPsi*sPhi+cPsi*cTheta*cPhi, cPsi*sTheta
@@ -451,12 +452,12 @@ void convert( EulerAngles const & from, Quaternion  & to)
    typedef double Scalar;
    const Scalar plus   = (from.Phi()+from.Psi())/2;
    const Scalar minus  = (from.Phi()-from.Psi())/2;
-   const Scalar sPlus  = std::sin( plus  );
-   const Scalar cPlus  = std::cos( plus  );
-   const Scalar sMinus = std::sin( minus );
-   const Scalar cMinus = std::cos( minus );
-   const Scalar sTheta = std::sin( from.Theta()/2 );
-   const Scalar cTheta = std::cos( from.Theta()/2 );
+   const Scalar sPlus  = mysin( plus  );
+   const Scalar cPlus  = mycos( plus  );
+   const Scalar sMinus = mysin( minus );
+   const Scalar cMinus = mycos( minus );
+   const Scalar sTheta = mysin( from.Theta()/2 );
+   const Scalar cTheta = mycos( from.Theta()/2 );
 
    to.SetComponents ( cTheta*cPlus, -sTheta*cMinus, -sTheta*sMinus, -cTheta*sPlus );
    // TODO -- carefully check that this is correct
@@ -548,17 +549,17 @@ void convert( RotationZYX const & from, Rotation3D  & to) {
 
    double phi,theta,psi = 0;
    from.GetComponents(phi,theta,psi);
-   to.SetComponents( std::cos(theta)*std::cos(phi),
-                      - std::cos(theta)*std::sin(phi),
-                      std::sin(theta),
+   to.SetComponents( mycos(theta)*mycos(phi),
+                      - mycos(theta)*mysin(phi),
+                      mysin(theta),
 
-                      std::cos(psi)*std::sin(phi) + std::sin(psi)*std::sin(theta)*std::cos(phi),
-                      std::cos(psi)*std::cos(phi) - std::sin(psi)*std::sin(theta)*std::sin(phi),
-                      -std::sin(psi)*std::cos(theta),
+                      mycos(psi)*mysin(phi) + mysin(psi)*mysin(theta)*mycos(phi),
+                      mycos(psi)*mycos(phi) - mysin(psi)*mysin(theta)*mysin(phi),
+                      -mysin(psi)*mycos(theta),
 
-                      std::sin(psi)*std::sin(phi) - std::cos(psi)*std::sin(theta)*std::cos(phi),
-                      std::sin(psi)*std::cos(phi) + std::cos(psi)*std::sin(theta)*std::sin(phi),
-                      std::cos(psi)*std::cos(theta)
+                      mysin(psi)*mysin(phi) - mycos(psi)*mysin(theta)*mycos(phi),
+                      mysin(psi)*mycos(phi) + mycos(psi)*mysin(theta)*mysin(phi),
+                      mycos(psi)*mycos(theta)
       );
 
 }
@@ -580,12 +581,12 @@ void convert( RotationZYX const & from, Quaternion  & to) {
    double phi,theta,psi = 0;
    from.GetComponents(phi,theta,psi);
 
-   double sphi2   = std::sin(phi/2);
-   double cphi2   = std::cos(phi/2);
-   double stheta2 = std::sin(theta/2);
-   double ctheta2 = std::cos(theta/2);
-   double spsi2   = std::sin(psi/2);
-   double cpsi2   = std::cos(psi/2);
+   double sphi2   = mysin(phi/2);
+   double cphi2   = mycos(phi/2);
+   double stheta2 = mysin(theta/2);
+   double ctheta2 = mycos(theta/2);
+   double spsi2   = mysin(psi/2);
+   double cpsi2   = mycos(psi/2);
    to.SetComponents(  cphi2 * cpsi2 * ctheta2 - sphi2 * spsi2 * stheta2,
                       sphi2 * cpsi2 * stheta2 + cphi2 * spsi2 * ctheta2,
                       cphi2 * cpsi2 * stheta2 - sphi2 * spsi2 * ctheta2,
@@ -630,7 +631,7 @@ void convert( RotationX const & from, Quaternion  & to)
 {
    // conversion from RotationX to Quaternion
 
-   to.SetComponents (std::cos(from.Angle()/2), std::sin(from.Angle()/2), 0, 0);
+   to.SetComponents (mycos(from.Angle()/2), mysin(from.Angle()/2), 0, 0);
 }
 
 void convert( RotationX const & from , RotationZYX & to  )
@@ -683,7 +684,7 @@ void convert( RotationY const & from, Quaternion  & to)
 {
    // conversion from RotationY to Quaternion
 
-   to.SetComponents (std::cos(from.Angle()/2), 0, std::sin(from.Angle()/2), 0);
+   to.SetComponents (mycos(from.Angle()/2), 0, mysin(from.Angle()/2), 0);
 }
 
 
@@ -730,7 +731,7 @@ void convert( RotationZ const & from, Quaternion  & to)
 {
    // conversion from RotationZ to Quaternion
 
-   to.SetComponents (std::cos(from.Angle()/2), 0, 0, std::sin(from.Angle()/2));
+   to.SetComponents (mycos(from.Angle()/2), 0, 0, mysin(from.Angle()/2));
 }
 
 } //namespace gv_detail

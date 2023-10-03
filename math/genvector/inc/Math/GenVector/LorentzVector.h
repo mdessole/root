@@ -18,6 +18,8 @@
 #ifndef ROOT_Math_GenVector_LorentzVector
 #define ROOT_Math_GenVector_LorentzVector  1
 
+#include "Math/GenVector/MathUtil.h"
+
 #include "Math/GenVector/PxPyPzE4D.h"
 
 #include "Math/GenVector/DisplacementVector3D.h"
@@ -498,8 +500,7 @@ ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVect
           //        We should then move the code to a .cpp file.
           const Scalar ee  = E();
           const Scalar ppz = Pz();
-          using std::log;
-          return Scalar(0.5) * log((ee + ppz) / (ee - ppz));
+          return Scalar(0.5) * mylog((ee + ppz) / (ee - ppz));
        }
 
        /**
@@ -510,8 +511,7 @@ ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVect
           //        mechanism or at least load a NAN if not.
           const Scalar ee = E();
           const Scalar pp = P();
-          using std::log;
-          return Scalar(0.5) * log((ee + pp) / (ee - pp));
+          return Scalar(0.5) * mylog((ee + pp) / (ee - pp));
        }
 
        /**
@@ -624,8 +624,7 @@ ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVect
           else if ( t2 == v2 ) {
              //GenVector::Throw ("LorentzVector::Gamma() - gamma computed for a lightlike LorentzVector. Infinite result");
           }
-          using std::sqrt;
-          return Scalar(1) / sqrt(Scalar(1) - v2 / t2);
+          return Scalar(1) / mysqrt(Scalar(1) - v2 / t2);
        } /* gamma */
 
 
