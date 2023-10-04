@@ -1709,6 +1709,8 @@ if (sycl)
       message(STATUS "Open SYCL library not found")
       set(sycl OFF CACHE BOOL "Disabled because Open SYCL is not found" FORCE)
     endif()
+  else()
+    message(STATUS "Open SYCL library not found")
   endif()
 endif()
 
