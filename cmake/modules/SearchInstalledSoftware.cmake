@@ -1705,18 +1705,126 @@ endif()
 
 #---Check for SYCL-----------------------------------------------------------------------
 
-if (sycl)
-  find_package(OpenSYCL)
-  if (NOT OpenSYCL_FOUND)
+message(STATUS "Looking for SYCL")
+
+#
+# Compile with default CMAKE_CXX_COMPILER and find sycl compiler based on SYCL_ROOT_DIR
+#
+
+if (oneapi)
+  SET(_sycl_search_dirs ${SYCL_DIR} /usr/lib /usr/local/lib /opt/intel/oneapi/compiler/latest/linux)
+  find_program(SYCL_COMPILER
+               NAMES icpx dpcpp clang++
+               HINTS ${_sycl_search_dirs}
+               PATH_SUFFIXES bin)
+  find_path(SYCL_INCLUDE_DIR
+            NAMES sycl/sycl.hpp
+            HINTS ${_sycl_search_dirs})
+  find_path(SYCL_LIB_DIR
+            NAMES sycl
+            HINTS ${_sycl_search_dirs}
+            PATH_SUFFIXES lib)
+
+  if (SYCL_COMPILER)
+    set(sycl ON)
+
+    function(add_sycl_to_root_target)
+      CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES" ${ARGN})
+      get_target_property(_library_name ${ARG_TARGET} OUTPUT_NAME)
+      get_target_property(_deps ${ARG_TARGET} LINK_LIBRARIES)
+
+      target_include_directories(${ARG_TARGET} PUBLIC ${SYCL_INCLUDE_DIR} ${SYCL_INCLUDE_DIR}/sycl)
+      target_link_directories(${ARG_TARGET} PUBLIC ${SYCL_LIB_DIR})
+      target_link_libraries(${ARG_TARGET} INTERFACE sycl)
+
+      # Get include directories for the SYCL target
+      get_target_property(_inc_dirs ${ARG_TARGET} INCLUDE_DIRECTORIES)
+      if (_inc_dirs)
+        list(REMOVE_DUPLICATES _inc_dirs)
+        list(TRANSFORM _inc_dirs PREPEND -I)
+      endif()
+
+      # Compile the sycl source files with the found sycl compiler
+      set(SYCL_COMPILER_FLAGS "-fPIC -fsycl -fsycl-unnamed-lambda -sycl-std=2020 ${CMAKE_CXX_FLAGS}")
+      message(STATUS "SYCL flags: ${SYCL_COMPILER_FLAGS}")
+      separate_arguments(SYCL_COMPILER_FLAGS NATIVE_COMMAND ${SYCL_COMPILER_FLAGS})
+      foreach(src ${ARG_SOURCES})
+        set(_output_path ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/${src}${CMAKE_CXX_OUTPUT_EXTENSION})
+        list(APPEND _outputs ${_output_path})
+
+        add_custom_command(OUTPUT ${_output_path}
+                           COMMAND ${SYCL_COMPILER} ${SYCL_COMPILER_FLAGS} -c
+                                   ${_inc_dirs}
+                                   -o ${_output_path}
+                                   ${CMAKE_CURRENT_SOURCE_DIR}/${src}
+                           DEPENDS ${_deps}
+                           COMMENT "Building SYCL object ${_output_path}"
+                           MAIN_DEPENDENCY ${src}
+                           )
+        endforeach()
+
+      set(SYCL_LINKER_FLAGS "-shared -fsycl -fPIC ${CMAKE_CXX_FLAGS} ${CMAKE_SHARED_LINKER_FLAGS}")
+      separate_arguments(SYCL_LINKER_FLAGS NATIVE_COMMAND ${SYCL_LINKER_FLAGS})
+
+      get_target_property(_lib_deps ${ARG_TARGET} LINK_LIBRARIES)
+      foreach(lib ${_lib_deps})
+        list(APPEND _lib_dep_paths "$<TARGET_FILE:${lib}>")
+      endforeach()
+
+      # custom command can´t depend on files from another custom command, so we create a custom target.
+      add_custom_target(_sycl_target DEPENDS ${_outputs})
+      add_dependencies(${ARG_TARGET} _sycl_target)
+
+      # add_custom_command(OUTPUT ${_shared_library_name}
+      add_custom_command(TARGET ${ARG_TARGET}
+                         COMMAND ${SYCL_COMPILER} ${SYCL_LINKER_FLAGS}
+                                 -o $<TARGET_FILE:${_library_name}>
+                                 ${_outputs} ${_lib_dep_paths}
+                         DEPENDS ${_deps} ${_outputs} ${_sycl_target}
+                         COMMENT "Linking shared library ${_shared_library_name}"
+                         MAIN_DEPENDENCY ${ARG_TARGET}
+                         )
+    endfunction()
+
+    message(STATUS "Found Intel OneAPI SYCL: ${SYCL_INCLUDE_DIR} and ${SYCL_LIB_DIR} (modify with: SYCL_DIR)")
+    message(STATUS "Using SYCL Host Compiler: ${SYCL_COMPILER}")
+  else()
     if(fail-on-missing)
-      message(FATAL_ERROR "Open SYCL library not found")
+      message(FATAL_ERROR "OpenAPI SYCL library not found")
     else()
-      message(STATUS "Open SYCL library not found")
-      set(sycl OFF CACHE BOOL "Disabled because Open SYCL is not found" FORCE)
+      message(STATUS "OpenAPI SYCL library not found")
+      set(sycl OFF CACHE BOOL "Disabled because no SYCL implementation is not found" FORCE)
     endif()
   endif()
 endif()
 
+if (opensycl)
+  if (oneapi)
+    message(WARNING "Disable OneAPI to load OpenSYCL")
+    set(sycl OFF CACHE BOOL "Disabled because OpenSYCL is enabled" FORCE)
+  else()
+    find_package(OpenSYCL)
+    if (OpenSYCL_FOUND)
+      set(sycl ON)
+      function( )
+        CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES" ${ARGN})
+        add_sycl_to_target(TARGET ${ARG_TARGET}  SOURCES ${ARG_SOURCES})
+        target_include_directories(${ARG_TARGET} INTERFACE ${OpenSYCL_INCLUDE_DIRS})
+        target_link_libraries(${ARG_TARGET} INTERFACE OpenSYCL::hipSYCL-rt)
+      endfunction()
+      message(STATUS "OpenSYCL sycl enabled")
+    else()
+      if(fail-on-missing)
+        message(FATAL_ERROR "Open SYCL library not found")
+      else()
+        message(STATUS "Open SYCL library not found")
+        set(sycl OFF CACHE BOOL "Disabled because no SYCL implementation is not found" FORCE)
+      endif()
+    endif()
+  endif()
+endif()
+
+#---Check for CuDNN-----------------------------------------------------------------------
 
 #---Check for CUDA-----------------------------------------------------------------------
 # if tmva-gpu is off and cuda is on cuda is searched but not used in tmva

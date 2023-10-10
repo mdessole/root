@@ -270,7 +270,7 @@ template <typename T, unsigned int Dim, unsigned int WGroupSize>
 RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(size_t maxBulkSize, const std::array<int, Dim> &ncells,
                                      const std::array<double, Dim> &xlow, const std::array<double, Dim> &xhigh,
                                      const double **binEdges)
-   : queue(sycl::default_selector{}, SYCLHelpers::exception_handler),
+   : queue(sycl::default_selector_v, SYCLHelpers::exception_handler),
      kStatsSmemSize((WGroupSize <= 32) ? 2 * WGroupSize * sizeof(double) : WGroupSize * sizeof(double))
 {
    auto device = queue.get_device();
@@ -329,7 +329,7 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(size_t maxBulkSize, const std::array<int, D
 
    // Determine the amount of shared memory required for HistogramKernel, and the maximum available.
    fHistoSmemSize = fNbins * sizeof(T);
-   auto has_local_mem = device.is_host() || (device.template get_info<sycl::info::device::local_mem_type>() !=
+   auto has_local_mem = device.is_gpu() || (device.template get_info<sycl::info::device::local_mem_type>() !=
                                              sycl::info::local_mem_type::none);
    fMaxSmemSize = has_local_mem ? device.template get_info<sycl::info::device::local_mem_size>() : 0;
 }

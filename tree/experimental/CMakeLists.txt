@@ -18,11 +18,8 @@ endif()
 
 if (sycl)
   ROOT_LINKER_LIBRARY(SYCLHist src/RHnSYCL.cxx TYPE SHARED DEPENDENCIES GenVector ROOTVecOps)
-  target_compile_definitions(SYCLHist INTERFACE ROOT_RDF_SYCL CL_TARGET_OPENCL_VERSION=300)
-  target_include_directories(SYCLHist INTERFACE ${OpenSYCL_INCLUDE_DIRS})
-  target_link_libraries(SYCLHist INTERFACE OpenSYCL::hipSYCL-rt)
-
-  add_sycl_to_target(TARGET SYCLHist SOURCES src/RHnSYCL.cxx)
+  target_compile_definitions(SYCLHist PUBLIC ROOT_RDF_SYCL)
+  add_sycl_to_root_target(TARGET SYCLHist SOURCES src/RHnSYCL.cxx)
 endif()
 
 #######################################################################
