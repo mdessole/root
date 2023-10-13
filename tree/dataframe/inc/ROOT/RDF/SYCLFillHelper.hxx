@@ -328,7 +328,7 @@ public:
 
       HIST *h = fObject;
       fSYCLHist->RetrieveResults(h->GetArray(), stats);
-      h->SetStatsData(stats);
+      h->PutStats(stats);
       h->SetEntries(fSYCLHist->GetEntries());
 
       if (getenv("DBG")) {

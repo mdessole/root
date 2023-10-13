@@ -328,7 +328,7 @@ public:
 
       HIST *h = fObject;
       fCUDAHist->RetrieveResults(h->GetArray(), stats);
-      h->SetStatsData(stats);
+      h->PutStats(stats);
       h->SetEntries(fCUDAHist->GetEntries());
 
       if (getenv("DBG")) {

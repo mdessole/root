@@ -1260,16 +1260,6 @@ void TH2::GetStats(Double_t *stats) const
    }
 }
 
-#if defined(ROOT_RDF_CUDA) || defined(ROOT_RDF_SYCL)
-void TH2::SetStatsData(Double_t *stats)
-{
-   TH1::SetStatsData(stats);
-   fTsumwy = stats[4];
-   fTsumwy2 = stats[5];
-   fTsumwxy = stats[6];
-}
-#endif
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Return integral of bin contents. Only bins in the bins range are considered.
 /// By default the integral is computed as the sum of bin contents in the range.
