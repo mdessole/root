@@ -1727,6 +1727,10 @@ if (oneapi)
 
   if (SYCL_COMPILER)
     set(sycl ON)
+    set(_fsycl_targets "-fsycl-targets=spir64_x86_64,spir64")
+    # if (cuda)
+    #   set(_fsycl_targets "-Xclang -opaque-pointers ${_fsycl_targets},nvptx64-nvidia-cuda -Xsycl-target-backend=nvptx64-nvidia-cuda --offload-arch=sm_${CMAKE_CUDA_ARCHITECTURES} --cuda-path=${CUDA_TOOLKIT_ROOT_DIR}")
+    # endif()
 
     function(add_sycl_to_root_target)
       CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES" ${ARGN})
@@ -1745,7 +1749,7 @@ if (oneapi)
       endif()
 
       # Compile the sycl source files with the found sycl compiler
-      set(SYCL_COMPILER_FLAGS "-fPIC -fsycl -fsycl-unnamed-lambda -sycl-std=2020 ${CMAKE_CXX_FLAGS}")
+      set(SYCL_COMPILER_FLAGS "-fPIC -fsycl -fsycl-unnamed-lambda -sycl-std=2020 ${_fsycl_targets} ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${_BUILD_TYPE_UPPER}}")
       message(STATUS "SYCL flags: ${SYCL_COMPILER_FLAGS}")
       separate_arguments(SYCL_COMPILER_FLAGS NATIVE_COMMAND ${SYCL_COMPILER_FLAGS})
       foreach(src ${ARG_SOURCES})
@@ -1763,7 +1767,7 @@ if (oneapi)
                            )
         endforeach()
 
-      set(SYCL_LINKER_FLAGS "-shared -fsycl -fPIC ${CMAKE_CXX_FLAGS} ${CMAKE_SHARED_LINKER_FLAGS}")
+      set(SYCL_LINKER_FLAGS "-shared -fsycl -fsycl-unnamed-lambda ${_fsycl_targets} -fPIC ${CMAKE_CXX_FLAGS} ${CMAKE_SHARED_LINKER_FLAGS}")
       separate_arguments(SYCL_LINKER_FLAGS NATIVE_COMMAND ${SYCL_LINKER_FLAGS})
 
       get_target_property(_lib_deps ${ARG_TARGET} LINK_LIBRARIES)
@@ -1771,11 +1775,7 @@ if (oneapi)
         list(APPEND _lib_dep_paths "$<TARGET_FILE:${lib}>")
       endforeach()
 
-      # custom command can´t depend on files from another custom command, so we create a custom target.
-      add_custom_target(_sycl_target DEPENDS ${_outputs})
-      add_dependencies(${ARG_TARGET} _sycl_target)
-
-      # add_custom_command(OUTPUT ${_shared_library_name}
+      set_property(TARGET ${ARG_TARGET} PROPERTY LINK_DEPENDS ${_outputs})
       add_custom_command(TARGET ${ARG_TARGET}
                          COMMAND ${SYCL_COMPILER} ${SYCL_LINKER_FLAGS}
                                  -o $<TARGET_FILE:${_library_name}>
