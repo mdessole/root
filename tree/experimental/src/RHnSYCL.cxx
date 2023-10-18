@@ -25,7 +25,7 @@ template <class T>
 using AccHistRW = sycl::accessor<T, 1, mode::read_write>;
 
 template <class T>
-using AccLocalMem = sycl::accessor<T, 1, mode::read_write, sycl::access::target::local>;
+using AccLocalMem = sycl::local_accessor<T, 1>;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Bin calculation methods
@@ -170,7 +170,7 @@ public:
       }
    }
 
-protected:
+private:
    AccHistRW<T> histogramAcc;
    AccAxesR axesAcc;
    AccDoubleR coordsAcc, weightsAcc;
@@ -179,13 +179,17 @@ protected:
 };
 
 template <typename T, unsigned int Dim>
-class HistogramLocal : public HistogramGlobal<T, Dim> {
+class HistogramLocal {
 public:
    HistogramLocal(AccLocalMem<T> _localMem, AccHistRW<T> _histogramAcc, AccAxesR _axesAcc, AccDoubleR _coordsAcc,
                   AccDoubleR _weightsAcc, AccBinsW _binsAcc, double *_binEdges)
-      : HistogramGlobal<T, Dim>(_histogramAcc, _axesAcc, _coordsAcc, _weightsAcc, _binsAcc, _binEdges)
-   {
-      localMem = _localMem;
+      : localMem(_localMem),
+        histogramAcc(_histogramAcc),
+        axesAcc(_axesAcc),
+        coordsAcc(_coordsAcc),
+        weightsAcc(_weightsAcc),
+        binsAcc(_binsAcc),
+        binEdges(_binEdges)   {
    }
 
    void operator()(sycl::nd_item<1> item) const
@@ -195,8 +199,8 @@ public:
       auto group = item.get_group();
       auto groupSize = item.get_local_range(0);
       auto stride = groupSize * item.get_group_range(0);
-      auto nBins = this->histogramAcc.size();
-      auto nCoords = this->weightsAcc.size();
+      auto nBins = histogramAcc.size();
+      auto nCoords = weightsAcc.size();
 
       // Initialize a local per-work-group histogram
       for (auto i = localId; i < nBins; i += groupSize) {
@@ -206,23 +210,28 @@ public:
 
       for (auto i = globalId; i < nCoords; i += stride) {
          // Fill local histogram
-         auto bin = GetBin<Dim>(i, this->axesAcc.get_pointer(), this->coordsAcc.get_pointer(), this->weightsAcc.size(),
-                                this->binsAcc.get_pointer(), this->binEdges);
+         auto bin = GetBin<Dim>(i, axesAcc.get_pointer(), coordsAcc.get_pointer(), weightsAcc.size(),
+                                binsAcc.get_pointer(), binEdges);
 
          if (bin >= 0) {
-            AddBinContent<sycl::access::address_space::local_space>(this->histogramAcc, bin, this->weightsAcc[i]);
+            AddBinContent<sycl::access::address_space::local_space>(histogramAcc, bin, weightsAcc[i]);
          }
       }
       sycl::group_barrier(group);
 
       // Merge results in global histogram
       for (auto i = localId; i < nBins; i += groupSize) {
-         AddBinContent<sycl::access::address_space::global_space>(this->histogramAcc, i, localMem[i]);
+         AddBinContent<sycl::access::address_space::global_space>(histogramAcc, i, localMem[i]);
       }
    }
 
-protected:
+private:
    AccLocalMem<T> localMem;
+   AccHistRW<T> histogramAcc;
+   AccAxesR axesAcc;
+   AccDoubleR coordsAcc, weightsAcc;
+   AccBinsW binsAcc;
+   double *binEdges;
 };
 
 ///////////////////////////////////////////
@@ -330,7 +339,7 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(size_t maxBulkSize, const std::array<int, D
    // Determine the amount of shared memory required for HistogramKernel, and the maximum available.
    fHistoSmemSize = fNbins * sizeof(T);
    auto has_local_mem = device.is_gpu() || (device.template get_info<sycl::info::device::local_mem_type>() !=
-                                             sycl::info::local_mem_type::none);
+                                            sycl::info::local_mem_type::none);
    fMaxSmemSize = has_local_mem ? device.template get_info<sycl::info::device::local_mem_size>() : 0;
 }
 
@@ -467,7 +476,7 @@ void RHnSYCL<T, Dim, WGroupSize>::ExecuteSYCLHisto(int size)
    } else {
       queue.submit([&](sycl::handler &cgh) {
          // Similar to CUDA shared memory.
-         sycl::accessor<T, 1, mode::read_write, sycl::access::target::local> localMem(sycl::range<1>(fNbins), cgh);
+         sycl::local_accessor<T, 1> localMem(sycl::range<1>(fNbins), cgh);
 
          // Get handles to SYCL buffers.
          sycl::accessor histogramAcc{*fBHistogram, cgh, sycl::read_write};
