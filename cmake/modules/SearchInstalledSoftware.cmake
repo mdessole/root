@@ -1727,6 +1727,9 @@ if (oneapi)
 
   if (SYCL_COMPILER)
     set(sycl ON)
+    message(STATUS "Found Intel OneAPI SYCL: ${SYCL_INCLUDE_DIR} and ${SYCL_LIB_DIR} (modify with: SYCL_DIR)")
+    message(STATUS "Using SYCL Compiler: ${SYCL_COMPILER}")
+
     if (cuda)
       # Note that spir is added as a target AFTER cuda. The order is important for avoiding errors about opaque pointers:
       # https://developer.codeplay.com/products/oneapi/nvidia/2023.2.1/guides/troubleshooting.html#opaque-pointers-are-only-supported-in-opaque-pointers-mode
@@ -1751,10 +1754,11 @@ if (oneapi)
         list(TRANSFORM _inc_dirs PREPEND -I)
       endif()
 
-      # Compile the sycl source files with the found sycl compiler
       set(SYCL_COMPILER_FLAGS "-fPIC -fsycl -fsycl-unnamed-lambda -sycl-std=2020 ${_fsycl_targets} ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${_BUILD_TYPE_UPPER}}")
       message(STATUS "SYCL flags: ${SYCL_COMPILER_FLAGS}")
       separate_arguments(SYCL_COMPILER_FLAGS NATIVE_COMMAND ${SYCL_COMPILER_FLAGS})
+
+      # Compile the sycl source files with the found sycl compiler
       foreach(src ${ARG_SOURCES})
         set(_output_path ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/${src}${CMAKE_CXX_OUTPUT_EXTENSION})
         list(APPEND _outputs ${_output_path})
@@ -1770,17 +1774,14 @@ if (oneapi)
                            )
         endforeach()
 
-      set(SYCL_LINKER_FLAGS "-shared -fsycl -fsycl-unnamed-lambda ${_fsycl_targets} -fPIC ${CMAKE_CXX_FLAGS} ${CMAKE_SHARED_LINKER_FLAGS}")
-      separate_arguments(SYCL_LINKER_FLAGS NATIVE_COMMAND ${SYCL_LINKER_FLAGS})
-
-      get_target_property(_lib_deps ${ARG_TARGET} LINK_LIBRARIES)
-      foreach(lib ${_lib_deps})
+      foreach(lib ${_deps})
         list(APPEND _lib_dep_paths "$<TARGET_FILE:${lib}>")
       endforeach()
 
+      # Also use the sycl compiler to create a shared library of sycl objects for linking against other ROOT code.
       set_property(TARGET ${ARG_TARGET} PROPERTY LINK_DEPENDS ${_outputs})
       add_custom_command(TARGET ${ARG_TARGET}
-                         COMMAND ${SYCL_COMPILER} ${SYCL_LINKER_FLAGS}
+                         COMMAND ${SYCL_COMPILER} ${SYCL_COMPILER_FLAGS} -shared
                                  -o $<TARGET_FILE:${_library_name}>
                                  ${_outputs} ${_lib_dep_paths}
                          DEPENDS ${_deps} ${_outputs} ${_sycl_target}
@@ -1788,9 +1789,6 @@ if (oneapi)
                          MAIN_DEPENDENCY ${ARG_TARGET}
                          )
     endfunction()
-
-    message(STATUS "Found Intel OneAPI SYCL: ${SYCL_INCLUDE_DIR} and ${SYCL_LIB_DIR} (modify with: SYCL_DIR)")
-    message(STATUS "Using SYCL Compiler: ${SYCL_COMPILER}")
   else()
     if(fail-on-missing)
       message(FATAL_ERROR "OpenAPI SYCL library not found")
