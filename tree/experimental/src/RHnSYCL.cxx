@@ -10,22 +10,17 @@
 namespace ROOT {
 namespace Experimental {
 
-class histogram_local;
-
 using mode = sycl::access::mode;
 
-using AccDoubleR = sycl::accessor<double, 1, mode::read>;
-using AccDoubleW = sycl::accessor<double, 1, mode::write>;
-using AccDoubleRW = sycl::accessor<double, 1, mode::read_write>;
-using AccBinsR = sycl::accessor<int, 1, mode::read>;
-using AccBinsW = sycl::accessor<int, 1, mode::write>;
-using AccAxesR = sycl::accessor<AxisDescriptor, 1, mode::read>;
+template <class T>
+using AccR = sycl::accessor<T, 1, mode::read>;
+template <class T>
+using AccW = sycl::accessor<T, 1, mode::write>;
+template <class T>
+using AccRW = sycl::accessor<T, 1, mode::read_write>;
 
 template <class T>
-using AccHistRW = sycl::accessor<T, 1, mode::read_write>;
-
-template <class T>
-using AccLocalMem = sycl::local_accessor<T, 1>;
+using AccLM = sycl::local_accessor<T, 1>;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Bin calculation methods
@@ -73,7 +68,7 @@ inline int GetBin(int tid, AxisDescriptor *axes, double *coords, unsigned int nC
 /// Methods for incrementing a bin.
 
 template <sycl::access::address_space Space>
-inline void AddBinContent(AccHistRW<double> histogram, int bin, double weight)
+inline void AddBinContent(AccRW<double> histogram, int bin, double weight)
 {
    auto atomic =
       sycl::atomic_ref<double, sycl::memory_order::relaxed, sycl::memory_scope::device, Space>(histogram[bin]);
@@ -81,7 +76,7 @@ inline void AddBinContent(AccHistRW<double> histogram, int bin, double weight)
 }
 
 template <sycl::access::address_space Space>
-inline void AddBinContent(AccHistRW<float> histogram, int bin, double weight)
+inline void AddBinContent(AccRW<float> histogram, int bin, double weight)
 {
    auto atomic =
       sycl::atomic_ref<float, sycl::memory_order::relaxed, sycl::memory_scope::device, Space>(histogram[bin]);
@@ -89,7 +84,7 @@ inline void AddBinContent(AccHistRW<float> histogram, int bin, double weight)
 }
 
 template <sycl::access::address_space Space>
-inline void AddBinContent(AccHistRW<short> histogram, int bin, double weight)
+inline void AddBinContent(AccRW<short> histogram, int bin, double weight)
 {
    // There is no fetch_add for short so we need to operate on integers... (Assumes little endian)
    short *addr = &histogram.get_pointer()[bin];
@@ -126,7 +121,81 @@ inline void AddBinContent(AccHistRW<short> histogram, int bin, double weight)
 }
 
 template <sycl::access::address_space Space>
-inline void AddBinContent(AccHistRW<int> histogram, int bin, double weight)
+inline void AddBinContent(AccRW<int> histogram, int bin, double weight)
+{
+   int assumed;
+   long newVal;
+   bool success = false;
+
+   // Repeat on failure/when the bin was already updated by another thread
+   do {
+      assumed = histogram[bin];
+      newVal = sycl::max(long(-INT_MAX), sycl::min(assumed + long(weight), long(INT_MAX)));
+      auto atomic =
+         sycl::atomic_ref<int, sycl::memory_order::relaxed, sycl::memory_scope::device, Space>(histogram[bin]);
+      success = atomic.compare_exchange_strong(assumed, (int)newVal);
+   } while (!success);
+}
+
+//
+// TODO: Cleaner overloads for local accessors with less duplication
+//
+
+template <sycl::access::address_space Space>
+inline void AddBinContent(AccLM<double> histogram, int bin, double weight)
+{
+   auto atomic =
+      sycl::atomic_ref<double, sycl::memory_order::relaxed, sycl::memory_scope::device, Space>(histogram[bin]);
+   atomic.fetch_add(weight);
+}
+
+template <sycl::access::address_space Space>
+inline void AddBinContent(AccLM<float> histogram, int bin, double weight)
+{
+   auto atomic =
+      sycl::atomic_ref<float, sycl::memory_order::relaxed, sycl::memory_scope::device, Space>(histogram[bin]);
+   atomic.fetch_add((float)weight);
+}
+
+template <sycl::access::address_space Space>
+inline void AddBinContent(AccLM<short> histogram, int bin, double weight)
+{
+   // There is no fetch_add for short so we need to operate on integers... (Assumes little endian)
+   short *addr = &histogram.get_pointer()[bin];
+   int *addrInt = (int *)((char *)addr - ((size_t)addr & 2));
+   int assumed, newVal, overwrite;
+   bool success = false;
+
+   do {
+      assumed = *addrInt;
+
+      if ((size_t)addr & 2) {
+         newVal = (assumed >> 16) + (int)weight; // extract short from upper 16 bits
+         overwrite = assumed & 0x0000ffff;       // clear upper 16 bits
+         if (newVal > -32768 && newVal < 32768)
+            overwrite |= (newVal << 16); // Set upper 16 bits to newVal
+         else if (newVal < -32767)
+            overwrite |= 0x80010000; // Set upper 16 bits to min short (-32767)
+         else
+            overwrite |= 0x7fff0000; // Set upper 16 bits to max short (32767)
+      } else {
+         newVal = (((assumed & 0xffff) << 16) >> 16) + (int)weight; // extract short from lower 16 bits + sign extend
+         overwrite = assumed & 0xffff0000;                          // clear lower 16 bits
+         if (newVal > -32768 && newVal < 32768)
+            overwrite |= (newVal & 0xffff); // Set lower 16 bits to newVal
+         else if (newVal < -32767)
+            overwrite |= 0x00008001; // Set lower 16 bits to min short (-32767)
+         else
+            overwrite |= 0x00007fff; // Set lower 16 bits to max short (32767)
+      }
+
+      auto atomic = sycl::atomic_ref<int, sycl::memory_order::relaxed, sycl::memory_scope::device, Space>(addrInt[0]);
+      success = atomic.compare_exchange_strong(assumed, overwrite);
+   } while (!success);
+}
+
+template <sycl::access::address_space Space>
+inline void AddBinContent(AccLM<int> histogram, int bin, double weight)
 {
    int assumed;
    long newVal;
@@ -148,8 +217,8 @@ inline void AddBinContent(AccHistRW<int> histogram, int bin, double weight)
 template <typename T, unsigned int Dim>
 class HistogramGlobal {
 public:
-   HistogramGlobal(AccHistRW<T> _histogramAcc, AccAxesR _axesAcc, AccDoubleR _coordsAcc, AccDoubleR _weightsAcc,
-                   AccBinsW _binsAcc, double *_binEdges)
+   HistogramGlobal(AccRW<T> _histogramAcc, AccR<AxisDescriptor> _axesAcc, AccR<double> _coordsAcc,
+                   AccR<double> _weightsAcc, AccW<int> _binsAcc, double *_binEdges)
       : histogramAcc(_histogramAcc),
         axesAcc(_axesAcc),
         coordsAcc(_coordsAcc),
@@ -171,25 +240,26 @@ public:
    }
 
 private:
-   AccHistRW<T> histogramAcc;
-   AccAxesR axesAcc;
-   AccDoubleR coordsAcc, weightsAcc;
-   AccBinsW binsAcc;
+   AccRW<T> histogramAcc;
+   AccR<AxisDescriptor> axesAcc;
+   AccR<double> coordsAcc, weightsAcc;
+   AccW<int> binsAcc;
    double *binEdges;
 };
 
 template <typename T, unsigned int Dim>
 class HistogramLocal {
 public:
-   HistogramLocal(AccLocalMem<T> _localMem, AccHistRW<T> _histogramAcc, AccAxesR _axesAcc, AccDoubleR _coordsAcc,
-                  AccDoubleR _weightsAcc, AccBinsW _binsAcc, double *_binEdges)
+   HistogramLocal(AccLM<T> _localMem, AccRW<T> _histogramAcc, AccR<AxisDescriptor> _axesAcc, AccR<double> _coordsAcc,
+                  AccR<double> _weightsAcc, AccW<int> _binsAcc, double *_binEdges)
       : localMem(_localMem),
         histogramAcc(_histogramAcc),
         axesAcc(_axesAcc),
         coordsAcc(_coordsAcc),
         weightsAcc(_weightsAcc),
         binsAcc(_binsAcc),
-        binEdges(_binEdges)   {
+        binEdges(_binEdges)
+   {
    }
 
    void operator()(sycl::nd_item<1> item) const
@@ -214,7 +284,7 @@ public:
                                 binsAcc.get_pointer(), binEdges);
 
          if (bin >= 0) {
-            AddBinContent<sycl::access::address_space::local_space>(histogramAcc, bin, weightsAcc[i]);
+            AddBinContent<sycl::access::address_space::local_space>(localMem, bin, weightsAcc[i]);
          }
       }
       sycl::group_barrier(group);
@@ -226,11 +296,11 @@ public:
    }
 
 private:
-   AccLocalMem<T> localMem;
-   AccHistRW<T> histogramAcc;
-   AccAxesR axesAcc;
-   AccDoubleR coordsAcc, weightsAcc;
-   AccBinsW binsAcc;
+   AccLM<T> localMem;
+   AccRW<T> histogramAcc;
+   AccR<AxisDescriptor> axesAcc;
+   AccR<double> coordsAcc, weightsAcc;
+   AccW<int> binsAcc;
    double *binEdges;
 };
 
@@ -240,7 +310,7 @@ private:
 template <unsigned int Dim>
 class ExcludeUOverflowKernel {
 public:
-   ExcludeUOverflowKernel(AccBinsR _binsAcc, AccDoubleW _weightsAcc, AccAxesR _axesAcc)
+   ExcludeUOverflowKernel(AccR<int> _binsAcc, AccW<double> _weightsAcc, AccR<AxisDescriptor> _axesAcc)
       : binsAcc(_binsAcc), weightsAcc(_weightsAcc), axesAcc(_axesAcc)
    {
    }
@@ -254,21 +324,21 @@ public:
    }
 
 private:
-   AccBinsR binsAcc;
-   AccDoubleW weightsAcc;
-   AccAxesR axesAcc;
+   AccR<int> binsAcc;
+   AccW<double> weightsAcc;
+   AccR<AxisDescriptor> axesAcc;
 };
 
 class CombineStatsKernel {
 public:
-   CombineStatsKernel(AccDoubleRW _statsAcc, double *_intermediate) : statsAcc(_statsAcc), intermediate(_intermediate)
+   CombineStatsKernel(AccRW<double> _statsAcc, double *_intermediate) : statsAcc(_statsAcc), intermediate(_intermediate)
    {
    }
 
-   void operator()(sycl::id<1> id) const { statsAcc[id] += intermediate[id]; }
+   void operator()(sycl::id<1> id) const { statsAcc[id] = intermediate[id]; }
 
 private:
-   AccDoubleRW statsAcc;
+   AccRW<double> statsAcc;
    double *intermediate;
 };
 
@@ -328,6 +398,7 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(size_t maxBulkSize, const std::array<int, D
    fBStats = sycl::buffer<double, 1>(sycl::range<1>(kNStats));
    SYCLHelpers::InitializeToZero(queue, *fBStats, kNStats);
    fDIntermediateStats = sycl::malloc_device<double>(kNStats, queue);
+   // queue.memset(fDIntermediateStats, 0, kNStats * sizeof(double));
 
    // Initialize BinEdges buffer.
    fDBinEdges = NULL;
