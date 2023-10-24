@@ -46,7 +46,7 @@ private:
 public:
    RHnSYCL() = delete;
 
-   RHnSYCL(size_t maxBulkSize, const std::array<int, Dim> &ncells, const std::array<double, Dim> &xlow,
+   RHnSYCL(std::size_t maxBulkSize, const std::array<int, Dim> &ncells, const std::array<double, Dim> &xlow,
            const std::array<double, Dim> &xhigh, const double **binEdges = NULL);
 
    ~RHnSYCL()
@@ -68,12 +68,12 @@ public:
 
    void Fill(const RVecD &coords, const RVecD &weights);
 
-   size_t GetMaxBulkSize() { return fMaxBulkSize; }
+   std::size_t GetMaxBulkSize() { return fMaxBulkSize; }
 
 private:
-   void GetStats(unsigned int size);
+   void GetStats(std::size_t size);
 
-   void ExecuteSYCLHisto(int size);
+   void ExecuteSYCLHisto(std::size_t size);
 };
 
 } // namespace Experimental

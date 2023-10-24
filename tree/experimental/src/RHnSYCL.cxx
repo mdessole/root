@@ -346,7 +346,7 @@ private:
 /// RHnSYCL
 
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
-RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(size_t maxBulkSize, const std::array<int, Dim> &ncells,
+RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(std::size_t maxBulkSize, const std::array<int, Dim> &ncells,
                                      const std::array<double, Dim> &xlow, const std::array<double, Dim> &xhigh,
                                      const double **binEdges)
    : queue(sycl::default_selector_v, SYCLHelpers::exception_handler),
@@ -398,14 +398,15 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(size_t maxBulkSize, const std::array<int, D
    fBStats = sycl::buffer<double, 1>(sycl::range<1>(kNStats));
    SYCLHelpers::InitializeToZero(queue, *fBStats, kNStats);
    fDIntermediateStats = sycl::malloc_device<double>(kNStats, queue);
-   // queue.memset(fDIntermediateStats, 0, kNStats * sizeof(double));
+   queue.memset(fDIntermediateStats, 0, kNStats * sizeof(double));
 
    // Initialize BinEdges buffer.
    fDBinEdges = NULL;
    if (numBinEdges > 0) {
       fDBinEdges = sycl::malloc_device<double>(numBinEdges, queue);
-      queue.memcpy((void *)fDBinEdges, binEdgesFlat.data(), numBinEdges * sizeof(double)).wait();
+      queue.memcpy((void *)fDBinEdges, binEdgesFlat.data(), numBinEdges * sizeof(double));
    }
+   queue.wait();
 
    // Determine the amount of shared memory required for HistogramKernel, and the maximum available.
    fHistoSmemSize = fNbins * sizeof(T);
@@ -452,7 +453,7 @@ unsigned int nextPow2(unsigned int x)
 }
 
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
-void RHnSYCL<T, Dim, WGroupSize>::GetStats(unsigned int size)
+void RHnSYCL<T, Dim, WGroupSize>::GetStats(std::size_t size)
 {
    // Set weights of over/underflow bins to zero
    queue.submit([&](sycl::handler &cgh) {
@@ -529,7 +530,7 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(unsigned int size)
 }
 
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
-void RHnSYCL<T, Dim, WGroupSize>::ExecuteSYCLHisto(int size)
+void RHnSYCL<T, Dim, WGroupSize>::ExecuteSYCLHisto(std::size_t size)
 {
    if (fHistoSmemSize > fMaxSmemSize) {
       queue.submit([&](sycl::handler &cgh) {
@@ -573,7 +574,7 @@ void RHnSYCL<T, Dim, WGroupSize>::RetrieveResults(T *histResult, double *statsRe
 {
    queue.copy(sycl::accessor{*fBHistogram, sycl::read_only}, histResult);
    queue.copy(sycl::accessor{*fBStats, sycl::read_only}, statsResult);
-   queue.wait();
+   queue.wait_and_throw();
 }
 
 #include "RHnSYCL-impl.cxx"
