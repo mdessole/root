@@ -1755,7 +1755,7 @@ if (oneapi)
       endif()
 
       set(SYCL_COMPILER_FLAGS "-fPIC -fsycl -fsycl-unnamed-lambda -sycl-std=2020 ${_fsycl_targets} ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${_BUILD_TYPE_UPPER}}")
-      message(STATUS "SYCL flags: ${SYCL_COMPILER_FLAGS}")
+      message(STATUS "SYCL compiler flags: ${SYCL_COMPILER_FLAGS}")
       separate_arguments(SYCL_COMPILER_FLAGS NATIVE_COMMAND ${SYCL_COMPILER_FLAGS})
 
       # Compile the sycl source files with the found sycl compiler
@@ -1778,14 +1778,20 @@ if (oneapi)
         list(APPEND _lib_dep_paths "$<TARGET_FILE:${lib}>")
       endforeach()
 
+      set(SYCL_LINKER_FLAGS "-shared -Wl,-soname,$<TARGET_FILE:${_library_name}> -L${SYCL_LIB_DIR} ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,${SYCL_LIB_DIR}:$<TARGET_FILE_DIR:${_library_name}>")
+      message(STATUS "SYCL linker flags: ${SYCL_LINKER_FLAGS}")
+      separate_arguments(SYCL_LINKER_FLAGS NATIVE_COMMAND ${SYCL_LINKER_FLAGS})
+
       # Also use the sycl compiler to create a shared library of sycl objects for linking against other ROOT code.
+      # Unfortunately, this doesn't override the existing rule for building the shared library with the CXX compiler,
+      # but instead
       set_property(TARGET ${ARG_TARGET} PROPERTY LINK_DEPENDS ${_outputs})
       add_custom_command(TARGET ${ARG_TARGET}
-                         COMMAND ${SYCL_COMPILER} ${SYCL_COMPILER_FLAGS} -shared
+                         COMMAND ${SYCL_COMPILER} ${SYCL_COMPILER_FLAGS} ${SYCL_LINKER_FLAGS}
                                  -o $<TARGET_FILE:${_library_name}>
                                  ${_outputs} ${_lib_dep_paths}
                          DEPENDS ${_deps} ${_outputs} ${_sycl_target}
-                         COMMENT "Linking shared library ${_shared_library_name}"
+                         COMMENT "Linking shared library $<TARGET_FILE:${_library_name}>"
                          MAIN_DEPENDENCY ${ARG_TARGET}
                          )
     endfunction()
@@ -1807,7 +1813,7 @@ if (opensycl)
     find_package(OpenSYCL)
     if (OpenSYCL_FOUND)
       set(sycl ON)
-      function( )
+      function(add_sycl_to_root_target)
         CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES" ${ARGN})
         add_sycl_to_target(TARGET ${ARG_TARGET}  SOURCES ${ARG_SOURCES})
         target_include_directories(${ARG_TARGET} INTERFACE ${OpenSYCL_INCLUDE_DIRS})
