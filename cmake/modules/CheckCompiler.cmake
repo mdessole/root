@@ -177,7 +177,7 @@ if(NOT CMAKE_CXX_STANDARD MATCHES "17|20")
 endif()
 
 # needed by roottest, to be removed once roottest is fixed
-if(NOT opensycl) # OpenSYCL fails to compile when std=c++xx is defined multiple times.
+if(NOT adaptivecpp) # AdaptiveCPP fails to compile when std=c++xx is defined multiple times.
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION}")
 endif()
 
