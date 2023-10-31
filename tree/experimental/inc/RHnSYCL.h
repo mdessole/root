@@ -41,10 +41,10 @@ private:
    double                           *fDIntermediateStats; ///< Pointer to statistics array on GPU.
 
    // Kernel size parameters
-   unsigned int                      fMaxBulkSize;        ///< Number of coordinates to buffer.
-   unsigned int                      fMaxSmemSize;        ///< Maximum shared memory size per block on device 0.
-   unsigned int const                kStatsSmemSize;      ///< Size of shared memory per block in GetStatsKernel
-   unsigned int                      fHistoSmemSize;      ///< Size of shared memory per block in HistoKernel
+   std::size_t                       fMaxBulkSize;        ///< Number of coordinates to buffer.
+   std::size_t                       fMaxSmemSize;        ///< Maximum shared memory size per block on device 0.
+   std::size_t const                 kStatsSmemSize;      ///< Size of shared memory per block in GetStatsKernel
+   std::size_t                       fHistoSmemSize;      ///< Size of shared memory per block in HistoKernel
    // clang-format on
 
 public:
@@ -65,10 +65,10 @@ public:
       sycl::free(fDWeights, queue);
       sycl::free(fDBins, queue);
       sycl::free(fDStats, queue);
-      sycl::free(fDIntermediateStats, queue);
-      if (fDBinEdges != NULL) {
+      if (fDIntermediateStats != NULL)
+         sycl::free(fDIntermediateStats, queue);
+      if (fDBinEdges != NULL)
          sycl::free(fDBinEdges, queue);
-      }
    }
 
    RHnSYCL(const RHnSYCL &) = delete;

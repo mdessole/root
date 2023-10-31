@@ -40,13 +40,13 @@ inline int FindFixBin(double x, const double *binEdges, int binEdgesIdx, int nBi
 
 template <unsigned int Dim>
 inline int GetBin(size_t tid, double *binEdges, int *binEdgesIdx, int *nBinsAxis, double *xMin, double *xMax,
-                  double *coords, size_t nCoords, int *bins)
+                  double *coords, size_t bulkSize, int *bins)
 {
    auto bin = 0;
    for (int d = Dim - 1; d >= 0; d--) {
-      auto *x = &coords[d * nCoords];
+      auto *x = &coords[d * bulkSize];
       auto binD = FindFixBin(x[tid], binEdges, binEdgesIdx[d], nBinsAxis[d] - 2, xMin[d], xMax[d]);
-      bins[d * nCoords + tid] = binD;
+      bins[d * bulkSize + tid] = binD;
 
       if (binD < 0) {
          return -1;
@@ -212,7 +212,7 @@ template <typename T, unsigned int Dim>
 class HistogramGlobal {
 public:
    HistogramGlobal(T *_histogram, double *_binEdges, int *_binEdgesIdx, int *_nBinsAxis, double *_xMin, double *_xMax,
-                   double *_coords, double *_weights, int *_bins, std::size_t _nCoords)
+                   double *_coords, double *_weights, int *_bins, std::size_t _bulkSize)
       : histogram(_histogram),
         binEdges(_binEdges),
         xMin(_xMin),
@@ -222,14 +222,14 @@ public:
         binEdgesIdx(_binEdgesIdx),
         bins(_bins),
         nBinsAxis(_nBinsAxis),
-        nCoords(_nCoords)
+        bulkSize(_bulkSize)
    {
    }
 
    void operator()(sycl::item<1> item) const
    {
       size_t id = item.get_linear_id();
-      auto bin = GetBin<Dim>(id, binEdges, binEdgesIdx, nBinsAxis, xMin, xMax, coords, nCoords, bins);
+      auto bin = GetBin<Dim>(id, binEdges, binEdgesIdx, nBinsAxis, xMin, xMax, coords, bulkSize, bins);
 
       if (bin >= 0) {
          AddBinContent<sycl::access::address_space::global_space>(histogram, bin, weights[id]);
@@ -240,7 +240,7 @@ private:
    T *histogram;
    double *binEdges, *xMin, *xMax, *coords, *weights;
    int *binEdgesIdx, *bins, *nBinsAxis;
-   std::size_t nCoords;
+   std::size_t bulkSize;
 };
 
 template <typename T, unsigned int Dim>
@@ -248,7 +248,7 @@ class HistogramLocal {
 public:
    HistogramLocal(AccLM<T> _localMem, T *_histogram, double *_binEdges, int *_binEdgesIdx, int *_nBinsAxis,
                   double *_xMin, double *_xMax, double *_coords, double *_weights, int *_bins, size_t _nBins,
-                  std::size_t _nCoords)
+                  std::size_t _bulkSize)
       : localMem(_localMem),
         histogram(_histogram),
         binEdges(_binEdges),
@@ -260,7 +260,7 @@ public:
         bins(_bins),
         nBinsAxis(_nBinsAxis),
         nBins(_nBins),
-        nCoords(_nCoords)
+        bulkSize(_bulkSize)
    {
    }
 
@@ -278,9 +278,9 @@ public:
       }
       sycl::group_barrier(group);
 
-      for (auto i = globalId; i < nCoords; i += stride) {
+      for (auto i = globalId; i < bulkSize; i += stride) {
          // Fill local histogram
-         auto bin = GetBin<Dim>(i, binEdges, binEdgesIdx, nBinsAxis, xMin, xMax, coords, nCoords, bins);
+         auto bin = GetBin<Dim>(i, binEdges, binEdgesIdx, nBinsAxis, xMin, xMax, coords, bulkSize, bins);
 
          if (bin >= 0) {
             AddBinContent<sycl::access::address_space::local_space>(localMem, bin, weights[i]);
@@ -299,7 +299,7 @@ private:
    T *histogram;
    double *binEdges, *xMin, *xMax, *coords, *weights;
    int *binEdgesIdx, *bins, *nBinsAxis;
-   std::size_t nBins, nCoords;
+   std::size_t nBins, bulkSize;
 };
 
 ///////////////////////////////////////////
@@ -308,15 +308,15 @@ private:
 template <unsigned int Dim>
 class ExcludeUOverflowKernel {
 public:
-   ExcludeUOverflowKernel(int *_bins, double *_weights, int *_nBinsAxis, std::size_t _nCoords)
-      : bins(_bins), weights(_weights), nBinsAxis(_nBinsAxis), nCoords(_nCoords)
+   ExcludeUOverflowKernel(int *_bins, double *_weights, int *_nBinsAxis, std::size_t _bulkSize)
+      : bins(_bins), weights(_weights), nBinsAxis(_nBinsAxis), bulkSize(_bulkSize)
    {
    }
 
    void operator()(sycl::id<1> id) const
    {
-      if (bins[id] <= 0 || bins[id] >= nBinsAxis[id / nCoords] - 1) {
-         weights[id % nCoords] = 0.;
+      if (bins[id] <= 0 || bins[id] >= nBinsAxis[id / bulkSize] - 1) {
+         weights[id % bulkSize] = 0.;
       }
    }
 
@@ -324,7 +324,7 @@ private:
    int *bins;
    double *weights;
    int *nBinsAxis;
-   std::size_t nCoords;
+   std::size_t bulkSize;
 };
 
 class CombineStatsKernel {
@@ -350,10 +350,6 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(std::size_t maxBulkSize, const std::size_t 
      kStatsSmemSize((WGroupSize <= 32) ? 2 * WGroupSize * sizeof(double) : WGroupSize * sizeof(double))
 {
    auto device = queue.get_device();
-   if (getenv("DBG")) {
-      std::cout << "Running SYCLHist on " << device.template get_info<sycl::info::device::name>() << "\n";
-      printf("USM support: %s\n", device.has(sycl::aspect::usm_device_allocations) ? "yes" : "no");
-   }
 
    fMaxBulkSize = maxBulkSize;
    fNBins = nBins;
@@ -385,8 +381,13 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(std::size_t maxBulkSize, const std::size_t 
    queue.memset(fDHistogram, 0, fNBins * sizeof(T));
    fDStats = sycl::malloc_device<double>(kNStats, queue);
    queue.memset(fDStats, 0, kNStats * sizeof(double));
+
+#ifdef ROOT_RDF_ADAPTIVECPP
    fDIntermediateStats = sycl::malloc_device<double>(kNStats, queue);
    queue.memset(fDIntermediateStats, 0, kNStats * sizeof(double));
+#else
+   fDIntermediateStats = NULL;
+#endif
 
    queue.wait();
 
@@ -395,6 +396,12 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(std::size_t maxBulkSize, const std::size_t 
    auto has_local_mem = device.is_gpu() || (device.template get_info<sycl::info::device::local_mem_type>() !=
                                             sycl::info::local_mem_type::none);
    fMaxSmemSize = has_local_mem ? device.template get_info<sycl::info::device::local_mem_size>() : 0;
+
+   if (getenv("DBG")) {
+      std::cout << "Running SYCLHist on " << device.template get_info<sycl::info::device::name>() << "\n";
+      printf("USM support: %s\n", device.has(sycl::aspect::usm_device_allocations) ? "yes" : "no");
+      printf("Maximum shared memory size: %zu\n", fMaxSmemSize);
+   }
 }
 
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
@@ -420,17 +427,6 @@ void RHnSYCL<T, Dim, WGroupSize>::Fill(const RVecD &coords, const RVecD &weights
    ExecuteSYCLHisto(bulkSize, copyEvents);
 }
 
-unsigned int nextPow2(unsigned int x)
-{
-   --x;
-   x |= x >> 1;
-   x |= x >> 2;
-   x |= x >> 4;
-   x |= x >> 8;
-   x |= x >> 16;
-   return ++x;
-}
-
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
 void RHnSYCL<T, Dim, WGroupSize>::GetStats(std::size_t size, sycl::event &fillEvent)
 {
@@ -442,7 +438,7 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(std::size_t size, sycl::event &fillEv
    });
 
    std::vector<sycl::event> statsReductions;
-   unsigned int reductionRange = ceil(size / 8.);
+   std::size_t reductionRange = ceil(size / 8.);
    auto resultBuf = fDStats;
 #ifdef ROOT_RDF_ADAPTIVECPP
    resultBuf = fDIntermediateStats;

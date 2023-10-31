@@ -6,8 +6,8 @@
 #include "gtest/gtest.h"
 
 #include "ROOT/RDataFrame.hxx"
-#include "RHnCUDA.h"
 #include "RHnSYCL.h"
+#include "RHnCUDA.h"
 #include "TH1.h"
 #include "TAxis.h"
 
@@ -170,16 +170,15 @@ protected:
    typename C::histType histogram;
 
    FillTestFixture()
-      : histogram(32768, Repeat<int, dim>(numBins), Repeat<double, dim>(startBin), Repeat<double, dim>(endBin))
+      : histogram(32768, nCells, Repeat<int, dim>(numBins), Repeat<double, dim>(startBin), Repeat<double, dim>(endBin),
+                  {}, Repeat<int, dim>(-1))
    {
    }
 
    void SetUp() override
    {
       EnableGPU(env);
-      nStats = 2 + 2 * dim;
-      if (dim > 1)
-         nStats += TMath::Binomial(dim, 2);
+      nStats = 2 + dim * 2 + dim * (dim - 1) / 2;
 
       stats = new double[nStats];
       expectedStats = new double[nStats];
@@ -307,7 +306,7 @@ TYPED_TEST(FillTestFixture, FillFixedBinsWeighted)
 
    for (auto i = 0; i < (int)coords.size(); i++) {
       h.Fill(coords[i], weight);
-      this->expectedHist[expectedHistBins[i]] = (t) weight[0];
+      this->expectedHist[expectedHistBins[i]] = (t)weight[0];
    }
 
    h.RetrieveResults(this->result, this->stats);
@@ -319,19 +318,19 @@ TYPED_TEST(FillTestFixture, FillFixedBinsWeighted)
 
    {
       SCOPED_TRACE("Check statistics");
-      this->GetExpectedStats(coords, (t) weight[0]);
+      this->GetExpectedStats(coords, (t)weight[0]);
       CompareArrays(this->stats, this->expectedStats, this->nStats);
    }
 }
 
 TYPED_TEST(ClampTestFixture, FillIntClamp)
 {
-   auto h = typename TestFixture::hist::type<int, 1>(32768, {6}, {0}, {4});
+   auto h = typename TestFixture::hist::type<int, 1>(32768, 6, {6}, {0}, {4}, {}, {-1});
    h.Fill({0}, {INT_MAX});
    h.Fill({3}, {-INT_MAX});
 
-   for (int i = 0; i < 100; i++) {     // Repeat to test for race conditions
-      h.Fill({0});                     // Should keep max value
+   for (int i = 0; i < 100; i++) {       // Repeat to test for race conditions
+      h.Fill({0});                       // Should keep max value
       h.Fill({1}, {long(INT_MAX) + 1});  // Clamp positive overflow
       h.Fill({2}, {-long(INT_MAX) - 1}); // Clamp negative overflow
       h.Fill({3}, {-1});                 // Should keep min value
@@ -351,7 +350,7 @@ TYPED_TEST(ClampTestFixture, FillIntClamp)
 
 TYPED_TEST(ClampTestFixture, FillShortClamp)
 {
-   auto h = typename TestFixture::hist::type<short, 1>(32768, {10}, {0}, {8});
+   auto h = typename TestFixture::hist::type<short, 1>(32768, 10, {10}, {0}, {8}, {}, {-1});
 
    // Filling short histograms is implemented using atomic operations on integers so we test each case
    // twice to test the for correct filling of the lower and upper bits.
@@ -359,8 +358,8 @@ TYPED_TEST(ClampTestFixture, FillShortClamp)
       h.Fill({0. + offset}, {32767});
       h.Fill({2. + offset}, {-32767});
 
-      for (int i = 0; i < 100; i++) {   // Repeat to test for race conditions
-         h.Fill({0. + offset});         // Keep max value
+      for (int i = 0; i < 100; i++) {     // Repeat to test for race conditions
+         h.Fill({0. + offset});           // Keep max value
          h.Fill({2. + offset}, {-1});     // Keep min value
          h.Fill({4. + offset}, {32769});  // Clamp positive overflow
          h.Fill({6. + offset}, {-32769}); // Clamp negative overflow

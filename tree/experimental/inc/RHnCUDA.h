@@ -16,10 +16,13 @@ private:
    static constexpr int kNStats = 2 + Dim * 2 + Dim * (Dim - 1) / 2; ///< Number of statistics.
 
    T                                *fDHistogram;         ///< Pointer to histogram buffer on the GPU.
-   int                               fNbins;              ///< Total number of bins in the histogram WITH under/overflow
+   int                               fNBins;              ///< Total number of bins in the histogram WITH under/overflow
 
-   std::array<AxisDescriptor, Dim>   fHAxes;              ///< Vector of Dim axis descriptors
-   AxisDescriptor                   *fDAxes;              ///< Pointer to axis descriptors on the GPU.
+   int                              *fDNBinsAxis;         ///< Number of bins(1D) WITH u/overflow per axis
+   double                           *fDMin;               ///< Low edge of first bin per axis
+   double                           *fDMax;               ///< Upper edge of last bin per axis
+   double                           *fDBinEdges;          ///< Bin edges array for each axis
+   int                              *fDBinEdgesIdx;       ///< Start index of the binedges in kBinEdges per axis
 
    std::vector<double>               fHCoords;            ///< 1D buffer with bufferSize #Dim-dimensional coordinates to fill in xxyyzz format.
    std::vector<double>               fHWeights;           ///< Buffer of weights for each bin on the Host.
@@ -33,24 +36,19 @@ private:
 
    // Kernel size parameters
    unsigned int                      fNumBlocks;          ///< Number of blocks used in CUDA kernels
-   unsigned int                      fMaxBulkSize;         ///< Number of coordinates to buffer.
-   unsigned int                      fMaxSmemSize;        ///< Maximum shared memory size per block on device 0.
-   unsigned int                      kStatsSmemSize;      ///< Size of shared memory per block in GetStatsKernel
-   unsigned int                      fHistoSmemSize;      ///< Size of shared memory per block in HistoKernel
+   std::size_t                       fMaxBulkSize;         ///< Number of coordinates to buffer.
+   std::size_t                       fMaxSmemSize;        ///< Maximum shared memory size per block on device 0.
+   std::size_t                       kStatsSmemSize;      ///< Size of shared memory per block in GetStatsKernel
+   std::size_t                       fHistoSmemSize;      ///< Size of shared memory per block in HistoKernel
    // clang-format on
 
 public:
    RHnCUDA() = delete;
 
-   RHnCUDA(std::size_t maxBulkSize, std::array<int, Dim> ncells, std::array<double, Dim> xLow, std::array<double, Dim> xHigh,
-           const double **binEdges = NULL);
-
    // TODO: Change RHnCUDA to SOA for axes
-   RHnCUDA(std::size_t maxBulkSize, const std::size_t nBins, const std::array<int, Dim> &ncells,
+   RHnCUDA(std::size_t maxBulkSize, const std::size_t nBins, const std::array<int, Dim> &nBinsAxis,
            const std::array<double, Dim> &xLow, const std::array<double, Dim> &xHigh,
-           const std::vector<double> binEdges, const std::array<int, Dim> binEdgesIdx) :
-           RHnCUDA<T, Dim, BlockSize>(maxBulkSize, ncells, xLow, xHigh, NULL)
-           {}
+           const std::vector<double> &binEdges, const std::array<int, Dim> &binEdgesIdx);
 
    ~RHnCUDA();
 
@@ -58,8 +56,6 @@ public:
    RHnCUDA &operator=(const RHnCUDA &) = delete;
 
    int GetEntries() { return fEntries; }
-
-   void AllocateBuffers();
 
    void RetrieveResults(T *histResult, double *statsResult);
 
@@ -70,9 +66,9 @@ public:
    size_t GetMaxBulkSize() { return fMaxBulkSize; }
 
 protected:
-   void GetStats(unsigned int size);
+   void GetStats(std::size_t size);
 
-   void ExecuteCUDAHisto(unsigned int size);
+   void ExecuteCUDAHisto(std::size_t size);
 };
 
 } // namespace Experimental
