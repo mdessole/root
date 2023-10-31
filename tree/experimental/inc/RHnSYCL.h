@@ -20,37 +20,51 @@ private:
    static constexpr int kNStats = 2 + Dim * 2 + Dim * (Dim - 1) / 2; ///< Number of statistics.
 
    // clang-format off
-   sycl::queue                                     queue;
+   sycl::queue                       queue;
+   std::vector<sycl::event>          prevBulk;
 
-   std::optional<sycl::buffer<T, 1>>               fBHistogram;        ///< Pointer to histogram buffer on the GPU.
-   int                                             fNbins;             ///< Total number of bins in the histogram WITH under/overflow
+   T                                *fDHistogram;         ///< Pointer to histogram buffer on the GPU.
+   int                               fNBins;              //< Total number of bins in the histogram WITH under/overflow
 
-   std::optional<sycl::buffer<AxisDescriptor, 1>>  fBAxes;             ///< Vector of Dim axis descriptors
-   double                                         *fDBinEdges;         ///< Binedges per axis for non-fixed bins. TODO: remove binedges from AxisDescriptor
+   int                              *fDNBinsAxis;         ///< Number of bins(1D) WITH u/overflow per axis
+   double                           *fDMin;               ///< Low edge of first bin per axis
+   double                           *fDMax;               ///< Upper edge of last bin per axis
+   double                           *fDBinEdges;          ///< Bin edges array for each axis
+   int                              *fDBinEdgesIdx;       ///< Start index of the binedges in kBinEdges per axis
 
-   std::optional<sycl::buffer<double, 1>>          fBCoords;           ///< 1D buffer with bufferSize #Dim-dimensional coordinates to fill.
-   std::optional<sycl::buffer<double, 1>>          fBWeights;          ///< Buffer of weigths for each bin on the Host.
-   std::optional<sycl::buffer<int, 1>>             fBBins;             ///< Pointer to array of bins (corresponding to the coordinates) to fill on the GPU.
+   double                           *fDCoords;            ///< Pointer to array of coordinates to fill on the GPU.
+   double                           *fDWeights;           ///< Pointer to array of weights on the GPU.
+   int                              *fDBins;              ///< Pointer to array of bins (corresponding to the coordinates) to fill on the GPU.
 
-   int                                             fEntries;           ///< Number of entries that have been filled.
-   std::optional<sycl::buffer<double, 1>>          fBStats;            ///< Pointer to statistics array on GPU.
-   double                                         *fDIntermediateStats;///< Pointer to statistics array on GPU.
+   int                               fEntries;            ///< Number of entries that have been filled.
+   double                           *fDStats;             ///< Pointer to statistics array on GPU.
+   double                           *fDIntermediateStats; ///< Pointer to statistics array on GPU.
 
    // Kernel size parameters
-   unsigned int                                    fMaxBulkSize;       ///< Number of coordinates to buffer.
-   unsigned int                                    fMaxSmemSize;       ///< Maximum shared memory size per block on device 0.
-   unsigned int const                              kStatsSmemSize;     ///< Size of shared memory per block in GetStatsKernel
-   unsigned int                                    fHistoSmemSize;     ///< Size of shared memory per block in HistoKernel
+   unsigned int                      fMaxBulkSize;        ///< Number of coordinates to buffer.
+   unsigned int                      fMaxSmemSize;        ///< Maximum shared memory size per block on device 0.
+   unsigned int const                kStatsSmemSize;      ///< Size of shared memory per block in GetStatsKernel
+   unsigned int                      fHistoSmemSize;      ///< Size of shared memory per block in HistoKernel
    // clang-format on
 
 public:
    RHnSYCL() = delete;
 
-   RHnSYCL(std::size_t maxBulkSize, const std::array<int, Dim> &ncells, const std::array<double, Dim> &xlow,
-           const std::array<double, Dim> &xhigh, const double **binEdges = NULL);
+   RHnSYCL(std::size_t maxBulkSize, const std::size_t nBins, const std::array<int, Dim> &nBinsAxis,
+           const std::array<double, Dim> &xLow, const std::array<double, Dim> &xHigh,
+           const std::vector<double> &binEdges, const std::array<int, Dim> &binEdgesIdx);
 
    ~RHnSYCL()
    {
+      sycl::free(fDHistogram, queue);
+      sycl::free(fDNBinsAxis, queue);
+      sycl::free(fDMin, queue);
+      sycl::free(fDMax, queue);
+      sycl::free(fDBinEdgesIdx, queue);
+      sycl::free(fDCoords, queue);
+      sycl::free(fDWeights, queue);
+      sycl::free(fDBins, queue);
+      sycl::free(fDStats, queue);
       sycl::free(fDIntermediateStats, queue);
       if (fDBinEdges != NULL) {
          sycl::free(fDBinEdges, queue);
@@ -71,9 +85,9 @@ public:
    std::size_t GetMaxBulkSize() { return fMaxBulkSize; }
 
 private:
-   void GetStats(std::size_t size);
+   void GetStats(std::size_t size, sycl::event &fillEvent);
 
-   void ExecuteSYCLHisto(std::size_t size);
+   void ExecuteSYCLHisto(std::size_t size, std::vector<sycl::event> &depends);
 };
 
 } // namespace Experimental

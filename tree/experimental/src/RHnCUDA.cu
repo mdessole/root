@@ -252,8 +252,8 @@ __global__ void ExcludeUOverflowKernel(int *bins, double *weights, unsigned int 
 /// RHnCUDA
 
 template <typename T, unsigned int Dim, unsigned int BlockSize>
-RHnCUDA<T, Dim, BlockSize>::RHnCUDA(size_t maxBulkSize, std::array<int, Dim> ncells, std::array<double, Dim> xlow,
-                                    std::array<double, Dim> xhigh, const double **binEdges)
+RHnCUDA<T, Dim, BlockSize>::RHnCUDA(size_t maxBulkSize, std::array<int, Dim> ncells, std::array<double, Dim> xLow,
+                                    std::array<double, Dim> xHigh, const double **binEdges)
    : kStatsSmemSize((BlockSize <= 32) ? 2 * BlockSize * sizeof(double) : BlockSize * sizeof(double))
 {
    fMaxBulkSize = maxBulkSize;
@@ -269,8 +269,8 @@ RHnCUDA<T, Dim, BlockSize>::RHnCUDA(size_t maxBulkSize, std::array<int, Dim> nce
    for (auto i = 0; i < Dim; i++) {
       AxisDescriptor axis;
       axis.fNbins = ncells[i];
-      axis.fMin = xlow[i];
-      axis.fMax = xhigh[i];
+      axis.fMin = xLow[i];
+      axis.fMax = xHigh[i];
       if (binEdges != NULL)
          axis.kBinEdges = binEdges[i];
       else

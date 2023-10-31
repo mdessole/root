@@ -225,7 +225,7 @@ public:
       auto dims = obj->GetDimension();
       std::array<Int_t, dim> ncells;
       std::array<Double_t, dim> xlow;
-      std::array<Double_t, dim> xhigh;
+      std::array<Double_t, dim> xHigh;
       std::array<const Double_t *, dim> binEdges;
       TAxis *ax;
 
@@ -241,13 +241,13 @@ public:
          ncells[d] = ax->GetNbins() + 2;
          binEdges[d] = ax->GetXbins()->GetArray();
          xlow[d] = ax->GetXmin();
-         xhigh[d] = ax->GetXmax();
+         xHigh[d] = ax->GetXmax();
 
          if (getenv("DBG"))
-            printf("\tdim %d --- nbins: %d xlow: %f xhigh: %f\n", d, ncells[d], xlow[d], xhigh[d]);
+            printf("\tdim %d --- nbins: %d xlow: %f xHigh: %f\n", d, ncells[d], xlow[d], xHigh[d]);
       }
 
-      fCUDAHist = std::make_unique<CUDAHist_t>(maxBulkSize, ncells, xlow, xhigh, binEdges.data());
+      fCUDAHist = std::make_unique<CUDAHist_t>(maxBulkSize, ncells, xlow, xHigh, binEdges.data());
    }
 
    CUDAFillHelper(const std::shared_ptr<HIST> &h, std::size_t maxBulkSize)

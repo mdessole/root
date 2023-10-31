@@ -42,8 +42,15 @@ private:
 public:
    RHnCUDA() = delete;
 
-   RHnCUDA(size_t maxBulkSize, std::array<int, Dim> ncells, std::array<double, Dim> xlow, std::array<double, Dim> xhigh,
+   RHnCUDA(std::size_t maxBulkSize, std::array<int, Dim> ncells, std::array<double, Dim> xLow, std::array<double, Dim> xHigh,
            const double **binEdges = NULL);
+
+   // TODO: Change RHnCUDA to SOA for axes
+   RHnCUDA(std::size_t maxBulkSize, const std::size_t nBins, const std::array<int, Dim> &ncells,
+           const std::array<double, Dim> &xLow, const std::array<double, Dim> &xHigh,
+           const std::vector<double> binEdges, const std::array<int, Dim> binEdgesIdx) :
+           RHnCUDA<T, Dim, BlockSize>(maxBulkSize, ncells, xLow, xHigh, NULL)
+           {}
 
    ~RHnCUDA();
 

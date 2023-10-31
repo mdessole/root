@@ -223,12 +223,16 @@ public:
       if (getenv("DBG"))
          printf("Init SYCL hist %d\n", i);
       auto dims = obj->GetDimension();
-      std::array<Int_t, dim> ncells;
-      std::array<Double_t, dim> xlow;
-      std::array<Double_t, dim> xhigh;
-      std::array<const Double_t *, dim> binEdges;
+
+      std::array<int, dim> ncells;
+      std::array<double, dim> xlow;
+      std::array<double, dim> xHigh;
+      std::vector<double> binEdges;
+      std::array<int, dim> binEdgesIdx;
       TAxis *ax;
 
+      Size_t numBins = 1;
+      int numBinEdges = 0;
       for (auto d = 0; d < dims; d++) {
          if (d == 0) {
             ax = obj->GetXaxis();
@@ -238,16 +242,26 @@ public:
             ax = obj->GetZaxis();
          }
 
-         ncells[d] = ax->GetNbins() + 2;
-         binEdges[d] = ax->GetXbins()->GetArray();
+         auto ncells_d = ax->GetNbins() + 2;
+         auto edges = ax->GetXbins()->GetArray();
+         if (edges) {
+            binEdges.insert(binEdges.end(), edges, edges + (ncells_d - 1));
+            binEdgesIdx[d] = numBinEdges;
+            numBinEdges += ncells_d - 1;
+         } else {
+            binEdgesIdx[d] = -1;
+         }
+
+         ncells[d] = ncells_d;
          xlow[d] = ax->GetXmin();
-         xhigh[d] = ax->GetXmax();
+         xHigh[d] = ax->GetXmax();
+         numBins *= ncells_d;
 
          if (getenv("DBG"))
-            printf("\tdim %d --- nbins: %d xlow: %f xhigh: %f\n", d, ncells[d], xlow[d], xhigh[d]);
+            printf("\tdim %d --- nbins: %d xlow: %f xHigh: %f\n", d, ncells[d], xlow[d], xHigh[d]);
       }
 
-      fSYCLHist = std::make_unique<SYCLHist_t>(maxBulkSize, ncells, xlow, xhigh, binEdges.data());
+      fSYCLHist = std::make_unique<SYCLHist_t>(maxBulkSize, numBins, ncells, xlow, xHigh, binEdges, binEdgesIdx);
    }
 
    SYCLFillHelper(const std::shared_ptr<HIST> &h, std::size_t maxBulkSize)
@@ -358,7 +372,7 @@ public:
 
    HIST &PartialUpdate(unsigned int slot)
    {
-      (void) slot; // silence unused warnings
+      (void)slot; // silence unused warnings
       return *fObject;
    }
 
