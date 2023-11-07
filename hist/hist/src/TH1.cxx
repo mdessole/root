@@ -54,6 +54,14 @@
 
 #include "TH1Merger.h"
 
+#include <chrono>
+#define TIME_FILL
+#define TIME_STATS
+#define TIME_FINDBIN
+using Clock = std::chrono::steady_clock;
+using fsecs = std::chrono::duration<double, std::chrono::seconds::period>;
+// #include <likwid-marker.h>
+
 /** \addtogroup Histograms
 @{
 \class TH1C
@@ -602,6 +610,15 @@ ClassImp(TH1);
 ////////////////////////////////////////////////////////////////////////////////
 /// Histogram default constructor.
 
+void TH1::init_timingstuff()
+{
+#if defined(TIME_FINDBIN) || defined(TIME_FILL) || defined(TIME_STATS)
+   tusb = 0;
+   tfill = 0;
+   tfindbin = 0;
+#endif
+}
+
 TH1::TH1(): TNamed(), TAttLine(), TAttFill(), TAttMarker()
 {
    fDirectory     = nullptr;
@@ -625,6 +642,8 @@ TH1::TH1(): TNamed(), TAttLine(), TAttFill(), TAttMarker()
    fYaxis.SetParent(this);
    fZaxis.SetParent(this);
    UseCurrentStyle();
+
+   init_timingstuff();
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -780,6 +799,7 @@ void TH1::Build()
    fXaxis.SetParent(this);
    fYaxis.SetParent(this);
    fZaxis.SetParent(this);
+   init_timingstuff();
 
    SetTitle(fTitle.Data());
 
@@ -3330,9 +3350,21 @@ Int_t TH1::Fill(Double_t x)
 
    Int_t bin;
    fEntries++;
+
+#ifdef TIME_FINDBIN
+   auto p1 = Clock::now();
+#endif
    bin =fXaxis.FindBin(x);
+#if defined(TIME_FINDBIN) || defined(TIME_FILL)
+   auto p2 = Clock::now();
+#endif
+
    if (bin <0) return -1;
    AddBinContent(bin);
+
+#if defined(TIME_FILL) || defined(TIME_STATS)
+   auto p3 = Clock::now();
+#endif
    if (fSumw2.fN) ++fSumw2.fArray[bin];
    if (bin == 0 || bin > fXaxis.GetNbins()) {
       if (!GetStatOverflowsBehaviour()) return -1;
@@ -3341,6 +3373,20 @@ Int_t TH1::Fill(Double_t x)
    ++fTsumw2;
    fTsumwx  += x;
    fTsumwx2 += x*x;
+#ifdef TIME_STATS
+   auto p4 = Clock::now();
+#endif
+
+#if defined(TIME_FINDBIN)
+   tfindbin += std::chrono::duration_cast<fsecs>(p2 - p1).count();
+#endif
+#if defined(TIME_FILL)
+   tfill += std::chrono::duration_cast<fsecs>(p3 - p2).count();
+#endif
+#if defined(TIME_STATS)
+   tusb += std::chrono::duration_cast<fsecs>(p4 - p3).count();
+#endif
+
    return bin;
 }
 
@@ -3358,24 +3404,54 @@ Int_t TH1::Fill(Double_t x)
 
 Int_t TH1::Fill(Double_t x, Double_t w)
 {
-
    if (fBuffer) return BufferFill(x,w);
 
    Int_t bin;
    fEntries++;
+
+#ifdef TIME_FINDBIN
+   auto p1 = Clock::now();
+#endif
+// LIKWID_MARKER_START("mfindbin");
    bin =fXaxis.FindBin(x);
+// LIKWID_MARKER_STOP("mfindbin");
+#if defined(TIME_FINDBIN) || defined(TIME_FILL)
+   auto p2 = Clock::now();
+#endif
+
    if (bin <0) return -1;
-   if (!fSumw2.fN && w != 1.0 && !TestBit(TH1::kIsNotW) )  Sumw2();   // must be called before AddBinContent
-   if (fSumw2.fN)  fSumw2.fArray[bin] += w*w;
-   AddBinContent(bin, w);
+
+// LIKWID_MARKER_START("mfill");
+   AddBinContent(bin);
+// LIKWID_MARKER_STOP("mfill");
+
+#if defined(TIME_FILL) || defined(TIME_STATS)
+   auto p3 = Clock::now();
+#endif
+// LIKWID_MARKER_START("mstats");
+   if (fSumw2.fN) ++fSumw2.fArray[bin];
    if (bin == 0 || bin > fXaxis.GetNbins()) {
       if (!GetStatOverflowsBehaviour()) return -1;
    }
-   Double_t z= w;
-   fTsumw   += z;
-   fTsumw2  += z*z;
-   fTsumwx  += z*x;
-   fTsumwx2 += z*x*x;
+   ++fTsumw;
+   ++fTsumw2;
+   fTsumwx  += x;
+   fTsumwx2 += x*x;
+// LIKWID_MARKER_STOP("mstats");
+#ifdef TIME_STATS
+   auto p4 = Clock::now();
+#endif
+
+#if defined(TIME_FINDBIN)
+   tfindbin += std::chrono::duration_cast<fsecs>(p2 - p1).count();
+#endif
+#if defined(TIME_FILL)
+   tfill += std::chrono::duration_cast<fsecs>(p3 - p2).count();
+#endif
+#if defined(TIME_STATS)
+   tusb += std::chrono::duration_cast<fsecs>(p4 - p3).count();
+#endif
+
    return bin;
 }
 
@@ -3461,13 +3537,25 @@ void TH1::DoFillN(Int_t ntimes, const Double_t *x, const Double_t *w, Int_t stri
    Double_t ww = 1;
    Int_t nbins   = fXaxis.GetNbins();
    ntimes *= stride;
+// LIKWID_MARKER_START("mfilln");
    for (i=0;i<ntimes;i+=stride) {
+#ifdef TIME_FINDBIN
+      auto p1 = Clock::now();
+#endif
       bin =fXaxis.FindBin(x[i]);
+#if defined(TIME_FINDBIN) || defined(TIME_FILL)
+      auto p2 = Clock::now();
+#endif
+
       if (bin <0) continue;
       if (w) ww = w[i];
       if (!fSumw2.fN && ww != 1.0 && !TestBit(TH1::kIsNotW))  Sumw2();
       if (fSumw2.fN) fSumw2.fArray[bin] += ww*ww;
       AddBinContent(bin, ww);
+
+#if defined(TIME_FILL) || defined(TIME_STATS)
+      auto p3 = Clock::now();
+#endif
       if (bin == 0 || bin > nbins) {
          if (!GetStatOverflowsBehaviour()) continue;
       }
@@ -3477,7 +3565,21 @@ void TH1::DoFillN(Int_t ntimes, const Double_t *x, const Double_t *w, Int_t stri
       fTsumw2  += z*z;
       fTsumwx  += z*x[i];
       fTsumwx2 += z*x[i]*x[i];
+#ifdef TIME_STATS
+      auto p4 = Clock::now();
+#endif
+
+#if defined(TIME_FINDBIN)
+      tfindbin += std::chrono::duration_cast<fsecs>(p2 - p1).count();
+#endif
+#if defined(TIME_FILL)
+      tfill += std::chrono::duration_cast<fsecs>(p3 - p2).count();
+#endif
+#if defined(TIME_STATS)
+      tusb += std::chrono::duration_cast<fsecs>(p4 - p3).count();
+#endif
    }
+// LIKWID_MARKER_STOP("mfilln");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
