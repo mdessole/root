@@ -418,8 +418,8 @@ void RHnSYCL<T, Dim, WGroupSize>::Fill(const RVecD &coords, const RVecD &weights
 
    // Add the coordinates and weight to the buffers
    std::vector<sycl::event> copyEvents(2);
-   copyEvents[0] = queue.memcpy(fDCoords, coords.data(), bulkSize * Dim * sizeof(double), prevBulk);
-   copyEvents[1] = queue.memcpy(fDWeights, weights.data(), bulkSize * sizeof(double), prevBulk);
+   copyEvents[0] = queue.memcpy(fDCoords, coords.begin(), bulkSize * Dim * sizeof(double), prevBulk);
+   copyEvents[1] = queue.memcpy(fDWeights, weights.begin(), bulkSize * sizeof(double), prevBulk);
 
    fEntries += bulkSize;
 
@@ -515,6 +515,12 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(std::size_t size, sycl::event &fillEv
 template <typename T, unsigned int Dim, unsigned int WGroupSize>
 void RHnSYCL<T, Dim, WGroupSize>::ExecuteSYCLHisto(std::size_t size, std::vector<sycl::event> &depends)
 {
+   // The SYCL specification does not require eager execution, so we need to wait for the copy events to have completed
+   // before filling to avoid the overwriting the input values in the host buffer
+   for (auto &e : depends) {
+      e.wait();
+   }
+
    sycl::event fillEvent;
    if (fHistoSmemSize > fMaxSmemSize) {
       fillEvent = queue.submit([&](sycl::handler &cgh) {
