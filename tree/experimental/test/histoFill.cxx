@@ -6,15 +6,38 @@
 #include "gtest/gtest.h"
 
 #include "ROOT/RDataFrame.hxx"
-#include "RHnSYCL.h"
-#include "RHnCUDA.h"
 #include "TH1.h"
 #include "TAxis.h"
 
+#ifdef ROOT_RDF_CUDA
+#include "RHnCUDA.h"
 using ROOT::Experimental::RHnCUDA;
-using ROOT::Experimental::RHnSYCL;
+struct CUDAHist {
+   template <typename T, unsigned int Dim>
+   using type = RHnCUDA<T, Dim>;
 
+   static constexpr int histIdx = 0;
+};
+#endif
+
+#ifdef ROOT_RDF_SYCL
+#include "RHnSYCL.h"
+using ROOT::Experimental::RHnSYCL;
+struct SYCLHist {
+   template <typename T, unsigned int Dim>
+   using type = RHnSYCL<T, Dim>;
+
+   static constexpr int histIdx = 1;
+};
+#endif
+
+#if defined(ROOT_RDF_CUDA) && defined(ROOT_RDF_SYCL)
 std::vector<const char *> test_environments = {"CUDA_HIST", "SYCL_HIST"};
+#elif defined(ROOT_RDF_CUDA)
+std::vector<const char *> test_environments = {"CUDA_HIST"};
+#elif defined(ROOT_RDF_SYCL)
+std::vector<const char *> test_environments = {"SYCL_HIST"};
+#endif
 
 /**
  * Helper functions for toggling ON/OFF GPU histogramming.
@@ -95,24 +118,10 @@ struct ThreeDim {
    static constexpr unsigned int dim = 3;
 };
 
-struct CUDAHist {
-   template <typename T, unsigned int Dim>
-   using type = RHnCUDA<T, Dim>;
-
-   static constexpr int histIdx = 0;
-};
-
-struct SYCLHist {
-   template <typename T, unsigned int Dim>
-   using type = RHnSYCL<T, Dim>;
-
-   static constexpr int histIdx = 1;
-};
-
 template <typename T, class Dim, class Hist>
 struct Case {
    using dataType = T;
-   using histType = typename Hist::type<T, Dim::dim>;
+   using histType = typename Hist::template type<T, Dim::dim>;
 
    static constexpr int GetDim() { return Dim::dim; }
    static constexpr const char *GetEnv() { return test_environments[Hist::histIdx]; }
@@ -234,8 +243,16 @@ struct Test<std::tuple<T...>> {
    using Types = ::testing::Types<T...>;
 };
 
+#if defined(ROOT_RDF_CUDA) && defined(ROOT_RDF_SYCL)
 using FillTestTypes = Test<Combinations_t<std::tuple<double, float, int, short>, std::tuple<OneDim, TwoDim, ThreeDim>,
                                           std::tuple<CUDAHist, SYCLHist>>>::Types;
+#elif defined(ROOT_RDF_CUDA)
+using FillTestTypes = Test<Combinations_t<std::tuple<double, float, int, short>, std::tuple<OneDim, TwoDim, ThreeDim>,
+                                          std::tuple<CUDAHist>>>::Types;
+#elif defined(ROOT_RDF_SYCL)
+using FillTestTypes = Test<Combinations_t<std::tuple<double, float, int, short>, std::tuple<OneDim, TwoDim, ThreeDim>,
+                                          std::tuple<SYCLHist>>>::Types;
+#endif
 TYPED_TEST_SUITE(FillTestFixture, FillTestTypes);
 
 template <class Hist>
@@ -249,7 +266,14 @@ protected:
    void TearDown() override {}
 };
 
+#if defined(ROOT_RDF_CUDA) && defined(ROOT_RDF_SYCL)
 using ClampTestTypes = ::testing::Types<CUDAHist, SYCLHist>;
+#elif defined(ROOT_RDF_CUDA)
+using ClampTestTypes = ::testing::Types<CUDAHist>;
+#elif defined(ROOT_RDF_SYCL)
+using ClampTestTypes = ::testing::Types<SYCLHist>;
+#endif
+
 TYPED_TEST_SUITE(ClampTestFixture, ClampTestTypes);
 
 /////////////////////////////////////
@@ -325,7 +349,7 @@ TYPED_TEST(FillTestFixture, FillFixedBinsWeighted)
 
 TYPED_TEST(ClampTestFixture, FillIntClamp)
 {
-   auto h = typename TestFixture::hist::type<int, 1>(32768, 6, {6}, {0}, {4}, {}, {-1});
+   auto h = typename TestFixture::hist::template type<int, 1>(32768, 6, {6}, {0}, {4}, {}, {-1});
    h.Fill({0}, {INT_MAX});
    h.Fill({3}, {-INT_MAX});
 
@@ -350,7 +374,7 @@ TYPED_TEST(ClampTestFixture, FillIntClamp)
 
 TYPED_TEST(ClampTestFixture, FillShortClamp)
 {
-   auto h = typename TestFixture::hist::type<short, 1>(32768, 10, {10}, {0}, {8}, {}, {-1});
+   auto h = typename TestFixture::hist::template type<short, 1>(32768, 10, {10}, {0}, {8}, {}, {-1});
 
    // Filling short histograms is implemented using atomic operations on integers so we test each case
    // twice to test the for correct filling of the lower and upper bits.

@@ -10,7 +10,14 @@
 #include "TH1.h"
 #include "TAxis.h"
 
-std::vector<const char *> test_environments = {"CUDA_HIST", "SYCL_HIST"};
+std::vector<const char *> test_environments = {
+#ifdef ROOT_RDF_CUDA
+   "CUDA_HIST",
+#endif
+#ifdef ROOT_RDF_SYCL
+   "SYCL_HIST"
+#endif
+};
 
 template <typename T = double, typename HIST = TH1D>
 struct HistProperties {
