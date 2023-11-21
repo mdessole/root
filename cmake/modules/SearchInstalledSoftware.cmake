@@ -1738,6 +1738,10 @@ if (oneapi)
       set(_fsycl_targets "-fsycl-targets=spir64_x86_64,spir64")
     endif()
 
+    set(SYCL_COMPILER_FLAGS "-fPIC -fsycl -fsycl-unnamed-lambda -sycl-std=2020 ${_fsycl_targets} ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${_BUILD_TYPE_UPPER}}")
+    message(STATUS "SYCL compiler flags: ${SYCL_COMPILER_FLAGS}")
+    separate_arguments(SYCL_COMPILER_FLAGS NATIVE_COMMAND ${SYCL_COMPILER_FLAGS})
+
     function(add_sycl_to_root_target)
       CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES" ${ARGN})
       get_target_property(_library_name ${ARG_TARGET} OUTPUT_NAME)
@@ -1754,9 +1758,7 @@ if (oneapi)
         list(TRANSFORM _inc_dirs PREPEND -I)
       endif()
 
-      set(SYCL_COMPILER_FLAGS "-fPIC -fsycl -fsycl-unnamed-lambda -sycl-std=2020 ${_fsycl_targets} ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${_BUILD_TYPE_UPPER}}")
-      message(STATUS "SYCL compiler flags: ${SYCL_COMPILER_FLAGS}")
-      separate_arguments(SYCL_COMPILER_FLAGS NATIVE_COMMAND ${SYCL_COMPILER_FLAGS})
+      file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/src)
 
       # Compile the sycl source files with the found sycl compiler
       foreach(src ${ARG_SOURCES})
@@ -1778,7 +1780,7 @@ if (oneapi)
         list(APPEND _lib_dep_paths "$<TARGET_FILE:${lib}>")
       endforeach()
 
-      set(SYCL_LINKER_FLAGS "-shared -Wl,-soname,$<TARGET_FILE:${_library_name}> -L${SYCL_LIB_DIR} ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,${SYCL_LIB_DIR}:$<TARGET_FILE_DIR:${_library_name}>")
+      set(SYCL_LINKER_FLAGS "-shared -Wl,-soname,$<TARGET_FILE:${_library_name}> -L$ENV{LD_LIBRARY_PATH} ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,$ENV{LD_LIBRARY_PATH}:$<TARGET_FILE_DIR:${_library_name}>")
       message(STATUS "SYCL linker flags: ${SYCL_LINKER_FLAGS}")
       separate_arguments(SYCL_LINKER_FLAGS NATIVE_COMMAND ${SYCL_LINKER_FLAGS})
 
@@ -1832,60 +1834,19 @@ endif()
 
 #---Check for CuDNN-----------------------------------------------------------------------
 
-#---Check for CUDA-----------------------------------------------------------------------
-# if tmva-gpu is off and cuda is on cuda is searched but not used in tmva
-#  if cuda is off but tmva-gpu is on cuda is searched and activated if found !
-#
-if(cuda OR tmva-gpu)
-  find_package(CUDA)
-  if(CUDA_FOUND)
-    if(NOT DEFINED CMAKE_CUDA_STANDARD)
-      set(CMAKE_CUDA_STANDARD ${CMAKE_CXX_STANDARD})
-    endif()
-    enable_language(CUDA)
-    set(cuda ON CACHE BOOL "Found Cuda for TMVA GPU" FORCE)
-    # CUDA_NVCC_EXECUTABLE
-    if(DEFINED ENV{CUDA_NVCC_EXECUTABLE})
-      set(CUDA_NVCC_EXECUTABLE "$ENV{CUDA_NVCC_EXECUTABLE}" CACHE FILEPATH "The CUDA compiler")
-    else()
-      find_program(CUDA_NVCC_EXECUTABLE
-        NAMES nvcc nvcc.exe
-        PATHS "${CUDA_TOOLKIT_ROOT_DIR}"
-          ENV CUDA_TOOLKIT_ROOT
-          ENV CUDA_PATH
-          ENV CUDA_BIN_PATH
-        PATH_SUFFIXES bin bin64
-        DOC "The CUDA compiler"
-        NO_DEFAULT_PATH
-      )
-      find_program(CUDA_NVCC_EXECUTABLE
-        NAMES nvcc nvcc.exe
-        PATHS /opt/cuda/bin
-        PATH_SUFFIXES cuda/bin
-        DOC "The CUDA compiler"
-      )
-      # Search default search paths, after we search our own set of paths.
-      find_program(CUDA_NVCC_EXECUTABLE nvcc)
-    endif()
-    mark_as_advanced(CUDA_NVCC_EXECUTABLE)
-    ###
-    ### look for package CuDNN
-    if (cudnn)
-      if (fail-on-missing)
-        find_package(CUDNN REQUIRED)
-      else()
-        find_package(CUDNN)
-      endif()
-      if (CUDNN_FOUND)
-        message(STATUS "CuDNN library found: " ${CUDNN_LIBRARIES})
-	### set tmva-cudnn flag only if tmva-gpu is on!
-        if (tmva-gpu)
-          set(tmva-cudnn ON)
-        endif()
-      else()
-        message(STATUS "CUDNN library not found")
-        set(cudnn OFF CACHE BOOL "Disabled because cudnn is not found" FORCE)
-      endif()
+### Look for package CuDNN. If both cudnn and tmva-gpu are set and cudnn was
+### found, it implies the tmva-cudnn flag.
+if (cudnn)
+  if (fail-on-missing)
+    find_package(CUDNN REQUIRED)
+  else()
+    find_package(CUDNN)
+  endif()
+  if (CUDNN_FOUND)
+    message(STATUS "CuDNN library found: " ${CUDNN_LIBRARIES})
+    ### set tmva-cudnn flag only if tmva-gpu is on!
+    if (tmva-gpu)
+      set(tmva-cudnn ON)
     endif()
   else()
     message(STATUS "CUDNN library not found")
