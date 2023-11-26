@@ -25,6 +25,7 @@ struct HistProperties {
    int dim, nCells;
    double *stats;
    int nStats;
+   int nEntries;
 
    HistProperties(ROOT::RDF::RResultPtr<HIST> &h)
    {
@@ -41,6 +42,8 @@ struct HistProperties {
 
       stats = (double *)calloc(nStats, sizeof(double));
       h->GetStats(stats);
+
+      nEntries = h->GetEntries();
    }
 
    ~HistProperties()
@@ -188,6 +191,7 @@ INSTANTIATE_TEST_SUITE_P(HistoTest3D, HistoTestFixture3D, testing::ValuesIn(test
 template <typename T = double, typename HIST = TH1D>
 void CompareHistograms(const HistProperties<T, HIST> &TH, const HistProperties<T, HIST> &GPU)
 {
+   EXPECT_EQ(TH.nEntries, GPU.nEntries);
    CHECK_ARRAY(TH.array, GPU.array, TH.nCells, GPU.nCells); // Compare bin values.
    CHECK_ARRAY(TH.stats, GPU.stats, TH.nStats, GPU.nStats); // Compare histogram statistics
 }

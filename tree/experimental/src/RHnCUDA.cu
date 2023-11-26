@@ -422,8 +422,6 @@ void RHnCUDA<T, Dim, BlockSize>::ExecuteCUDAHisto(std::size_t size)
 {
    int numBlocks = size % BlockSize == 0 ? size / BlockSize : size / BlockSize + 1;
 
-   fEntries += size;
-
    ERRCHECK(cudaMemcpy(fDCoords, fHCoords.data(), Dim * size * sizeof(double), cudaMemcpyHostToDevice));
    ERRCHECK(cudaMemcpy(fDWeights, fHWeights.data(), size * sizeof(double), cudaMemcpyHostToDevice));
 
