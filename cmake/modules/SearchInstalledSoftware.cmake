@@ -1733,7 +1733,7 @@ if (oneapi)
     if (cuda)
       # Note that spir is added as a target AFTER cuda. The order is important for avoiding errors about opaque pointers:
       # https://developer.codeplay.com/products/oneapi/nvidia/2023.2.1/guides/troubleshooting.html#opaque-pointers-are-only-supported-in-opaque-pointers-mode
-      set(_fsycl_targets "-fsycl-targets=nvptx64-nvidia-cuda,spir64_x86_64,spir64 -Xsycl-target-backend=nvptx64-nvidia-cuda --cuda-gpu-arch=sm_${CMAKE_CUDA_ARCHITECTURES} --cuda-path=${CUDA_TOOLKIT_ROOT_DIR}")
+      set(_fsycl_targets "-fsycl-targets=nvptx64-nvidia-cuda,spir64_x86_64,spir64 -Xsycl-target-backend=nvptx64-nvidia-cuda --cuda-gpu-arch=sm_${CMAKE_CUDA_ARCHITECTURES} --cuda-path=${CUDA_TOOLKIT_DIR}")
     else()
       set(_fsycl_targets "-fsycl-targets=spir64_x86_64,spir64")
     endif()
