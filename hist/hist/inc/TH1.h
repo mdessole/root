@@ -12,7 +12,6 @@
 #ifndef ROOT_TH1
 #define ROOT_TH1
 
-
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
 // TH1                                                                  //
@@ -117,6 +116,8 @@ protected:
 
 public:
    static Int_t FitOptionsMake(Option_t *option, Foption_t &Foption);
+   double tfindbin, tusb, tfill;
+   void init_timingstuff();
 
 private:
    void    Build();

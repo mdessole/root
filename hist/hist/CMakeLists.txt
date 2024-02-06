@@ -178,4 +178,9 @@ if (sycl)
   target_compile_definitions(Hist PRIVATE ROOT_RDF_SYCL)
 endif()
 
+# target_compile_definitions(Hist PRIVATE LIKWID_PERFMON)
+# target_include_directories(Hist PRIVATE /home/jollychen/likwid/include)
+# target_link_directories(Hist PRIVATE /home/jollychen/likwid/lib)
+# target_link_libraries(Hist PRIVATE likwid)
+
 ROOT_ADD_TEST_SUBDIRECTORY(test)
