@@ -14,6 +14,7 @@ class RHnCUDA {
    // clang-format off
 private:
    static constexpr int kNStats = 2 + Dim * 2 + Dim * (Dim - 1) / 2; ///< Number of statistics.
+   // static constexpr std::size_t kCPUFinalThreshold = ;  ///< Threshold for summing remainder on CPU
 
    T                                *fDHistogram;         ///< Pointer to histogram buffer on the GPU.
    int                               fNBins;              ///< Total number of bins in the histogram WITH under/overflow
@@ -36,10 +37,12 @@ private:
 
    // Kernel size parameters
    unsigned int                      fNumBlocks;          ///< Number of blocks used in CUDA kernels
-   std::size_t                       fMaxBulkSize;         ///< Number of coordinates to buffer.
-   std::size_t                       fMaxSmemSize;        ///< Maximum shared memory size per block on device 0.
+   std::size_t                       fMaxBulkSize;        ///< Number of coordinates to buffer.
    std::size_t                       kStatsSmemSize;      ///< Size of shared memory per block in GetStatsKernel
    std::size_t                       fHistoSmemSize;      ///< Size of shared memory per block in HistoKernel
+
+   struct CUDAProps;
+   std::unique_ptr<CUDAProps>        fProps;
    // clang-format on
 
 public:
@@ -66,6 +69,9 @@ public:
    size_t GetMaxBulkSize() { return fMaxBulkSize; }
 
 protected:
+
+   void GetNumBlocksAndThreads(int n, int &blocks, int &threads);
+
    void GetStats(std::size_t size);
 
    void ExecuteCUDAHisto(std::size_t size);

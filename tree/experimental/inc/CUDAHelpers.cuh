@@ -67,6 +67,33 @@ struct Plus {
    __host__ __device__ constexpr T operator()(const T &lhs, const T &rhs) const { return lhs + rhs; }
 };
 
+struct Identity {};
+
+struct Square
+{
+   __host__ __device__
+   double operator ()(double x) { return x * x; }
+};
+
+struct Mul
+{
+   __host__ __device__
+   double operator ()(double x, double y) { return x * y; }
+};
+
+struct MulSquare
+{
+   __host__ __device__
+   double operator ()(double x, double y) { return x * y * y; }
+};
+
+struct Mul3
+{
+   __host__ __device__
+   double operator ()(double x, double y, double z) { return x * y * z; }
+};
+
+
 ////////////////////////////////////////////////////////////////////////////////
 /// CUDA Kernels
 
@@ -94,87 +121,77 @@ __device__ inline void UnrolledReduce(T *sdata, unsigned int tid, Op operation)
 // See https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
 //     https://github.com/zchee/cuda-sample/blob/master/6_Advanced/reduction/reduction_kernel.cu
 // The type of reduction in this kernel can be customized by passing different lambda operations
-// as initOp and mainOp.
-// The initOp lambda function should take as input (unsigned int i, T r, T val):
-//    - val: element loaded from the global input array
-//    - i: the index of the loaded element
-//    - r: variable that stores the current result of the reduction. The return value of
-//         initOp is written to this variable.
-// The mainOp lambda function should take as input (T lhs, T rhs) and its the return value will be
+// as transformOp and reduceOp.
+// The transformOp lambda function transforms the input values before the reduction step. The transformation can
+// involve a variable number of input buffers.
+// The reduceOp lambda function should take as input (T lhs, T rhs) and its the return value will be
 // written to lhs.
-// Both the initOp and mainOp functions should perform a reduction operation (e.g., sum, min, max), but
-// initOp is intended as an operation that can also do some preprocessing before the reduction, such as
-// squaring the elements or mulitplying them by another value captured by the lambda function.
-// It should be noted that the lambda functions are only recognized if they are defined in a CUDA kernel/on the
-// GP, and not on the CPU, so this kernel should be called via another (__global__) CUDA kernel.
-template <unsigned int BlockSize, typename T, typename InitOp, typename MainOp>
-inline __device__ void ReduceBase(T *in, T *out, unsigned int n, InitOp initOp, MainOp mainOp, T init)
+template <unsigned int BlockSize, typename TOut, typename TOp, typename ROp, typename...TIn>
+__global__ void TransformReduceKernel(unsigned int n, TOut *out, TOut init, TOp transformOp, ROp reduceOp, TIn...in)
 {
-   auto sdata = CUDAHelpers::shared_memory_proxy<T>();
+   auto sdata = CUDAHelpers::shared_memory_proxy<TOut>();
 
    unsigned int local_tid = threadIdx.x;
    unsigned int i = blockIdx.x * (BlockSize * 2) + local_tid;
    unsigned int gridSize = (BlockSize * 2) * gridDim.x;
 
-   T r = init;
+   TOut r = init;
 
    while (i < n) {
-      r = initOp(i, r, in[i]);
-      if (i + BlockSize < n) {
-         r = initOp(i + BlockSize, r, in[i + BlockSize]);
+      if constexpr(std::is_same_v<TOp, CUDAHelpers::Identity>) {
+         r = reduceOp(r, (in[i])...);
+         if (i + BlockSize < n) {
+            r = reduceOp(r, (in[i + BlockSize])...);
+         }
+      } else {
+         r = reduceOp(r, transformOp((in[i])...));
+         if (i + BlockSize < n) {
+            r = reduceOp(r, transformOp((in[i + BlockSize])...));
+         }
       }
       i += gridSize;
    }
    sdata[local_tid] = r;
    __syncthreads();
 
-   CUDAHelpers::UnrolledReduce<BlockSize, T>(sdata, local_tid, mainOp);
+   CUDAHelpers::UnrolledReduce<BlockSize, TOut>(sdata, local_tid, reduceOp);
 
    // The first thread of each block writes the sum of the block into the global device array.
    if (local_tid == 0) {
-      out[blockIdx.x] = mainOp(out[blockIdx.x], sdata[0]);
+      out[blockIdx.x] = reduceOp(out[blockIdx.x], sdata[0]);
    }
 }
 
-// Kernel that performs a sum reduction on n elements in the input array and writes the result (per-block) to the
-// given output array. This kernel can be called on the CPU.
-template <unsigned int BlockSize, typename T>
-__global__ void ReduceSumKernel(T *in, T *out, unsigned int n, T init)
+template <typename TOut, typename TOp, typename ROp, typename... TIn>
+void TransformReduce(std::size_t numBlocks, std::size_t blockSize, std::size_t n,
+                     TOut *out, TOut init, ROp reduceOp, TOp transformOp, TIn ...in)
 {
-   auto initOp = [](unsigned int i, T r, T in) { return r + in; };
-   ReduceBase<BlockSize>(in, out, n, initOp, CUDAHelpers::Plus<T>(), init);
-}
-
-template <typename T = double>
-void ReduceSum(int numBlocks, int blockSize, T *in, T *out, unsigned int n, T init = 0.)
-{
-   auto initOp = [](unsigned int i, T r, T in) { return r + in; };
    auto smemSize = (blockSize <= 32) ? 2 * blockSize * sizeof(double) : blockSize * sizeof(double);
 
    if (blockSize == 1)
-      ReduceSumKernel<1, T><<<numBlocks, 1, smemSize>>>(in, out, n, init);
+      TransformReduceKernel<1, TOut><<<numBlocks, 1, smemSize>>>(n, out, init, transformOp, reduceOp, in...);
    else if (blockSize == 2)
-      ReduceSumKernel<2, T><<<numBlocks, 2, smemSize>>>(in, out, n, init);
+      TransformReduceKernel<2, TOut><<<numBlocks, 2, smemSize>>>(n, out, init, transformOp, reduceOp, in...);
    else if (blockSize == 4)
-      ReduceSumKernel<4, T><<<numBlocks, 4, smemSize>>>(in, out, n, init);
+      TransformReduceKernel<4, TOut><<<numBlocks, 4, smemSize>>>(n, out, init, transformOp, reduceOp, in...);
    else if (blockSize == 8)
-      ReduceSumKernel<8, T><<<numBlocks, 8, smemSize>>>(in, out, n, init);
+      TransformReduceKernel<8, TOut><<<numBlocks, 8, smemSize>>>(n, out, init, transformOp, reduceOp, in...);
    else if (blockSize == 16)
-      ReduceSumKernel<16, T><<<numBlocks, 16, smemSize>>>(in, out, n, init);
+      TransformReduceKernel<16, TOut><<<numBlocks, 16, smemSize>>>(n, out, init, transformOp, reduceOp, in...);
    else if (blockSize == 32)
-      ReduceSumKernel<32, T><<<numBlocks, 32, smemSize>>>(in, out, n, init);
+      TransformReduceKernel<32, TOut><<<numBlocks, 32, smemSize>>>(n, out, init, transformOp, reduceOp, in...);
    else if (blockSize == 64)
-      ReduceSumKernel<64, T><<<numBlocks, 64, smemSize>>>(in, out, n, init);
+      TransformReduceKernel<64, TOut><<<numBlocks, 64, smemSize>>>(n, out, init, transformOp, reduceOp, in...);
    else if (blockSize == 128)
-      ReduceSumKernel<128, T><<<numBlocks, 128, smemSize>>>(in, out, n, init);
+      TransformReduceKernel<128, TOut><<<numBlocks, 128, smemSize>>>(n, out, init, transformOp, reduceOp, in...);
    else if (blockSize == 256)
-      ReduceSumKernel<256, T><<<numBlocks, 256, smemSize>>>(in, out, n, init);
+      TransformReduceKernel<256, TOut><<<numBlocks, 256, smemSize>>>(n, out, init, transformOp, reduceOp, in...);
    else if (blockSize == 512)
-      ReduceSumKernel<512, T><<<numBlocks, 512, smemSize>>>(in, out, n, init);
+      TransformReduceKernel<512, TOut><<<numBlocks, 512, smemSize>>>(n, out, init, transformOp, reduceOp, in...);
    else if (blockSize == 1024)
-      ReduceSumKernel<1024, T><<<numBlocks, 1024, smemSize>>>(in, out, n, init);
+      TransformReduceKernel<1024, TOut><<<numBlocks, 1024, smemSize>>>(n, out, init, transformOp, reduceOp, in...);
    else
-      Error("ReduceSum", "Unsupported block size: %d", blockSize);
+      Error("TransformReduce", "Unsupported block size: %lu", blockSize);
 }
 
 // CUDA version of TMath::BinarySearch
