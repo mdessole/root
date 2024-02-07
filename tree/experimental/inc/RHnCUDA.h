@@ -25,8 +25,6 @@ private:
    double                           *fDBinEdges;          ///< Bin edges array for each axis
    int                              *fDBinEdgesIdx;       ///< Start index of the binedges in kBinEdges per axis
 
-   std::vector<double>               fHCoords;            ///< 1D buffer with bufferSize #Dim-dimensional coordinates to fill in xxyyzz format.
-   std::vector<double>               fHWeights;           ///< Buffer of weights for each bin on the Host.
    double                           *fDCoords;            ///< Pointer to array of coordinates to fill on the GPU.
    double                           *fDWeights;           ///< Pointer to array of weights on the GPU.
    bool                             *fDMask;              ///< Pointer to array of bins (corresponding to the coordinates) to fill on the GPU.

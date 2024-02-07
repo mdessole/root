@@ -246,9 +246,6 @@ RHnCUDA<T, Dim, BlockSize>::RHnCUDA(std::size_t maxBulkSize, const std::size_t n
    ERRCHECK(cudaMemset(fDStats, 0, kNStats * sizeof(double)));
    ERRCHECK(cudaMalloc((void **)&fDIntermediateStats, ceil(fMaxBulkSize / BlockSize / 2.) * kNStats * sizeof(double)));
 
-   fHCoords.reserve(Dim * fMaxBulkSize);
-   fHWeights.reserve(fMaxBulkSize);
-
    ERRCHECK(cudaGetDeviceProperties(&fProps->props, 0));
    // fMaxSmemSize = fProp->sharedMemPerBlock;
    fHistoSmemSize = fNBins * sizeof(T);
@@ -288,9 +285,9 @@ void RHnCUDA<T, Dim, BlockSize>::Fill(const RVecD &coords, const RVecD &weights)
 {
    auto bulkSize = weights.size();
 
-   std::copy(coords.begin(), coords.end(), fHCoords.begin());
-   std::copy(weights.begin(), weights.end(), fHWeights.begin());
-   ERRCHECK(cudaMemset(fDMask, 1, bulkSize * sizeof(double)));
+   ERRCHECK(cudaMemcpy(fDCoords, coords.data(), Dim * bulkSize * sizeof(double), cudaMemcpyHostToDevice));
+   ERRCHECK(cudaMemcpy(fDWeights, weights.data(), bulkSize * sizeof(double), cudaMemcpyHostToDevice));
+   ERRCHECK(cudaMemset(fDMask, 1, bulkSize * sizeof(bool)));
 
    fEntries += bulkSize;
    ExecuteCUDAHisto(bulkSize);
@@ -324,7 +321,7 @@ void RHnCUDA<T, Dim, BlockSize>::GetNumBlocksAndThreads(int n, int &blocks, int 
       printf("n is too large, please choose a smaller number!\n");
    }
 
-  if (blocks > fProps->props.maxGridSize[0]) {
+   if (blocks > fProps->props.maxGridSize[0]) {
       printf(
          "Grid size <%d> exceeds the device capability <%d>, set block size as "
          "%d (original %d)\n",
@@ -332,9 +329,7 @@ void RHnCUDA<T, Dim, BlockSize>::GetNumBlocksAndThreads(int n, int &blocks, int 
 
       blocks /= 2;
       threads *= 2;
-  }
-
-   // blocks = MIN(fProps->props.maxDimX / BlockSize, blocks);
+   }
 }
 
 template <typename T, unsigned int Dim, unsigned int BlockSize>
@@ -348,39 +343,33 @@ void RHnCUDA<T, Dim, BlockSize>::GetStats(std::size_t size)
    GetNumBlocksAndThreads(size, numBlocks, numThreads);
 
    double *resultArray;
-   if (numBlocks > 1) {
-      ERRCHECK(cudaMemset(fDIntermediateStats, 0, numBlocks * kNStats * sizeof(double)));
-      resultArray = fDIntermediateStats;
-   } else {
-      resultArray = fDStats;
-   }
 
    // OPTIMIZATION: interleave/change order of computation of different stats? or parallelize via
    // streams. Need to profile first.
-   CUDAHelpers::TransformReduce(numBlocks, numThreads, size, resultArray, 0., CUDAHelpers::Plus<double>(),
+   CUDAHelpers::TransformReduce(numBlocks, numThreads, size, fDStats, 0., CUDAHelpers::Plus<double>(),
                                 CUDAHelpers::Identity{}, fDWeights);
    ERRCHECK(cudaPeekAtLastError());
-   CUDAHelpers::TransformReduce(numBlocks, numThreads, size, resultArray + numBlocks, 0., CUDAHelpers::Plus<double>(),
+   CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &fDStats[numBlocks], 0., CUDAHelpers::Plus<double>(),
                                 CUDAHelpers::Square{}, fDWeights);
    ERRCHECK(cudaPeekAtLastError());
 
    auto is_offset = 2 * numBlocks;
    for (auto d = 0; d < Dim; d++) {
       // Multiply weight with coordinate of current axis. E.g., for Dim = 2 this computes Tsumwx and Tsumwy
-      CUDAHelpers::TransformReduce(numBlocks, numThreads, size, resultArray + is_offset, 0., CUDAHelpers::Plus<double>(),
+      CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &fDStats[is_offset], 0., CUDAHelpers::Plus<double>(),
                                    CUDAHelpers::Mul{}, fDWeights, &fDCoords[d * size]);
       ERRCHECK(cudaPeekAtLastError());
       is_offset += numBlocks;
 
       // Squares coodinate per axis. E.g., for Dim = 2 this computes Tsumwx2 and Tsumwy2
-      CUDAHelpers::TransformReduce(numBlocks, numThreads, size, resultArray + is_offset, 0., CUDAHelpers::Plus<double>(),
+      CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &fDStats[is_offset], 0., CUDAHelpers::Plus<double>(),
                                    CUDAHelpers::MulSquare{}, fDWeights, &fDCoords[d * size]);
       ERRCHECK(cudaPeekAtLastError());
       is_offset += numBlocks;
 
       for (auto prev_d = 0; prev_d < d; prev_d++) {
          // Multiplies coordinate of current axis with the "previous" axis. E.g., for Dim = 2 this computes Tsumwxy
-         CUDAHelpers::TransformReduce(numBlocks, numThreads, size, resultArray + is_offset, 0., CUDAHelpers::Plus<double>(),
+         CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &fDStats[is_offset], 0., CUDAHelpers::Plus<double>(),
                                     CUDAHelpers::Mul3{}, fDWeights, &fDCoords[prev_d * size], &fDCoords[d * size]);
          ERRCHECK(cudaPeekAtLastError());
          is_offset += numBlocks;
@@ -406,9 +395,6 @@ template <typename T, unsigned int Dim, unsigned int BlockSize>
 void RHnCUDA<T, Dim, BlockSize>::ExecuteCUDAHisto(std::size_t size)
 {
    int numBlocks = size % BlockSize == 0 ? size / BlockSize : size / BlockSize + 1;
-
-   ERRCHECK(cudaMemcpy(fDCoords, fHCoords.data(), Dim * size * sizeof(double), cudaMemcpyHostToDevice));
-   ERRCHECK(cudaMemcpy(fDWeights, fHWeights.data(), size * sizeof(double), cudaMemcpyHostToDevice));
 
    if (fHistoSmemSize > fProps->props.sharedMemPerBlock) {
       HistogramGlobal<T, Dim><<<numBlocks, BlockSize>>>(fDHistogram, fDBinEdges, fDBinEdgesIdx, fDNBinsAxis, fDMin,
