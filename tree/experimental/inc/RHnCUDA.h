@@ -28,7 +28,7 @@ private:
    std::vector<double>               fHWeights;           ///< Buffer of weights for each bin on the Host.
    double                           *fDCoords;            ///< Pointer to array of coordinates to fill on the GPU.
    double                           *fDWeights;           ///< Pointer to array of weights on the GPU.
-   int                              *fDBins;              ///< Pointer to array of bins (corresponding to the coordinates) to fill on the GPU.
+   bool                             *fDMask;              ///< Pointer to array of bins (corresponding to the coordinates) to fill on the GPU.
 
    int                               fEntries;            ///< Number of entries that have been filled.
    double                           *fDIntermediateStats; ///< Buffer for storing intermediate results of stat reduction on GPU.
