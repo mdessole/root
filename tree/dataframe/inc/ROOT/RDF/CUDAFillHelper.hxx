@@ -350,7 +350,7 @@ public:
          for (int j = 0; j < 13; j++) {
             printf("%f ", stats[j]);
          }
-         printf(" %f\n", fObject->GetEntries());
+         printf(" %lu\n", fCUDAHist->GetEntries());
 
          fObject->GetStats(stats);
          printf("stats:");

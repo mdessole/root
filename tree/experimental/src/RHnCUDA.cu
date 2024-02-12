@@ -198,7 +198,7 @@ __global__ void ExcludeUOverflowKernel(bool *mask, double *weights, size_t bulkS
    unsigned int tid = threadIdx.x + blockDim.x * blockIdx.x;
    unsigned int stride = blockDim.x * gridDim.x;
 
-   for (auto i = tid; i < bulkSize * Dim; i += stride) {
+   for (auto i = tid; i < bulkSize; i += stride) {
       weights[i] *= mask[i];
    }
 }
@@ -244,10 +244,9 @@ RHnCUDA<T, Dim, BlockSize>::RHnCUDA(std::size_t maxBulkSize, const std::size_t n
    ERRCHECK(cudaMemset(fDHistogram, 0, fNBins * sizeof(T)));
    ERRCHECK(cudaMalloc((void **)&fDStats, kNStats * sizeof(double)));
    ERRCHECK(cudaMemset(fDStats, 0, kNStats * sizeof(double)));
-   ERRCHECK(cudaMalloc((void **)&fDIntermediateStats, ceil(fMaxBulkSize / BlockSize / 2.) * kNStats * sizeof(double)));
+   ERRCHECK(cudaMalloc((void **)&fDIntermediateStats, kMaxBlocks * kNStats * sizeof(double)));
 
    ERRCHECK(cudaGetDeviceProperties(&fProps->props, 0));
-   // fMaxSmemSize = fProp->sharedMemPerBlock;
    fHistoSmemSize = fNBins * sizeof(T);
 
    if (getenv("DBG")) {
@@ -311,25 +310,26 @@ unsigned int nextPow2(unsigned int x)
 // each thread in that kernel can process a variable number of elements.
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T, unsigned int Dim, unsigned int BlockSize>
-void RHnCUDA<T, Dim, BlockSize>::GetNumBlocksAndThreads(int n, int &blocks, int &threads) {
+void RHnCUDA<T, Dim, BlockSize>::GetNumBlocksAndThreads(int n, int &blocks, int &threads)
+{
    // get device capability, to avoid block/grid size exceed the upper bound
    threads = (n < BlockSize * 2) ? nextPow2((n + 1) / 2) : BlockSize;
    blocks = (n + (threads * 2 - 1)) / (threads * 2);
 
-   if ((float)threads * blocks >
-      (float)fProps->props.maxGridSize[0] * fProps->props.maxThreadsPerBlock) {
+   if ((float)threads * blocks > (float)fProps->props.maxGridSize[0] * fProps->props.maxThreadsPerBlock) {
       printf("n is too large, please choose a smaller number!\n");
    }
 
    if (blocks > fProps->props.maxGridSize[0]) {
-      printf(
-         "Grid size <%d> exceeds the device capability <%d>, set block size as "
-         "%d (original %d)\n",
-         blocks, fProps->props.maxGridSize[0], threads * 2, threads);
+      printf("Grid size <%d> exceeds the device capability <%d>, set block size as "
+             "%d (original %d)\n",
+             blocks, fProps->props.maxGridSize[0], threads * 2, threads);
 
       blocks /= 2;
       threads *= 2;
    }
+
+   blocks = MIN(kMaxBlocks, blocks);
 }
 
 template <typename T, unsigned int Dim, unsigned int BlockSize>
@@ -343,52 +343,80 @@ void RHnCUDA<T, Dim, BlockSize>::GetStats(std::size_t size)
    GetNumBlocksAndThreads(size, numBlocks, numThreads);
 
    double *resultArray;
+   bool overwrite;
+   if (numBlocks == 1) {
+      resultArray = fDStats;
+      overwrite = false;
+   } else {
+      resultArray = fDIntermediateStats;
+      overwrite = true;
+   }
 
    // OPTIMIZATION: interleave/change order of computation of different stats? or parallelize via
    // streams. Need to profile first.
-   CUDAHelpers::TransformReduce(numBlocks, numThreads, size, fDStats, 0., CUDAHelpers::Plus<double>(),
+   // CUDAHelpers::PrintArray<<<1,1>>>(fDIntermediateStats, kMaxBlocks * kNStats);
+   // CUDAHelpers::PrintArray<<<1,1>>>(fDStats, kMaxBlocks * kNStats);
+   CUDAHelpers::TransformReduce(numBlocks, numThreads, size, resultArray, 0., overwrite, CUDAHelpers::Plus<double>(),
                                 CUDAHelpers::Identity{}, fDWeights);
    ERRCHECK(cudaPeekAtLastError());
-   CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &fDStats[numBlocks], 0., CUDAHelpers::Plus<double>(),
-                                CUDAHelpers::Square{}, fDWeights);
+   CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &resultArray[numBlocks], 0., overwrite,
+                                CUDAHelpers::Plus<double>(), CUDAHelpers::Square{}, fDWeights);
    ERRCHECK(cudaPeekAtLastError());
 
-   auto is_offset = 2 * numBlocks;
+
+   auto offset = 2 * numBlocks;
    for (auto d = 0; d < Dim; d++) {
       // Multiply weight with coordinate of current axis. E.g., for Dim = 2 this computes Tsumwx and Tsumwy
-      CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &fDStats[is_offset], 0., CUDAHelpers::Plus<double>(),
-                                   CUDAHelpers::Mul{}, fDWeights, &fDCoords[d * size]);
+      CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &resultArray[offset], 0., overwrite,
+                                   CUDAHelpers::Plus<double>(), CUDAHelpers::Mul{}, fDWeights, &fDCoords[d * size]);
       ERRCHECK(cudaPeekAtLastError());
-      is_offset += numBlocks;
+      offset += numBlocks;
 
       // Squares coodinate per axis. E.g., for Dim = 2 this computes Tsumwx2 and Tsumwy2
-      CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &fDStats[is_offset], 0., CUDAHelpers::Plus<double>(),
-                                   CUDAHelpers::MulSquare{}, fDWeights, &fDCoords[d * size]);
+      CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &resultArray[offset], 0., overwrite,
+                                   CUDAHelpers::Plus<double>(), CUDAHelpers::MulSquare{}, fDWeights,
+                                   &fDCoords[d * size]);
       ERRCHECK(cudaPeekAtLastError());
-      is_offset += numBlocks;
+      offset += numBlocks;
 
       for (auto prev_d = 0; prev_d < d; prev_d++) {
          // Multiplies coordinate of current axis with the "previous" axis. E.g., for Dim = 2 this computes Tsumwxy
-         CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &fDStats[is_offset], 0., CUDAHelpers::Plus<double>(),
-                                    CUDAHelpers::Mul3{}, fDWeights, &fDCoords[prev_d * size], &fDCoords[d * size]);
+         CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &resultArray[offset], 0., overwrite,
+                                      CUDAHelpers::Plus<double>(), CUDAHelpers::Mul3{}, fDWeights,
+                                      &fDCoords[prev_d * size], &fDCoords[d * size]);
          ERRCHECK(cudaPeekAtLastError());
-         is_offset += numBlocks;
+         offset += numBlocks;
       }
    }
 
-   if (numBlocks > 1) {
+   int s = numBlocks;
+   int next_s;
+   double *dest = fDIntermediateStats;
+   while (s > 1) {
       // fDintermediateStats stores the result of the sum for each block, per statistic. We need to perform another
       // reduction to merge the per-block sums to get the total sum for each statistic.
-      // OPTIMIZATION: perform final reductions for a small number of blocks on CPU?
-      // TODO: the max blocksize is 1024, so for numBlocks > 1024 the final reduction has to be performed in multiple
-      // stages?
+      int threads = 0, blocks = 0;
+      GetNumBlocksAndThreads(s, blocks, threads);
+      next_s = (s + (threads * 2 - 1)) / (threads * 2);
+      if (next_s == 1) {
+         dest = fDStats;
+         overwrite = false;
+      }
+
+      // ERRCHECK(cudaMemcpy(fDIntermediateStats, fDStats, s * kNStats * sizeof(double), cudaMemcpyDeviceToDevice));
       for (auto i = 0; i < kNStats; i++) {
-         CUDAHelpers::TransformReduce(1, nextPow2(numBlocks) / 2, numBlocks, &fDStats[i],
-                                      0., CUDAHelpers::Plus<double>(), CUDAHelpers::Identity{},
-                                      &fDIntermediateStats[i * numBlocks]);
+         CUDAHelpers::TransformReduce(blocks, threads, s, &dest[i * next_s], 0., overwrite, CUDAHelpers::Plus<double>(),
+                                      CUDAHelpers::Identity{}, &fDIntermediateStats[i * s]);
          ERRCHECK(cudaPeekAtLastError());
       }
+
+      s = next_s;
    }
+
+   // CUDAHelpers::PrintArray<<<1,1>>>(fDIntermediateStats, kMaxBlocks * kNStats);
+   // CUDAHelpers::PrintArray<<<1,1>>>(fDStats, kMaxBlocks * kNStats);
+   // cudaDeviceSynchronize();
+   // printf("\n\n");
 }
 
 template <typename T, unsigned int Dim, unsigned int BlockSize>

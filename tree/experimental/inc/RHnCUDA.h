@@ -14,7 +14,7 @@ class RHnCUDA {
    // clang-format off
 private:
    static constexpr int kNStats = 2 + Dim * 2 + Dim * (Dim - 1) / 2; ///< Number of statistics.
-   // static constexpr std::size_t kCPUFinalThreshold = ;  ///< Threshold for summing remainder on CPU
+   static constexpr int kMaxBlocks = 65536 / BlockSize;              ///< Threshold for reductions
 
    T                                *fDHistogram;         ///< Pointer to histogram buffer on the GPU.
    int                               fNBins;              ///< Total number of bins in the histogram WITH under/overflow
@@ -29,7 +29,7 @@ private:
    double                           *fDWeights;           ///< Pointer to array of weights on the GPU.
    bool                             *fDMask;              ///< Pointer to array of bins (corresponding to the coordinates) to fill on the GPU.
 
-   int                               fEntries;            ///< Number of entries that have been filled.
+   std::size_t                       fEntries;            ///< Number of entries that have been filled.
    double                           *fDIntermediateStats; ///< Buffer for storing intermediate results of stat reduction on GPU.
    double                           *fDStats;             ///< Pointer to statistics array on GPU.
 
@@ -56,7 +56,11 @@ public:
    RHnCUDA(const RHnCUDA &) = delete;
    RHnCUDA &operator=(const RHnCUDA &) = delete;
 
-   int GetEntries() { return fEntries; }
+   std::size_t GetEntries() {
+      // printf("entries: %lu \n", fEntries);
+      // printf("??????????????????\n");
+      return fEntries;
+   }
 
    void RetrieveResults(T *histResult, double *statsResult);
 

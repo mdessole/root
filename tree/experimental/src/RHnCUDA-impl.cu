@@ -7,6 +7,19 @@
 /// TODO: support for char and short histograms.
 
 // clang-format off
+template class RHnCUDA<short,  1, 32>;
+template class RHnCUDA<short,  2, 32>;
+template class RHnCUDA<short,  3, 32>;
+template class RHnCUDA<int,    1, 32>;
+template class RHnCUDA<int,    2, 32>;
+template class RHnCUDA<int,    3, 32>;
+template class RHnCUDA<float,  1, 32>;
+template class RHnCUDA<float,  2, 32>;
+template class RHnCUDA<float,  3, 32>;
+template class RHnCUDA<double, 1, 32>;
+template class RHnCUDA<double, 2, 32>;
+template class RHnCUDA<double, 3, 32>;
+
 // template class RHnCUDA<char,   1, 64>;
 // template class RHnCUDA<char,   2, 64>;
 // template class RHnCUDA<char,   3, 64>;
