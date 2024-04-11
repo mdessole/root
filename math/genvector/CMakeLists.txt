@@ -31,6 +31,31 @@ ROOT_LINKER_LIBRARY(GenVector
     MathCore
 )
 
+ROOT_LINKER_LIBRARY(GenVectorSYCL
+    src/3DConversions.cxx
+    src/3DDistances.cxx
+    src/AxisAngle.cxx
+    src/AxisAngleXother.cxx
+    src/BitReproducible.cxx
+    src/Boost.cxx
+    src/BoostX.cxx
+    src/BoostY.cxx
+    src/BoostZ.cxx
+    src/EulerAngles.cxx
+    src/LorentzRotation.cxx
+    src/Quaternion.cxx
+    src/QuaternionXaxial.cxx
+    src/Rotation3D.cxx
+    src/Rotation3DxAxial.cxx
+    src/RotationZYX.cxx
+    src/VectorUtil.cxx
+  DEPENDENCIES
+    Core
+    MathCore
+)
+
+target_compile_definitions(GenVectorSYCL PUBLIC -DROOT_MATH_SYCL -DROOT_MATH_ARCH=MathSycl)
+
 ROOT_GENERATE_DICTIONARY(G__GenVector
     Math/AxisAngle.h
     Math/Boost.h
@@ -80,6 +105,7 @@ ROOT_GENERATE_DICTIONARY(G__GenVector
     Math/GenVector/LorentzRotation.h
     Math/GenVector/LorentzVectorfwd.h
     Math/GenVector/LorentzVector.h
+    Math/GenVector/MathHeaders.h
     Math/GenVector/Plane3D.h
     Math/GenVector/Polar2Dfwd.h
     Math/GenVector/Polar2D.h
