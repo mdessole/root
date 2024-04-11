@@ -23,11 +23,15 @@
 
 #include "Math/GenVector/etaMax.h"
 
+#include "Math/GenVector/MathHeaders.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
 //__________________________________________________________________________________________
@@ -99,8 +103,8 @@ public :
 
    Scalar R()     const { return fR;}
    Scalar Phi()   const { return fPhi; }
-   Scalar X() const { using std::cos; return fR * cos(fPhi); }
-   Scalar Y() const { using std::sin; return fR * sin(fPhi); }
+   Scalar X() const { return fR * math_cos(fPhi); }
+   Scalar Y() const { return fR * math_sin(fPhi); }
    Scalar Mag2()  const { return fR*fR;}
 
 
@@ -136,8 +140,7 @@ private:
       restrict abgle hi to be between -PI and PI
     */
    inline void Restrict() {
-      using std::floor;
-      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - floor(fPhi / (2 * pi()) + .5) * 2 * pi();
+      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - math_floor(fPhi / (2 * pi()) + .5) * 2 * pi();
    }
 
 public:
@@ -216,7 +219,7 @@ private:
 };
 
 
-   } // end namespace Math
+   } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 
@@ -231,7 +234,7 @@ private:
 
 namespace ROOT {
 
-   namespace Math {
+   namespace ROOT_MATH_ARCH {
 
 template <class T>
 void Polar2D<T>::SetXY(Scalar a, Scalar b) {
@@ -240,7 +243,7 @@ void Polar2D<T>::SetXY(Scalar a, Scalar b) {
 
 
 #if defined(__MAKECINT__) || defined(G__DICTIONARY)
-
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 
 // ====== Set member functions for coordinates in other systems =======
 
@@ -258,9 +261,9 @@ void Polar2D<T>::SetXY(Scalar a, Scalar b) {
       }
 
 #endif
+#endif
 
-
-   } // end namespace Math
+   } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 

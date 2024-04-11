@@ -22,12 +22,17 @@
 
 #include "Math/GenVector/GenVector_exception.h"
 
+#include "Math/GenVector/MathHeaders.h"
+
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
 
 #include <cmath>
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 //__________________________________________________________________________________________
 /**
@@ -156,7 +161,7 @@ public :
    /**
       Energy
     */
-   Scalar E() const { using std::sqrt; return sqrt(E2()); }
+   Scalar E() const { return math_sqrt(E2()); }
 
    Scalar T() const { return E();}
 
@@ -168,7 +173,7 @@ public :
    /**
       magnitude of spatial components (magnitude of 3-momentum)
    */
-   Scalar P() const { using std::sqrt; return sqrt(P2()); }
+   Scalar P() const { return math_sqrt(P2()); }
    Scalar R() const { return P(); }
 
    /**
@@ -200,7 +205,7 @@ public :
    /**
       Transverse spatial component (P_perp or rho)
    */
-   Scalar Pt() const { using std::sqrt; return sqrt(Perp2()); }
+   Scalar Pt() const { return math_sqrt(Perp2()); }
    Scalar Perp() const { return Pt();}
    Scalar Rho()  const { return Pt();}
 
@@ -215,13 +220,13 @@ public :
    Scalar Mt() const {
       const Scalar mm = Mt2();
       if (mm >= 0) {
-         using std::sqrt;
-         return sqrt(mm);
+         return math_sqrt(mm);
       } else {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
          GenVector::Throw ("PxPyPzM4D::Mt() - Tachyonic:\n"
                            "    Pz^2 > E^2 so the transverse mass would be imaginary");
-         using std::sqrt;
-         return -sqrt(-mm);
+#endif
+         return -math_sqrt(-mm);
       }
    }
 
@@ -239,19 +244,18 @@ public :
    */
    Scalar Et() const {
       const Scalar etet = Et2();
-      using std::sqrt;
-      return sqrt(etet);
+      return math_sqrt(etet);
    }
 
    /**
       azimuthal angle
    */
-   Scalar Phi() const { using std::atan2; return (fX == 0.0 && fY == 0.0) ? 0.0 : atan2(fY, fX); }
+   Scalar Phi() const { return (fX == 0.0 && fY == 0.0) ? 0.0 : math_atan2(fY, fX); }
 
    /**
       polar angle
    */
-   Scalar Theta() const { using std::atan2; return (fX == 0.0 && fY == 0.0 && fZ == 0.0) ? 0 : atan2(Pt(), fZ); }
+   Scalar Theta() const { return (fX == 0.0 && fY == 0.0 && fZ == 0.0) ? 0 : math_atan2(Pt(), fZ); }
 
    /**
        pseudorapidity
@@ -378,7 +382,7 @@ private:
 
 };
 
-} // end namespace Math
+} // end namespace ROOT_MATH_ARCH
 } // end namespace ROOT
 
 
@@ -389,7 +393,7 @@ private:
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 template <class ScalarType>
 inline void PxPyPzM4D<ScalarType>::SetPxPyPzE(Scalar px, Scalar py, Scalar pz, Scalar e) {
@@ -398,6 +402,7 @@ inline void PxPyPzM4D<ScalarType>::SetPxPyPzE(Scalar px, Scalar py, Scalar pz, S
 
 
 #if defined(__MAKECINT__) || defined(G__DICTIONARY)
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 
   // ====== Set member functions for coordinates in other systems =======
 
@@ -431,8 +436,9 @@ inline void PxPyPzM4D<ScalarType>::SetE(ScalarType energy) {
 
 
 #endif  // endif __MAKE__CINT || G__DICTIONARY
+#endif
 
-} // end namespace Math
+} // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 

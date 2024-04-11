@@ -25,8 +25,14 @@
 #include <algorithm>
 #include <cassert>
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
+
 namespace ROOT {
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
 //__________________________________________________________________________________________
@@ -368,8 +374,11 @@ EulerAngles operator* (RotationZ const & r1, EulerAngles const & r2);
    Stream Output and Input
  */
   // TODO - I/O should be put in the manipulator form
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 
 std::ostream & operator<< (std::ostream & os, const EulerAngles & e);
+
+#endif
 
 } // namespace Math
 } // namespace ROOT

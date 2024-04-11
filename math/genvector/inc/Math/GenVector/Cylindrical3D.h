@@ -20,12 +20,18 @@
 
 #include "Math/GenVector/eta.h"
 
+#include "Math/GenVector/MathHeaders.h"
+
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
+
 #include <limits>
 #include <cmath>
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 //__________________________________________________________________________________________
   /**
@@ -111,8 +117,7 @@ private:
    inline static Scalar pi() { return Scalar(M_PI); }
    inline void          Restrict()
    {
-      using std::floor;
-      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - floor(fPhi / (2 * pi()) + .5) * 2 * pi();
+      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - math_floor(fPhi / (2 * pi()) + .5) * 2 * pi();
    }
 public:
 
@@ -121,13 +126,13 @@ public:
    Scalar Rho()   const { return fRho; }
    Scalar Z()     const { return fZ;   }
    Scalar Phi()   const { return fPhi; }
-   Scalar X() const { using std::cos; return fRho * cos(fPhi); }
-   Scalar Y() const { using std::sin; return fRho * sin(fPhi); }
+   Scalar X() const { return fRho * math_cos(fPhi); }
+   Scalar Y() const { return fRho * math_sin(fPhi); }
 
    Scalar Mag2()  const { return fRho*fRho + fZ*fZ;   }
-   Scalar R() const { using std::sqrt; return sqrt(Mag2()); }
+   Scalar R() const { return math_sqrt(Mag2()); }
    Scalar Perp2() const { return fRho*fRho;           }
-   Scalar Theta() const { using std::atan2; return (fRho == Scalar(0) && fZ == Scalar(0)) ? Scalar(0) : atan2(fRho, fZ); }
+   Scalar Theta() const { return (fRho == Scalar(0) && fZ == Scalar(0)) ? Scalar(0) : math_atan2(fRho, fZ); }
 
    // pseudorapidity - use same implementation as in Cartesian3D
    Scalar Eta() const {
@@ -244,7 +249,7 @@ private:
 
 };
 
-  } // end namespace Math
+  } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 
@@ -260,7 +265,7 @@ private:
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
 template <class T>
 void Cylindrical3D<T>::SetXYZ(Scalar xx, Scalar yy, Scalar zz) {
@@ -268,6 +273,7 @@ void Cylindrical3D<T>::SetXYZ(Scalar xx, Scalar yy, Scalar zz) {
 }
 
 #if defined(__MAKECINT__) || defined(G__DICTIONARY)
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 
 
   // ====== Set member functions for coordinates in other systems =======
@@ -309,8 +315,9 @@ void Cylindrical3D<T>::SetEta(Scalar eta) {
 }
 
 #endif
+#endif
 
-  } // end namespace Math
+  } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 

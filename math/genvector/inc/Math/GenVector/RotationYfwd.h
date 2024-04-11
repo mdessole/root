@@ -4,10 +4,11 @@
 #ifndef ROOT_Math_GenVector_RotationYfwd
 #define ROOT_Math_GenVector_RotationYfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
   /**
       Class describing a rotation about the Y axis

@@ -23,14 +23,21 @@
 
 #include "Math/Math.h"
 
+#include "Math/GenVector/eta.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
+
 #include <limits>
 #include <cmath>
 
-#include "Math/GenVector/eta.h"
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 //__________________________________________________________________________________________
   /**
@@ -111,10 +118,10 @@ public :
    Scalar Z()     const { return fZ;}
    Scalar Mag2()  const { return fX*fX + fY*fY + fZ*fZ;}
    Scalar Perp2() const { return fX*fX + fY*fY ;}
-   Scalar Rho() const { using std::sqrt; return sqrt(Perp2()); }
-   Scalar R() const { using std::sqrt; return sqrt(Mag2()); }
-   Scalar Theta() const { using std::atan2; return atan2(Rho(), Z()); }
-   Scalar Phi() const { using std::atan2; return atan2(fY, fX); }
+   Scalar Rho() const { return math_sqrt(Perp2()); }
+   Scalar R() const { return math_sqrt(Mag2()); }
+   Scalar Theta() const { return math_atan2(Rho(), Z()); }
+   Scalar Phi() const { return math_atan2(fY, fX); }
 
    // pseudorapidity
    Scalar Eta() const {
@@ -197,8 +204,8 @@ public :
       const T rho = v.Rho();
       // re-using this instead of calling v.X() and v.Y()
       // is the speed improvement
-      fX = rho * std::cos(v.Phi());
-      fY = rho * std::sin(v.Phi());
+      fX = rho * math_cos(v.Phi());
+      fY = rho * math_sin(v.Phi());
    }
    // Technical note:  This works even though only Polar3Dfwd.h is
    // included (and in fact, including Polar3D.h would cause circularity
@@ -209,10 +216,8 @@ public :
    Cartesian3D & operator = (const Polar3D<T2> & v)
    {
       const T rho = v.Rho();
-      using std::cos;
-      fX          = rho * cos(v.Phi());
-      using std::sin;
-      fY          = rho * sin(v.Phi());
+      fX          = rho * math_cos(v.Phi());
+      fY          = rho * math_sin(v.Phi());
       fZ = v.Z();
       return *this;
    }
@@ -244,12 +249,13 @@ private:
 };
 
 
-  } // end namespace Math
+  } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 
 
 #if defined(__MAKECINT__) || defined(G__DICTIONARY)
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 // need to put here setter methods to resolve nasty cyclical dependencies
 // I need to include other coordinate systems only when Cartesian is already defined
 // since they depend on it
@@ -261,7 +267,7 @@ private:
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
 template <class T>
 void Cartesian3D<T>::SetR(Scalar r) {
@@ -302,12 +308,12 @@ void Cartesian3D<T>::SetEta(Scalar eta) {
 
 
 
-  } // end namespace Math
+  } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 
 #endif
-
+#endif
 
 
 

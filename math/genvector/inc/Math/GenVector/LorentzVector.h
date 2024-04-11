@@ -24,12 +24,18 @@
 
 #include "Math/GenVector/GenVectorIO.h"
 
+#include "Math/GenVector/MathHeaders.h"
+
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
+
 #include <cmath>
 #include <string>
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
 //__________________________________________________________________________________________
 /** @ingroup GenVector
@@ -44,13 +50,13 @@ relativistic particles. A LorentzVector behaves like a
 DisplacementVector in 4D.  The Minkowski components could be viewed as
 v and t, or for kinematic 4-vectors, as p and E.
 
-ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVector template:
-- ROOT::Math::PtEtaPhiMVector based on pt (rho),eta,phi and M (t) coordinates in double precision
-- ROOT::Math::PtEtaPhiEVector based on pt (rho),eta,phi and E (t) coordinates in double precision
-- ROOT::Math::PxPyPzMVector based on px,py,pz and M (mass) coordinates in double precision
-- ROOT::Math::PxPyPzEVector based on px,py,pz and E (energy) coordinates in double precision
-- ROOT::Math::XYZTVector based on x,y,z,t coordinates (cartesian) in double precision (same as PxPyPzEVector)
-- ROOT::Math::XYZTVectorF based on x,y,z,t coordinates (cartesian) in float precision (same as PxPyPzEVector but float)
+ROOT provides specialisations and aliases to them of the ROOT::ROOT_MATH_ARCH::LorentzVector template:
+- ROOT::ROOT_MATH_ARCH::PtEtaPhiMVector based on pt (rho),eta,phi and M (t) coordinates in double precision
+- ROOT::ROOT_MATH_ARCH::PtEtaPhiEVector based on pt (rho),eta,phi and E (t) coordinates in double precision
+- ROOT::ROOT_MATH_ARCH::PxPyPzMVector based on px,py,pz and M (mass) coordinates in double precision
+- ROOT::ROOT_MATH_ARCH::PxPyPzEVector based on px,py,pz and E (energy) coordinates in double precision
+- ROOT::ROOT_MATH_ARCH::XYZTVector based on x,y,z,t coordinates (cartesian) in double precision (same as PxPyPzEVector)
+- ROOT::ROOT_MATH_ARCH::XYZTVectorF based on x,y,z,t coordinates (cartesian) in float precision (same as PxPyPzEVector but float)
 
 @sa Overview of the @ref GenVector "physics vector library"
 */
@@ -360,8 +366,8 @@ ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVect
           get the spatial components of the Vector in a
           DisplacementVector based on Cartesian Coordinates
        */
-       ::ROOT::Math::DisplacementVector3D<Cartesian3D<Scalar> > Vect() const {
-          return ::ROOT::Math::DisplacementVector3D<Cartesian3D<Scalar> >( X(), Y(), Z() );
+       DisplacementVector3D<Cartesian3D<Scalar> > Vect() const {
+          return DisplacementVector3D<Cartesian3D<Scalar> >( X(), Y(), Z() );
        }
 
        // ------ Operations combining two Lorentz vectors ------
@@ -498,8 +504,7 @@ ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVect
           //        We should then move the code to a .cpp file.
           const Scalar ee  = E();
           const Scalar ppz = Pz();
-          using std::log;
-          return Scalar(0.5) * log((ee + ppz) / (ee - ppz));
+          return Scalar(0.5) * math_log((ee + ppz) / (ee - ppz));
        }
 
        /**
@@ -510,8 +515,7 @@ ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVect
           //        mechanism or at least load a NAN if not.
           const Scalar ee = E();
           const Scalar pp = P();
-          using std::log;
-          return Scalar(0.5) * log((ee + pp) / (ee - pp));
+          return Scalar(0.5) * math_log((ee + pp) / (ee - pp));
        }
 
        /**
@@ -594,12 +598,16 @@ ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVect
                 // to avoid Nan
                 return 0;
              else {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
                 GenVector::Throw ("LorentzVector::Beta() - beta computed for LorentzVector with t = 0. Return an Infinite result");
+#endif
                 return 1./E();
              }
           }
           if ( M2() <= 0 ) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
              GenVector::Throw ("LorentzVector::Beta() - beta computed for non-timelike LorentzVector . Result is physically meaningless" );
+#endif
           }
           return P() / E();
        }
@@ -613,19 +621,23 @@ ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVect
              if ( P2() == 0) {
                 return 1;
              } else {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
                 GenVector::Throw ("LorentzVector::Gamma() - gamma computed for LorentzVector with t = 0. Return a zero result");
-
+#endif
              }
           }
           if ( t2 < v2 ) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
              GenVector::Throw ("LorentzVector::Gamma() - gamma computed for a spacelike LorentzVector. Imaginary result");
+#endif
              return 0;
           }
           else if ( t2 == v2 ) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
              GenVector::Throw ("LorentzVector::Gamma() - gamma computed for a lightlike LorentzVector. Infinite result");
+#endif
           }
-          using std::sqrt;
-          return Scalar(1) / sqrt(Scalar(1) - v2 / t2);
+          return Scalar(1) / math_sqrt(Scalar(1) - v2 / t2);
        } /* gamma */
 
 
@@ -698,6 +710,7 @@ ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVect
        return tmp;
     }
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
     // ------------- I/O to/from streams -------------
 
     template< class char_t, class traits_t, class Coords >
@@ -757,10 +770,10 @@ ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVect
         return is;
 
      }  // op>> <>()
+#endif
 
 
-
-  } // end namespace Math
+  } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 
@@ -768,7 +781,7 @@ ROOT provides specialisations and aliases to them of the ROOT::Math::LorentzVect
 namespace cling
 {
 template<typename CoordSystem>
-std::string printValue(const ROOT::Math::LorentzVector<CoordSystem> *v)
+std::string printValue(const LorentzVector<CoordSystem> *v)
 {
    std::stringstream s;
    s << *v;

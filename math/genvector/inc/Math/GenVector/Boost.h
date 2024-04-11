@@ -26,9 +26,13 @@
 #include "Math/GenVector/BoostY.h"
 #include "Math/GenVector/BoostZ.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
+
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
 //__________________________________________________________________________________________
   /**
@@ -215,8 +219,8 @@ public:
      Lorentz transformation operation on a Minkowski ('Cartesian')
      LorentzVector
   */
-  LorentzVector< ROOT::Math::PxPyPzE4D<double> >
-  operator() (const LorentzVector< ROOT::Math::PxPyPzE4D<double> > & v) const;
+  LorentzVector< PxPyPzE4D<double> >
+  operator() (const LorentzVector< PxPyPzE4D<double> > & v) const;
 
   /**
      Lorentz transformation operation on a LorentzVector in any
@@ -287,6 +291,7 @@ private:
 };  // Boost
 
 // ============ Class Boost ends here ============
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 
 /**
    Stream Output and Input
@@ -294,7 +299,7 @@ private:
   // TODO - I/O should be put in the manipulator form
 
 std::ostream & operator<< (std::ostream & os, const Boost & b);
-
+#endif
 
 } //namespace Math
 } //namespace ROOT

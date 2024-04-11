@@ -23,9 +23,13 @@
 #include <cmath>
 #include <algorithm>
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 BoostZ::BoostZ() : fBeta(0.0), fGamma(1.0) {}
 
@@ -33,12 +37,14 @@ void BoostZ::SetComponents (Scalar bz) {
    // set component
    Scalar bp2 = bz*bz;
    if (bp2 >= 1) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
       GenVector::Throw (
                               "Beta Vector supplied to set BoostZ represents speed >= c");
+#endif
       return;
    }
    fBeta = bz;
-   fGamma = 1.0 / std::sqrt(1.0 - bp2);
+   fGamma = 1.0 / math_sqrt(1.0 - bp2);
 }
 
 void BoostZ::GetComponents (Scalar& bz) const {
@@ -68,8 +74,10 @@ void BoostZ::Rectify() {
    // again.
 
    if (fGamma <= 0) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
       GenVector::Throw (
                               "Attempt to rectify a boost with non-positive gamma");
+#endif
       return;
    }
    Scalar beta = fBeta;
@@ -103,12 +111,15 @@ BoostZ BoostZ::Inverse() const {
    return tmp;
 }
 
+
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 // ========== I/O =====================
 
 std::ostream & operator<< (std::ostream & os, const BoostZ & b) {
    os << " BoostZ( beta: " << b.Beta() << ", gamma: " << b.Gamma() << " ) ";
    return os;
 }
+#endif
 
 } //namespace Math
 } //namespace ROOT

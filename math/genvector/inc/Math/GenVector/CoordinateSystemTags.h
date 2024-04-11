@@ -18,11 +18,12 @@
 #ifndef ROOT_Math_GenVector_CoordinateSystemTags
 #define ROOT_Math_GenVector_CoordinateSystemTags  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
 //__________________________________________________________________________________________

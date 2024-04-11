@@ -23,11 +23,17 @@
 
 #include "Math/GenVector/eta.h"
 
+#include "Math/GenVector/MathHeaders.h"
+
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
+
 #include <cmath>
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
 //__________________________________________________________________________________________
@@ -112,10 +118,10 @@ public :
    Scalar R()     const { return fR;}
    Scalar Phi()   const { return fPhi; }
    Scalar Theta() const { return fTheta; }
-   Scalar Rho() const { using std::sin; return fR * sin(fTheta); }
-   Scalar X() const { using std::cos; return Rho() * cos(fPhi); }
-   Scalar Y() const { using std::sin; return Rho() * sin(fPhi); }
-   Scalar Z() const { using std::cos; return fR * cos(fTheta); }
+   Scalar Rho() const { return fR * math_sin(fTheta); }
+   Scalar X() const { return Rho() * math_cos(fPhi); }
+   Scalar Y() const { return Rho() * math_sin(fPhi); }
+   Scalar Z() const { return fR * math_cos(fTheta); }
    Scalar Mag2()  const { return fR*fR;}
    Scalar Perp2() const { return Rho() * Rho(); }
 
@@ -159,8 +165,7 @@ public :
 private:
    inline static Scalar pi()  { return M_PI; }
    inline void Restrict() {
-      using std::floor;
-      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - floor(fPhi / (2 * pi()) + .5) * 2 * pi();
+      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - math_floor(fPhi / (2 * pi()) + .5) * 2 * pi();
    }
 
 public:
@@ -242,7 +247,7 @@ private:
 
 
 
-  } // end namespace Math
+  } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 
@@ -258,7 +263,7 @@ private:
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
 template <class T>
 void Polar3D<T>::SetXYZ(Scalar xx, Scalar yy, Scalar zz) {
@@ -266,7 +271,7 @@ void Polar3D<T>::SetXYZ(Scalar xx, Scalar yy, Scalar zz) {
 }
 
 #if defined(__MAKECINT__) || defined(G__DICTIONARY)
-
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
   // ====== Set member functions for coordinates in other systems =======
 
 
@@ -304,9 +309,9 @@ void Polar3D<T>::SetEta(Scalar eta) {
 }
 
 #endif
+#endif
 
-
-  } // end namespace Math
+  } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 

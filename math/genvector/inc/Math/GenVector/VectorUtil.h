@@ -20,12 +20,15 @@
 
 #include "Math/Math.h"
 
-
 #include "Math/GenVector/Boost.h"
+
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
 
 namespace ROOT {
 
-   namespace Math {
+   namespace ROOT_MATH_ARCH {
 
 
       // utility functions for vector classes
@@ -110,8 +113,7 @@ namespace ROOT {
           */
          template <class Vector1, class Vector2>
          inline typename Vector1::Scalar DeltaR( const Vector1 & v1, const Vector2 & v2) {
-            using std::sqrt;
-            return sqrt( DeltaR2(v1,v2) );
+            return math_sqrt( DeltaR2(v1,v2) );
          }
 
 	/**
@@ -124,8 +126,7 @@ namespace ROOT {
           */
          template <class Vector1, class Vector2>
          inline typename Vector1::Scalar DeltaRapidityPhi( const Vector1 & v1, const Vector2 & v2) {
-            using std::sqrt;
-            return sqrt( DeltaR2RapidityPhi(v1,v2) );
+            return math_sqrt( DeltaR2RapidityPhi(v1,v2) );
          }
 
          /**
@@ -148,8 +149,7 @@ namespace ROOT {
                arg = 0.0;
             }else{
                double pdot = v1.X()*v2.X() + v1.Y()*v2.Y() + v1.Z()*v2.Z();
-               using std::sqrt;
-               arg = pdot/sqrt(ptot2);
+               arg = pdot/math_sqrt(ptot2);
                if(arg >  1.0) arg =  1.0;
                if(arg < -1.0) arg = -1.0;
             }
@@ -167,8 +167,7 @@ namespace ROOT {
           */
          template <class Vector1, class Vector2>
          inline double Angle( const  Vector1 & v1, const Vector2 & v2) {
-            using std::acos;
-            return acos( CosTheta(v1, v2) );
+            return math_acos( CosTheta(v1, v2) );
          }
 
          /**
@@ -226,8 +225,7 @@ namespace ROOT {
           */
          template <class Vector1, class Vector2>
          inline double Perp( const  Vector1 & v, const Vector2 & u) {
-            using std::sqrt;
-            return sqrt(Perp2(v,u) );
+            return math_sqrt(Perp2(v,u) );
          }
 
 
@@ -252,8 +250,7 @@ namespace ROOT {
             Scalar yy = (v1.Y() + v2.Y() );
             Scalar zz = (v1.Z() + v2.Z() );
             Scalar mm2 = ee*ee - xx*xx - yy*yy - zz*zz;
-            using std::sqrt;
-            return mm2 < 0.0 ? -sqrt(-mm2) : sqrt(mm2);
+            return mm2 < 0.0 ? -math_sqrt(-mm2) : math_sqrt(mm2);
             //  PxPyPzE4D<double> q(xx,yy,zz,ee);
             //  return q.M();
             //return ( v1 + v2).mag();
@@ -285,10 +282,8 @@ namespace ROOT {
           */
          template <class Vector>
          Vector RotateX(const Vector & v, double alpha) {
-            using std::sin;
-            double sina = sin(alpha);
-            using std::cos;
-            double cosa = cos(alpha);
+            double sina = math_sin(alpha);
+            double cosa = math_cos(alpha);
             double y2 = v.Y() * cosa - v.Z()*sina;
             double z2 = v.Z() * cosa + v.Y() * sina;
             Vector vrot;
@@ -304,10 +299,8 @@ namespace ROOT {
           */
          template <class Vector>
          Vector RotateY(const Vector & v, double alpha) {
-            using std::sin;
-            double sina = sin(alpha);
-            using std::cos;
-            double cosa = cos(alpha);
+            double sina = math_sin(alpha);
+            double cosa = math_cos(alpha);
             double x2 = v.X() * cosa + v.Z() * sina;
             double z2 = v.Z() * cosa - v.X() * sina;
             Vector vrot;
@@ -323,10 +316,8 @@ namespace ROOT {
           */
          template <class Vector>
          Vector RotateZ(const Vector & v, double alpha) {
-            using std::sin;
-            double sina = sin(alpha);
-            using std::cos;
-            double cosa = cos(alpha);
+            double sina = math_sin(alpha);
+            double cosa = math_cos(alpha);
             double x2 = v.X() * cosa - v.Y() * sina;
             double y2 = v.Y() * cosa + v.X() * sina;
             Vector vrot;
@@ -370,11 +361,12 @@ namespace ROOT {
             double bz = b.Z();
             double b2 = bx*bx + by*by + bz*bz;
             if (b2 >= 1) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
                GenVector::Throw ( "Beta Vector supplied to set Boost represents speed >= c");
+#endif
                return LVector();
             }
-            using std::sqrt;
-            double gamma = 1.0 / sqrt(1.0 - b2);
+            double gamma = 1.0 / math_sqrt(1.0 - b2);
             double bp = bx*v.X() + by*v.Y() + bz*v.Z();
             double gamma2 = b2 > 0 ? (gamma - 1.0)/b2 : 0.0;
             double x2 = v.X() + gamma2*bp*bx + gamma*bx*v.T();
@@ -396,11 +388,12 @@ namespace ROOT {
          template <class LVector, class T>
          LVector boostX(const LVector & v, T beta) {
             if (beta >= 1) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
                GenVector::Throw ("Beta Vector supplied to set Boost represents speed >= c");
+#endif
                return LVector();
             }
-            using std::sqrt;
-            T gamma = 1.0/ sqrt(1.0 - beta*beta);
+            T gamma = 1.0/ math_sqrt(1.0 - beta*beta);
             typename LVector::Scalar x2 = gamma * v.X() + gamma * beta * v.T();
             typename LVector::Scalar t2 = gamma * beta * v.X() + gamma * v.T();
 
@@ -418,11 +411,12 @@ namespace ROOT {
          template <class LVector>
          LVector boostY(const LVector & v, double beta) {
             if (beta >= 1) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
                GenVector::Throw ("Beta Vector supplied to set Boost represents speed >= c");
+#endif
                return LVector();
             }
-            using std::sqrt;
-            double gamma = 1.0/ sqrt(1.0 - beta*beta);
+            double gamma = 1.0/ math_sqrt(1.0 - beta*beta);
             double y2 = gamma * v.Y() + gamma * beta * v.T();
             double t2 = gamma * beta * v.Y() + gamma * v.T();
             LVector lv;
@@ -439,11 +433,12 @@ namespace ROOT {
          template <class LVector>
          LVector boostZ(const LVector & v, double beta) {
             if (beta >= 1) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
                GenVector::Throw ( "Beta Vector supplied to set Boost represents speed >= c");
+#endif
                return LVector();
             }
-            using std::sqrt;
-            double gamma = 1.0/ sqrt(1.0 - beta*beta);
+            double gamma = 1.0/ math_sqrt(1.0 - beta*beta);
             double z2 = gamma * v.Z() + gamma * beta * v.T();
             double t2 = gamma * beta * v.Z() + gamma * v.T();
             LVector lv;

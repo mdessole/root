@@ -17,9 +17,13 @@
 //
 #include "Math/GenVector/Quaternion.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
 // Although the same technique would work with axial rotations,
