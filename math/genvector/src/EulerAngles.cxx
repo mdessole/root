@@ -28,9 +28,13 @@
 
 #include "Math/GenVector/AxisAnglefwd.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 // ========== Constructors and Assignment =====================
 
@@ -38,7 +42,7 @@ void EulerAngles::Rectify()
 {
    // rectify
    if ( fTheta < 0 || fTheta > Pi() ) {
-      Scalar t = fTheta - std::floor( fTheta/(2*Pi()) ) * 2*Pi();
+      Scalar t = fTheta - math_floor( fTheta/(2*Pi()) ) * 2*Pi();
       if ( t <= Pi() ) {
          fTheta = t;
       } else {
@@ -49,11 +53,11 @@ void EulerAngles::Rectify()
    }
 
    if ( fPhi <= -Pi()|| fPhi > Pi() ) {
-      fPhi = fPhi - std::floor( fPhi/(2*Pi()) +.5 ) * 2*Pi();
+      fPhi = fPhi - math_floor( fPhi/(2*Pi()) +.5 ) * 2*Pi();
    }
 
    if ( fPsi <= -Pi()|| fPsi > Pi() ) {
-      fPsi = fPsi - std::floor( fPsi/(2*Pi()) +.5 ) * 2*Pi();
+      fPsi = fPsi - math_floor( fPsi/(2*Pi()) +.5 ) * 2*Pi();
    }
 
 } // Rectify()
@@ -104,7 +108,7 @@ EulerAngles EulerAngles::operator * (const RotationZ  & r) const {
    //         the r.Angle() to phi.
    Scalar newPhi = fPhi + r.Angle();
    if ( newPhi <= -Pi()|| newPhi > Pi() ) {
-      newPhi = newPhi - std::floor( newPhi/(2*Pi()) +.5 ) * 2*Pi();
+      newPhi = newPhi - math_floor( newPhi/(2*Pi()) +.5 ) * 2*Pi();
    }
    return EulerAngles ( newPhi, fTheta, fPsi );
 }
@@ -122,6 +126,8 @@ operator * ( RotationZ const & r, EulerAngles const & e )  {
    return EulerAngles(r) * e;  // TODO: improve performance
 }
 
+
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 // ========== I/O =====================
 
 std::ostream & operator<< (std::ostream & os, const EulerAngles & e) {
@@ -131,7 +137,7 @@ std::ostream & operator<< (std::ostream & os, const EulerAngles & e) {
    << "   psi: " << e.Psi() << "}\n";
    return os;
 }
-
+#endif
 
 } //namespace Math
 } //namespace ROOT

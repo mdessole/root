@@ -20,6 +20,12 @@
 
 #include "Math/GenVector/eta.h"
 
+#include "Math/GenVector/MathHeaders.h"
+
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
+
 #include "Math/GenVector/GenVector_exception.h"
 
 
@@ -27,7 +33,7 @@
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 //__________________________________________________________________________________________
 /**
@@ -138,7 +144,7 @@ public :
    /**
       magnitude of spatial components (magnitude of 3-momentum)
    */
-   Scalar P() const { using std::sqrt; return sqrt(P2()); }
+   Scalar P() const { return math_sqrt(P2()); }
    Scalar R() const { return P(); }
 
    /**
@@ -154,13 +160,13 @@ public :
    {
       const Scalar mm = M2();
       if (mm >= 0) {
-         using std::sqrt;
-         return sqrt(mm);
+         return math_sqrt(mm);
       } else {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
          GenVector::Throw ("PxPyPzE4D::M() - Tachyonic:\n"
                    "    P^2 > E^2 so the mass would be imaginary");
-         using std::sqrt;
-         return -sqrt(-mm);
+#endif
+         return -math_sqrt(-mm);
       }
    }
    Scalar Mag() const    { return M(); }
@@ -174,7 +180,7 @@ public :
    /**
       Transverse spatial component (P_perp or rho)
    */
-   Scalar Pt() const { using std::sqrt; return sqrt(Perp2()); }
+   Scalar Pt() const { return math_sqrt(Perp2()); }
    Scalar Perp() const { return Pt();}
    Scalar Rho()  const { return Pt();}
 
@@ -189,13 +195,13 @@ public :
    Scalar Mt() const {
       const Scalar mm = Mt2();
       if (mm >= 0) {
-         using std::sqrt;
-         return sqrt(mm);
+         return math_sqrt(mm);
       } else {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
          GenVector::Throw ("PxPyPzE4D::Mt() - Tachyonic:\n"
                            "    Pz^2 > E^2 so the transverse mass would be imaginary");
-         using std::sqrt;
-         return -sqrt(-mm);
+#endif
+         return -math_sqrt(-mm);
       }
    }
 
@@ -213,19 +219,18 @@ public :
    */
    Scalar Et() const {
       const Scalar etet = Et2();
-      using std::sqrt;
-      return fT < 0.0 ? -sqrt(etet) : sqrt(etet);
+      return fT < 0.0 ? -math_sqrt(etet) : math_sqrt(etet);
    }
 
    /**
       azimuthal angle
    */
-   Scalar Phi() const { using std::atan2; return (fX == 0.0 && fY == 0.0) ? 0 : atan2(fY, fX); }
+   Scalar Phi() const { return (fX == 0.0 && fY == 0.0) ? 0 : math_atan2(fY, fX); }
 
    /**
       polar angle
    */
-   Scalar Theta() const { using std::atan2; return (fX == 0.0 && fY == 0.0 && fZ == 0.0) ? 0 : atan2(Pt(), fZ); }
+   Scalar Theta() const { return (fX == 0.0 && fY == 0.0 && fZ == 0.0) ? 0 : math_atan2(Pt(), fZ); }
 
    /**
        pseudorapidity
@@ -351,12 +356,13 @@ private:
 
 };
 
-} // end namespace Math
+} // end namespace ROOT_MATH_ARCH
 } // end namespace ROOT
 
 
 
 #if defined(__MAKECINT__) || defined(G__DICTIONARY)
+#if defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 // move implementations here to avoid circle dependencies
 
 #include "Math/GenVector/PtEtaPhiE4D.h"
@@ -364,7 +370,7 @@ private:
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
     // ====== Set member functions for coordinates in other systems =======
@@ -398,11 +404,12 @@ void PxPyPzE4D<ScalarType>::SetM(Scalar m) {
 }
 
 
-} // end namespace Math
+} // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 
 #endif  // endif __MAKE__CINT || G__DICTIONARY
+#endif
 
 
 #endif // ROOT_Math_GenVector_PxPyPzE4D

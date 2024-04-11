@@ -34,9 +34,12 @@
 #include "Math/GenVector/BoostY.h"
 #include "Math/GenVector/BoostZ.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
 //__________________________________________________________________________________________
   /**
@@ -347,8 +350,8 @@ public:
      Lorentz transformation operation on a Minkowski ('Cartesian')
      LorentzVector
   */
-  LorentzVector< ROOT::Math::PxPyPzE4D<double> >
-  operator() (const LorentzVector< ROOT::Math::PxPyPzE4D<double> > & v) const {
+  LorentzVector< PxPyPzE4D<double> >
+  operator() (const LorentzVector< PxPyPzE4D<double> > & v) const {
         Scalar x = v.Px();
         Scalar y = v.Py();
         Scalar z = v.Pz();
@@ -463,12 +466,11 @@ private:
 
 // ============ Class LorentzRotation ends here ============
 
-
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 /**
    Stream Output and Input
  */
   // TODO - I/O should be put in the manipulator form
-
 std::ostream & operator<< (std::ostream & os, const LorentzRotation & r);
 
 // ============================================ vetted to here  ============
@@ -481,6 +483,8 @@ template <class R>
 inline
 typename Rotation3D::Scalar
 Distance ( const Rotation3D& r1, const R & r2) {return gv_detail::dist(r1,r2);}
+#endif
+
 #endif
 
 } //namespace Math

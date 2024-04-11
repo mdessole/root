@@ -4,10 +4,11 @@
 #ifndef ROOT_Math_GenVector_Cylindrical3Dfwd
 #define ROOT_Math_GenVector_Cylindrical3Dfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
   /**
       Class describing a 3D Cylindrical Eta coordinate system

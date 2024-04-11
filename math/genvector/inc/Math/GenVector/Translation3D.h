@@ -25,12 +25,16 @@
 
 #include "Math/GenVector/LorentzVectorfwd.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 #include <iostream>
 #include <type_traits>
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 namespace Impl {
 
@@ -287,7 +291,7 @@ private:
 
 
 // global functions
-
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 // TODO - I/O should be put in the manipulator form
 
 template <class T>
@@ -300,7 +304,7 @@ std::ostream &operator<<(std::ostream &os, const Translation3D<T> &t)
    t.GetComponents(m, m + 3);
    return os << "\n" << m[0] << "  " << m[1] << "  " << m[2] << "\n";
 }
-
+#endif
 // need a function Transform = Translation * Rotation ???
 
 } // end namespace Impl

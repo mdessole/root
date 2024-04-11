@@ -16,8 +16,12 @@
 #include <stdexcept>
 #include <string>
 
+#include "Math/GenVector/AccHeaders.h"
+
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
+
 namespace ROOT {
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 class GenVector_exception;
 inline void Throw(GenVector_exception &e);
@@ -88,5 +92,7 @@ inline void Throw(const char *s)
 
 } // namespace Math
 } // namespace ROOT
+
+#endif
 
 #endif // GENVECTOR_EXCEPTION_H

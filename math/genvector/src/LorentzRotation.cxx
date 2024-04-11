@@ -29,9 +29,13 @@
 #include "Math/GenVector/RotationY.h"
 #include "Math/GenVector/RotationZ.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 LorentzRotation::LorentzRotation() {
    // constructor of an identity LR
@@ -127,48 +131,58 @@ LorentzRotation::Rectify() {
 
    typedef LorentzVector< PxPyPzE4D<Scalar> > FourVector;
    if (fM[kTT] <= 0) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
       GenVector::Throw (
                               "LorentzRotation:Rectify(): Non-positive TT component - cannot rectify");
+#endif
       return;
    }
    FourVector t ( fM[kTX], fM[kTY], fM[kTZ], fM[kTT] );
    Scalar m2 = t.M2();
    if ( m2 <= 0 ) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
       GenVector::Throw (
                               "LorentzRotation:Rectify(): Non-timelike time row - cannot rectify");
+#endif
       return;
    }
-   t /= std::sqrt(m2);
+   t /= math_sqrt(m2);
    FourVector z ( fM[kZX], fM[kZY], fM[kZZ], fM[kZT] );
    z = z - z.Dot(t)*t;
    m2 = z.M2();
    if ( m2 >= 0 ) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
       GenVector::Throw (
                               "LorentzRotation:Rectify(): Non-spacelike Z row projection - "
                               "cannot rectify");
+#endif
       return;
    }
-   z /= std::sqrt(-m2);
+   z /= math_sqrt(-m2);
    FourVector y ( fM[kYX], fM[kYY], fM[kYZ], fM[kYT] );
    y = y - y.Dot(t)*t - y.Dot(z)*z;
    m2 = y.M2();
    if ( m2 >= 0 ) {
-      GenVector::Throw (
+ #if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
+     GenVector::Throw (
                               "LorentzRotation:Rectify(): Non-spacelike Y row projection - "
                               "cannot rectify");
+#endif
       return;
    }
-   y /= std::sqrt(-m2);
+   y /= math_sqrt(-m2);
    FourVector x ( fM[kXX], fM[kXY], fM[kXZ], fM[kXT] );
    x = x - x.Dot(t)*t - x.Dot(z)*z - x.Dot(y)*y;
    m2 = x.M2();
    if ( m2 >= 0 ) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
       GenVector::Throw (
                               "LorentzRotation:Rectify(): Non-spacelike X row projection - "
                               "cannot rectify");
+#endif
       return;
    }
-   x /= std::sqrt(-m2);
+   x /= math_sqrt(-m2);
 }
 
 
@@ -216,6 +230,8 @@ LorentzRotation LorentzRotation::operator * (const LorentzRotation & r) const {
 }
 
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
+
 std::ostream & operator<< (std::ostream & os, const LorentzRotation & r) {
    // TODO - this will need changing for machine-readable issues
    //        and even the human readable form needs formatting improvements
@@ -227,7 +243,7 @@ std::ostream & operator<< (std::ostream & os, const LorentzRotation & r) {
    os << "\n" << m[12] << "  " << m[13] << "  " << m[14] << "  " << m[15] << "\n";
    return os;
 }
-
+#endif
 
 } //namespace Math
 } //namespace ROOT

@@ -24,3 +24,17 @@ ROOT_ADD_TEST(test-genvector-coordinates3D COMMAND coordinates3D)
 
 ROOT_EXECUTABLE(coordinates4D coordinates4D.cxx LIBRARIES GenVector)
 ROOT_ADD_TEST(test-genvector-coordinates4D COMMAND coordinates4D)
+
+if (sycl)
+    ROOT_EXECUTABLE(testGenvectorSYCL testGenVectorSYCL.cxx) # LIBRARIES GenVectorSYCL)
+    target_link_options(testGenvectorSYCL PUBLIC -E)
+    target_link_libraries(testGenvectorSYCL PUBLIC GenVectorSYCL )
+    #target_include_directories(testGenvectorSYCL PUBLIC $<TARGET_PROPERTY:GenVectorSYCL,INCLUDE_DIRECTORIES>)
+    #add_custom_target(genexdebug COMMAND ${CMAKE_COMMAND} -E echo "GenVectorSYCL inc dirs $<TARGET_PROPERTY:GenVectorSYCL,INCLUDE_DIRECTORIES>")
+    add_sycl_to_root_target(TARGET testGenvectorSYCL 
+    SOURCES testGenVectorSYCL.cxx 
+    COMPILE_DEFINITIONS ROOT_MATH_SYCL
+    DEPENDENCIES GenVectorSYCL
+    )
+    ROOT_ADD_TEST(test-genvector-genvectorsycl COMMAND testGenvectorSYCL)
+endif()

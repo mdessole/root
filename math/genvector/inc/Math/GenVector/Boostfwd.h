@@ -4,10 +4,11 @@
 #ifndef ROOT_Math_GenVector_Boostfwd
 #define ROOT_Math_GenVector_Boostfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
   /**
       Class describing a pure boost in some direction
