@@ -31,30 +31,32 @@ ROOT_LINKER_LIBRARY(GenVector
     MathCore
 )
 
-ROOT_LINKER_LIBRARY(GenVectorSYCL
-    src/3DConversions.cxx
-    src/3DDistances.cxx
-    src/AxisAngle.cxx
-    src/AxisAngleXother.cxx
-    src/BitReproducible.cxx
-    src/Boost.cxx
-    src/BoostX.cxx
-    src/BoostY.cxx
-    src/BoostZ.cxx
-    src/EulerAngles.cxx
-    src/LorentzRotation.cxx
-    src/Quaternion.cxx
-    src/QuaternionXaxial.cxx
-    src/Rotation3D.cxx
-    src/Rotation3DxAxial.cxx
-    src/RotationZYX.cxx
-    src/VectorUtil.cxx
-  DEPENDENCIES
-    Core
-    MathCore
-)
+if (sycl)
+  ROOT_LINKER_LIBRARY(GenVectorSYCL
+      src/3DConversions.cxx
+      src/3DDistances.cxx
+      src/AxisAngle.cxx
+      src/AxisAngleXother.cxx
+      src/BitReproducible.cxx
+      src/Boost.cxx
+      src/BoostX.cxx
+      src/BoostY.cxx
+      src/BoostZ.cxx
+      src/EulerAngles.cxx
+      src/LorentzRotation.cxx
+      src/Quaternion.cxx
+      src/QuaternionXaxial.cxx
+      src/Rotation3D.cxx
+      src/Rotation3DxAxial.cxx
+      src/RotationZYX.cxx
+      src/VectorUtil.cxx
+    DEPENDENCIES
+      Core
+      MathCore
+  )
 
-target_compile_definitions(GenVectorSYCL PUBLIC -DROOT_MATH_SYCL -DROOT_MATH_ARCH=MathSycl)
+  target_compile_definitions(GenVectorSYCL PUBLIC -DROOT_MATH_SYCL -DROOT_MATH_ARCH=MathSycl)
+endif()
 
 ROOT_GENERATE_DICTIONARY(G__GenVector
     Math/AxisAngle.h
