@@ -31,7 +31,6 @@ ROOT_LINKER_LIBRARY(GenVector
     MathCore
 )
 
-target_compile_definitions(GenVector PUBLIC -DROOT_MATH_ARCH=Math)
 
 if (sycl)
   ROOT_LINKER_LIBRARY(GenVectorSYCL
@@ -57,7 +56,7 @@ if (sycl)
       MathCore
   )
 
-  target_compile_definitions(GenVectorSYCL PUBLIC -DROOT_MATH_SYCL -DROOT_MATH_ARCH=MathSycl)
+  target_compile_definitions(GenVectorSYCL PUBLIC -DROOT_MATH_SYCL)
 endif()
 
 ROOT_GENERATE_DICTIONARY(G__GenVector
@@ -75,6 +74,7 @@ ROOT_GENERATE_DICTIONARY(G__GenVector
     Math/EulerAngles.h
     Math/GenVector/3DConversions.h
     Math/GenVector/3DDistances.h
+    Math/GenVector/AccHeaders.h
     Math/GenVector/AxisAnglefwd.h
     Math/GenVector/AxisAngle.h
     Math/GenVector/BitReproducible.h
