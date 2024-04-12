@@ -25,27 +25,7 @@
 #define M_PI_4 0.78539816339744830961566084582 // Pi/4
 #endif
 
-#if defined(ROOT_MATH_SYCL)
-#include <sycl/sycl.hpp>
-#elif defined(ROOT_MATH_CUDA)
-#include <math.h>
-#else
-#include <cmath>
-#endif
-
-#if defined(ROOT_MATH_CUDA) && defined(__CUDACC__)
-
-#define __roodevice__ __device__
-#define __roohost__ __host__
-#define __rooglobal__ __global__
-
-#else
-
-#define __roodevice__
-#define __roohost__
-#define __rooglobal__
-
-#endif
+#include "Math/GenVector/AccHeaders.h"
 
 #include <limits>
 
