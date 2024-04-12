@@ -31,6 +31,8 @@ ROOT_LINKER_LIBRARY(GenVector
     MathCore
 )
 
+target_compile_definitions(GenVector PUBLIC -DROOT_MATH_ARCH=Math)
+
 if (sycl)
   ROOT_LINKER_LIBRARY(GenVectorSYCL
       src/3DConversions.cxx
