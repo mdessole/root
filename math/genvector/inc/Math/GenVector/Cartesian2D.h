@@ -26,7 +26,6 @@
 
 using namespace ROOT::ROOT_MATH_ARCH;
 
-
 namespace ROOT {
 
 namespace Math {
@@ -185,8 +184,8 @@ public :
    Cartesian2D & operator = (const Polar2D<T2> & v)
    {
       const Scalar r = v.R();
-      fX             = r * math_cos(v.Phi());
-      fY             = r * math_sin(v.Phi());
+      fX = r * math_cos(v.Phi());
+      fY = r * math_sin(v.Phi());
       return *this;
    }
 

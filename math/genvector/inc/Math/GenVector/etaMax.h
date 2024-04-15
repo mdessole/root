@@ -17,7 +17,6 @@
 #ifndef ROOT_Math_GenVector_etaMax
 #define ROOT_Math_GenVector_etaMax  1
 
-
 #include "Math/GenVector/MathHeaders.h"
 
 #include "Math/GenVector/AccHeaders.h"
@@ -28,24 +27,22 @@
 
 namespace ROOT {
 
-  namespace ROOT_MATH_ARCH {
+namespace ROOT_MATH_ARCH {
 
-    /**
-        The following function could be called to provide the maximum possible
-        value of pseudorapidity for a non-zero rho.  This is log ( max/min )
-        where max and min are the extrema of positive values for type
-        long double.
-     */
-    __roohost__ __roodevice__ 
-    inline
-    long double etaMax_impl() {
-      using std::log;
-      return math_log ( std::numeric_limits<long double>::max()/256.0l ) -
-             math_log ( std::numeric_limits<long double>::denorm_min()*256.0l )
-             + 16.0 * math_log(2.0);
-    // Actual usage of etaMax() simply returns the number 22756, which is
-    // the answer this would supply, rounded to a higher integer.
-    }
+/**
+    The following function could be called to provide the maximum possible
+    value of pseudorapidity for a non-zero rho.  This is log ( max/min )
+    where max and min are the extrema of positive values for type
+    long double.
+ */
+__roohost__ __roodevice__ inline long double etaMax_impl()
+{
+   using std::log;
+   return math_log(std::numeric_limits<long double>::max() / 256.0l) -
+          math_log(std::numeric_limits<long double>::denorm_min() * 256.0l) + 16.0 * math_log(2.0);
+   // Actual usage of etaMax() simply returns the number 22756, which is
+   // the answer this would supply, rounded to a higher integer.
+}
 
     /**
         Function providing the maximum possible value of pseudorapidity for
@@ -57,7 +54,7 @@ namespace ROOT {
       return static_cast<T>(22756.0);
     }
 
-  } // namespace Math
+    } // namespace ROOT_MATH_ARCH
 
 } // namespace ROOT
 
