@@ -18,13 +18,17 @@
 #define ROOT_Math_GenVector_etaMax  1
 
 
+#include "Math/GenVector/MathHeaders.h"
+
+#include "Math/GenVector/AccHeaders.h"
+
 #include <limits>
 #include <cmath>
 
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
     /**
         The following function could be called to provide the maximum possible
@@ -32,12 +36,13 @@ namespace ROOT {
         where max and min are the extrema of positive values for type
         long double.
      */
+    __roohost__ __roodevice__ 
     inline
     long double etaMax_impl() {
       using std::log;
-      return log ( std::numeric_limits<long double>::max()/256.0l ) -
-             log ( std::numeric_limits<long double>::denorm_min()*256.0l )
-             + 16.0 * log(2.0);
+      return math_log ( std::numeric_limits<long double>::max()/256.0l ) -
+             math_log ( std::numeric_limits<long double>::denorm_min()*256.0l )
+             + 16.0 * math_log(2.0);
     // Actual usage of etaMax() simply returns the number 22756, which is
     // the answer this would supply, rounded to a higher integer.
     }
