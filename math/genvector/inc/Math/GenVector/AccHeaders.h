@@ -9,7 +9,7 @@
 #else
 #include <cmath>
 
-#ifndef ROOT_MATH_ARCH 
+#ifndef ROOT_MATH_ARCH
 #define ROOT_MATH_ARCH MathSYCL
 #endif
 
@@ -21,7 +21,7 @@
 #define __roohost__ __host__
 #define __rooglobal__ __global__
 
-#ifndef ROOT_MATH_ARCH 
+#ifndef ROOT_MATH_ARCH
 #define ROOT_MATH_ARCH MathCUDA
 #endif
 
@@ -33,13 +33,12 @@
 
 #endif
 
-#if !defined(ROOT_MATH_SYCL) &&  !defined(ROOT_MATH_CUDA)
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 
-#ifndef ROOT_MATH_ARCH 
+#ifndef ROOT_MATH_ARCH
 #define ROOT_MATH_ARCH Math
 #endif
 
 #endif
 
 #endif // ROOT_AccHeaders_H
-
