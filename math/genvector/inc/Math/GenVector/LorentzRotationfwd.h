@@ -18,9 +18,10 @@
 #ifndef ROOT_Math_GenVector_LorentzRotationfwd
 #define ROOT_Math_GenVector_LorentzRotationfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 namespace ROOT {
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
     class LoretzRotation;
   } // end namespace Math
 } // end namespace ROOT

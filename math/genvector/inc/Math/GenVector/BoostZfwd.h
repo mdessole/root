@@ -4,10 +4,11 @@
 #ifndef ROOT_Math_GenVector_BoostZfwd
 #define ROOT_Math_GenVector_BoostZfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
   /**
       Class describing a pure Lorentz Boost along the Z axis
