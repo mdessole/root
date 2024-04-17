@@ -28,7 +28,7 @@ using namespace ROOT::ROOT_MATH_ARCH;
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 //__________________________________________________________________________________________
    /**
