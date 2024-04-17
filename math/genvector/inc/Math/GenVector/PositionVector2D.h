@@ -24,10 +24,15 @@
 
 #include "Math/GenVector/CoordinateSystemTags.h"
 
+#include "Math/GenVector/MathHeaders.h"
+
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
 
 namespace ROOT {
 
-   namespace Math {
+   namespace ROOT_MATH_ARCH {
 
 
 //__________________________________________________________________________________________
@@ -446,6 +451,7 @@ namespace ROOT {
 
       // Scaling of a position vector with a real number is not physically meaningful
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
       // ------------- I/O to/from streams -------------
 
       template< class char_t, class traits_t, class T, class U >
@@ -505,11 +511,11 @@ namespace ROOT {
          return is;
 
       }  // op>> <>()
+#endif
 
 
 
-
-   } // namespace Math
+   } // namespace ROOT_MATH_ARCH
 
 } // namespace ROOT
 

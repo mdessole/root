@@ -24,6 +24,11 @@
 
 #include "Math/GenVector/GenVector_exception.h"
 
+#include "Math/GenVector/MathHeaders.h"
+
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
 
 //#define TRACE_CE
 #ifdef TRACE_CE
@@ -34,7 +39,7 @@
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 //__________________________________________________________________________________________
 /**
@@ -153,13 +158,12 @@ public :
 
    // other coordinate representation
 
-   Scalar Px() const { using std::cos; return fPt * cos(fPhi); }
+   Scalar Px() const { return fPt * math_cos(fPhi); }
    Scalar X () const { return Px();         }
-   Scalar Py() const { using std::sin; return fPt * sin(fPhi); }
+   Scalar Py() const { return fPt * math_sin(fPhi); }
    Scalar Y () const { return Py();         }
    Scalar Pz() const {
-      using std::sinh;
-      return fPt > 0 ? fPt * sinh(fEta) : fEta == 0 ? 0 : fEta > 0 ? fEta - etaMax<Scalar>() : fEta + etaMax<Scalar>();
+      return fPt > 0 ? fPt * math_sinh(fEta) : fEta == 0 ? 0 : fEta > 0 ? fEta - etaMax<Scalar>() : fEta + etaMax<Scalar>();
    }
    Scalar Z () const { return Pz(); }
 
@@ -167,8 +171,7 @@ public :
        magnitude of momentum
    */
    Scalar P() const {
-      using std::cosh;
-      return fPt > 0 ? fPt * cosh(fEta)
+      return fPt > 0 ? fPt * math_cosh(fEta)
                      : fEta > etaMax<Scalar>() ? fEta - etaMax<Scalar>()
                                                : fEta < -etaMax<Scalar>() ? -fEta - etaMax<Scalar>() : 0;
    }
@@ -195,7 +198,7 @@ public :
    /**
        Energy (timelike component of momentum-energy 4-vector)
    */
-   Scalar E() const { using std::sqrt; return sqrt(E2()); }
+   Scalar E() const { return math_sqrt(E2()); }
 
    Scalar T()   const { return E();  }
 
@@ -225,13 +228,13 @@ public :
    Scalar Mt() const {
       const Scalar mm = Mt2();
       if (mm >= 0) {
-         using std::sqrt;
-         return sqrt(mm);
+         return math_sqrt(mm);
       } else {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
          GenVector::Throw  ("PtEtaPhiM4D::Mt() - Tachyonic:\n"
                             "    Pz^2 > E^2 so the transverse mass would be imaginary");
-         using std::sqrt;
-         return -sqrt(-mm);
+#endif
+         return -math_sqrt(-mm);
       }
    }
 
@@ -240,20 +243,18 @@ public :
    */
    Scalar Et2() const {
       // a bit faster than et * et
-      using std::cosh;
-      return 2. * E2() / (cosh(2 * fEta) + 1);
+      return 2. * E2() / (math_cosh(2 * fEta) + 1);
    }
 
    /**
       transverse energy
    */
-   Scalar Et() const { using std::cosh; return E() / cosh(fEta); }
+   Scalar Et() const { return E() / math_cosh(fEta); }
 
 private:
    inline static Scalar pi() { return M_PI; }
    inline void RestrictPhi() {
-      using std::floor;
-      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - floor(fPhi / (2 * pi()) + .5) * 2 * pi();
+      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - math_floor(fPhi / (2 * pi()) + .5) * 2 * pi();
    }
    // restrict the value of negative mass to avoid unphysical negative E2 values
    // M2 must be less than P2 for the tachionic particles - otherwise use positive values
@@ -271,7 +272,7 @@ public:
    /**
       polar angle
    */
-   Scalar Theta() const { using std::atan; return (fPt > 0 ? Scalar(2) * atan(exp(-fEta)) : fEta >= 0 ? 0 : pi()); }
+   Scalar Theta() const { return (fPt > 0 ? Scalar(2) * math_atan(math_exp(-fEta)) : fEta >= 0 ? 0 : pi()); }
 
    // --------- Set Coordinates of this system  ---------------
 
@@ -388,7 +389,7 @@ private:
 };
 
 
-} // end namespace Math
+} // end namespace ROOT_MATH_ARCH
 } // end namespace ROOT
 
 
@@ -399,7 +400,7 @@ private:
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
 template <class ScalarType>
@@ -409,6 +410,7 @@ inline void PtEtaPhiM4D<ScalarType>::SetPxPyPzE(Scalar px, Scalar py, Scalar pz,
 
 
 #if defined(__MAKECINT__) || defined(G__DICTIONARY)
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 
   // ====== Set member functions for coordinates in other systems =======
 
@@ -438,8 +440,9 @@ void PtEtaPhiM4D<ScalarType>::SetE(Scalar energy) {
 }
 
 #endif  // endif __MAKE__CINT || G__DICTIONARY
+#endif
 
-} // end namespace Math
+} // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 

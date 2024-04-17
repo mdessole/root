@@ -29,12 +29,16 @@
 
 //#include "Math/GenVector/Expression2D.h"
 
+#include "Math/GenVector/MathHeaders.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
 
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
 
 
@@ -477,6 +481,7 @@ namespace ROOT {
      // since it is always confusing as to whether dot product is meant.
 
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 
      // ------------- I/O to/from streams -------------
 
@@ -538,9 +543,9 @@ namespace ROOT {
 
      }  // op>> <>()
 
+#endif
 
-
-  }  // namespace Math
+  }  // namespace ROOT_MATH_ARCH
 
 }  // namespace ROOT
 
