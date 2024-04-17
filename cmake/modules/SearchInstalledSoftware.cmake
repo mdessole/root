@@ -1617,9 +1617,14 @@ if (oneapi)
     separate_arguments(SYCL_COMPILER_FLAGS NATIVE_COMMAND ${SYCL_COMPILER_FLAGS})
 
     function(add_sycl_to_root_target)
-      CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES" ${ARGN})
+      CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES;COMPILE_DEFINITIONS" ${ARGN})
       get_target_property(_library_name ${ARG_TARGET} OUTPUT_NAME)
       get_target_property(_deps ${ARG_TARGET} LINK_LIBRARIES)
+
+      foreach(comp_def ${ARG_COMPILE_DEFINITIONS})
+        list(APPEND _COMPILE_DEFINITIONS -D${comp_def})
+      endforeach()
+      message(DEBUG "_COMPILE_DEFINITIONS : ${_COMPILE_DEFINITIONS}")
 
       target_include_directories(${ARG_TARGET} PUBLIC ${SYCL_INCLUDE_DIR} ${SYCL_INCLUDE_DIR}/sycl)
       target_link_directories(${ARG_TARGET} PUBLIC ${SYCL_LIB_DIR})
@@ -1642,6 +1647,7 @@ if (oneapi)
         add_custom_command(OUTPUT ${_output_path}
                            COMMAND ${SYCL_COMPILER} ${SYCL_COMPILER_FLAGS} -c
                                    ${_inc_dirs}
+                                   ${_COMPILE_DEFINITIONS}
                                    -o ${_output_path}
                                    ${CMAKE_CURRENT_SOURCE_DIR}/${src}
                            DEPENDS ${_deps}
@@ -1663,7 +1669,7 @@ if (oneapi)
       # but instead
       set_property(TARGET ${ARG_TARGET} PROPERTY LINK_DEPENDS ${_outputs})
       add_custom_command(TARGET ${ARG_TARGET}
-                         COMMAND ${SYCL_COMPILER} ${SYCL_COMPILER_FLAGS} ${SYCL_LINKER_FLAGS}
+                         COMMAND ${SYCL_COMPILER} ${SYCL_COMPILER_FLAGS} ${SYCL_LINKER_FLAGS} ${_COMPILE_DEFINITIONS}
                                  -o $<TARGET_FILE:${_library_name}>
                                  ${_outputs} ${_lib_dep_paths}
                          DEPENDS ${_deps} ${_outputs} ${_sycl_target}

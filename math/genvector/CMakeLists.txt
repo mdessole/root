@@ -79,8 +79,8 @@ if (sycl)
       src/Rotation3DxAxial.cxx
       src/RotationZYX.cxx
       src/VectorUtil.cxx
-      
-      add root_sycl_math
+    COMPILE_DEFINITIONS
+      ROOT_MATH_SYCL
   )
 
 endif()
