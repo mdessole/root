@@ -4,10 +4,11 @@
 #ifndef ROOT_Math_GenVector_PtEtaPhiE4Dfwd
 #define ROOT_Math_GenVector_PtEtaPhiE4Dfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
 template <class Scalar>
 class PtEtaPhiE4D;

@@ -213,12 +213,13 @@ private:
 };
 
 
-   } // end namespace Math
+   } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 
 
 #if defined(__MAKECINT__) || defined(G__DICTIONARY)
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 // need to put here setter methods to resolve nasty cyclical dependencies
 // I need to include other coordinate systems only when Cartesian is already defined
 // since they depend on it
@@ -230,7 +231,7 @@ private:
 
 namespace ROOT {
 
-   namespace Math {
+   namespace ROOT_MATH_ARCH {
 
       template <class T>
       void Cartesian2D<T>::SetR(Scalar r) {
@@ -254,7 +255,7 @@ namespace ROOT {
 } // end namespace ROOT
 
 #endif
-
+#endif
 
 
 

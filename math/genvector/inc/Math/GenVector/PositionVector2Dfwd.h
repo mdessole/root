@@ -5,9 +5,11 @@
 #define ROOT_Math_GenVector_PositionVector2Dfwd  1
 
 
+#include "Math/GenVector/AccHeaders.h"
+
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
      /**
          Class describing a 2D Position vector

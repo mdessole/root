@@ -24,6 +24,11 @@
 
 #include "Math/GenVector/etaMax.h"
 
+#include "Math/GenVector/MathHeaders.h"
+
+#include "Math/GenVector/AccHeaders.h"
+
+using namespace ROOT::ROOT_MATH_ARCH;
 
 #include <limits>
 #include <cmath>
@@ -31,7 +36,7 @@
 
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 //__________________________________________________________________________________________
   /**
@@ -71,9 +76,8 @@ public :
   explicit CylindricalEta3D( const CoordSystem & v ) :
      fRho(v.Rho() ),  fEta(v.Eta() ),  fPhi(v.Phi() )
   {
-     using std::log; 
-     static Scalar bigEta = Scalar(-0.3) * log(std::numeric_limits<Scalar>::epsilon());
-     if (std::fabs(fEta) > bigEta) {
+     static Scalar bigEta = Scalar(-0.3) * math_log(std::numeric_limits<Scalar>::epsilon());
+     if (math_fabs(fEta) > bigEta) {
         // This gives a small absolute adjustment in rho,
         // which, for large eta, results in a significant
         // improvement in the faithfullness of reproducing z.
@@ -127,8 +131,7 @@ public :
 private:
    inline static Scalar pi() { return M_PI; }
    inline void Restrict() {
-      using std::floor;
-      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - floor(fPhi / (2 * pi()) + .5) * 2 * pi();
+      if (fPhi <= -pi() || fPhi > pi()) fPhi = fPhi - math_floor(fPhi / (2 * pi()) + .5) * 2 * pi();
       return;
    }
 public:
@@ -138,17 +141,15 @@ public:
    T Rho()   const { return fRho; }
    T Eta()   const { return fEta; }
    T Phi()   const { return fPhi; }
-   T X() const { using std::cos; return fRho * cos(fPhi); }
-   T Y() const { using std::sin; return fRho * sin(fPhi); }
+   T X() const { return fRho * math_cos(fPhi); }
+   T Y() const { return fRho * math_sin(fPhi); }
    T Z() const
    {
-      using std::sinh;
-      return fRho > 0 ? fRho * sinh(fEta) : fEta == 0 ? 0 : fEta > 0 ? fEta - etaMax<T>() : fEta + etaMax<T>();
+      return fRho > 0 ? fRho * math_sinh(fEta) : fEta == 0 ? 0 : fEta > 0 ? fEta - etaMax<T>() : fEta + etaMax<T>();
    }
    T R() const
    {
-      using std::cosh;
-      return fRho > 0 ? fRho * cosh(fEta)
+      return fRho > 0 ? fRho * math_cosh(fEta)
                       : fEta > etaMax<T>() ? fEta - etaMax<T>() : fEta < -etaMax<T>() ? -fEta - etaMax<T>() : 0;
    }
    T Mag2() const
@@ -157,7 +158,7 @@ public:
       return r * r;
    }
    T Perp2() const { return fRho*fRho;            }
-   T Theta() const { using std::atan; return fRho > 0 ? 2 * atan(exp(-fEta)) : (fEta >= 0 ? 0 : pi()); }
+   T Theta() const { return fRho > 0 ? 2 * math_atan(exp(-fEta)) : (fEta >= 0 ? 0 : pi()); }
 
    // setters (only for data members)
 
@@ -279,7 +280,7 @@ private:
 
 };
 
-  } // end namespace Math
+  } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 
@@ -295,7 +296,7 @@ private:
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
 template <class T>
 void CylindricalEta3D<T>::SetXYZ(Scalar xx, Scalar yy, Scalar zz) {
@@ -303,7 +304,7 @@ void CylindricalEta3D<T>::SetXYZ(Scalar xx, Scalar yy, Scalar zz) {
 }
 
 #if defined(__MAKECINT__) || defined(G__DICTIONARY)
-
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 
      // ====== Set member functions for coordinates in other systems =======
 
@@ -345,9 +346,10 @@ void CylindricalEta3D<T>::SetTheta(Scalar theta) {
 }
 
 #endif
+#endif
 
 
-  } // end namespace Math
+  } // end namespace ROOT_MATH_ARCH
 
 } // end namespace ROOT
 

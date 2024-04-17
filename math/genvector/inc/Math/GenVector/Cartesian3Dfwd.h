@@ -4,8 +4,9 @@
 #ifndef ROOT_Math_GenVector_Cartesian3Dfwd
 #define ROOT_Math_GenVector_Cartesian3Dfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
-namespace ROOT {
+namespace ROOT_MATH_ARCH {
 
   namespace Math {
 

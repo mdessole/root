@@ -4,10 +4,11 @@
 #ifndef ROOT_Math_GenVector_Cartesian2Dfwd
 #define ROOT_Math_GenVector_Cartesian2Dfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
      template <class T>
      class Cartesian2D;

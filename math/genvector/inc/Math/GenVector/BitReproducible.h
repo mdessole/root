@@ -17,14 +17,18 @@
 #ifndef ROOT_Math_GenVector_BitReproducible
 #define ROOT_Math_GenVector_BitReproducible  1
 
+#include "Math/GenVector/AccHeaders.h"
+
 #include <iostream>
 #include <string>
 #include <exception>
 
 #include <iomanip>
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
+
 namespace ROOT {
- namespace Math {
+ namespace ROOT_MATH_ARCH {
   namespace GenVector_detail {
 
 class BitReproducibleException  : public std::exception
@@ -124,5 +128,6 @@ private:
 // which cures both the above flaws.  (In the case of long double, this is
 // contingent upon finding some IEEE standard for the bits in a 128-bit double.)
 
+#endif
 
 #endif // DOUBCONV_HH

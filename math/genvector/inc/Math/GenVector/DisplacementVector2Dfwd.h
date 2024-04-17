@@ -4,9 +4,10 @@
 #ifndef ROOT_Math_GenVector_DisplacementVector2Dfwd
 #define ROOT_Math_GenVector_DisplacementVector2Dfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 namespace ROOT {
-   namespace Math {
+   namespace ROOT_MATH_ARCH {
 
       /**
          Class template describing a 2D displacement vector

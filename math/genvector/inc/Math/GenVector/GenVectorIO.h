@@ -19,12 +19,15 @@
 #ifndef ROOT_Math_GenVector_GenVectorIO
 #define ROOT_Math_GenVector_GenVectorIO  1
 
+#include "Math/GenVector/AccHeaders.h"
+
 #include <cctype>
 #include <iostream>
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 
 namespace ROOT  {
-namespace Math  {
+namespace ROOT_MATH_ARCH  {
 
 namespace detail  {
 
@@ -217,5 +220,6 @@ template< class char_t, class traits_t >
 }  // namespace ROOT
 }  // namespace Math
 
+#endif
 
 #endif  // ROOT_Math_GenVector_GenVectorIO

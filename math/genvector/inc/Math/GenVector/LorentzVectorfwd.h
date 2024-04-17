@@ -17,10 +17,11 @@
 #ifndef ROOT_Math_GenVector_LorentzVectorfwd
 #define ROOT_Math_GenVector_LorentzVectorfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
 
     // forward declaretions of Lorentz Vectors and type defs definitions
