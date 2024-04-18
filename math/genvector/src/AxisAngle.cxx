@@ -22,9 +22,14 @@
 #include "Math/GenVector/DisplacementVector3D.h"
 #include "Math/GenVector/Rotation3D.h"
 
+
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 // ========== Constructors and Assignment =====================
 
@@ -75,8 +80,8 @@ DisplacementVector3D< Cartesian3D<double> >
 AxisAngle::
 operator() (const XYZVector & v) const
 {
-   Scalar c = std::cos(fAngle);
-   Scalar s = std::sin(fAngle);
+   Scalar c = math_cos(fAngle);
+   Scalar s = math_sin(fAngle);
    Scalar p = fAxis.Dot(v) * ( 1 - c );
    return  DisplacementVector3D< Cartesian3D<double> >
       (
@@ -86,6 +91,7 @@ operator() (const XYZVector & v) const
        );
 }
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 // ========== I/O =====================
 
 std::ostream & operator<< (std::ostream & os, const AxisAngle & a) {
@@ -94,7 +100,7 @@ std::ostream & operator<< (std::ostream & os, const AxisAngle & a) {
    os << "\n" << a.Axis() << "  " << a.Angle() << "\n";
    return os;
 }
-
+#endif
 
 
 } //namespace Math

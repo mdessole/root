@@ -25,9 +25,13 @@
 #include "Math/GenVector/AxisAnglefwd.h"
 #include "Math/GenVector/EulerAnglesfwd.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 // ========== Constructors and Assignment =====================
 
@@ -42,7 +46,7 @@ void Quaternion::Rectify()
       fU = - fU; fI = - fI; fJ = - fJ; fK = - fK;
    }
 
-   Scalar a = 1.0 / std::sqrt(fU*fU + fI*fI + fJ*fJ + fK*fK);
+   Scalar a = 1.0 / math_sqrt(fU*fU + fI*fI + fJ*fJ + fK*fK);
    fU *= a;
    fI *= a;
    fJ *= a;
@@ -90,11 +94,12 @@ Quaternion Quaternion::operator * (const RotationZYX & r) const {
 
 Quaternion::Scalar Quaternion::Distance(const Quaternion & q) const {
    // distance
-   Scalar chordLength = std::fabs(fU*q.fU + fI*q.fI + fJ*q.fJ + fK*q.fK);
+   Scalar chordLength = math_fabs(fU*q.fU + fI*q.fI + fJ*q.fJ + fK*q.fK);
    if (chordLength > 1) chordLength = 1; // in case roundoff fouls us up
    return acos(chordLength);
 }
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 // ========== I/O =====================
 
 std::ostream & operator<< (std::ostream & os, const Quaternion & q) {
@@ -104,7 +109,7 @@ std::ostream & operator<< (std::ostream & os, const Quaternion & q) {
    << "   " << q.J() << "   " << q.K() << "}\n";
    return os;
 }
-
+#endif
 
 } //namespace Math
 } //namespace ROOT

@@ -26,10 +26,12 @@
 
 #include "Math/GenVector/RotationXfwd.h"
 
-#include <cmath>
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
 
 namespace ROOT {
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
 //__________________________________________________________________________________________
@@ -60,8 +62,8 @@ public:
       Construct from an angle
    */
    explicit RotationX( Scalar angle ) :   fAngle(angle),
-                                          fSin(std::sin(angle)),
-                                          fCos(std::cos(angle))
+                                          fSin(math_sin(angle)),
+                                          fCos(math_cos(angle))
    {
       Rectify();
    }
@@ -72,11 +74,11 @@ public:
       Rectify makes sure the angle is in (-pi,pi]
    */
    void Rectify()  {
-      if ( std::fabs(fAngle) >= M_PI ) {
+      if ( math_fabs(fAngle) >= M_PI ) {
          double x = fAngle / (2.0 * M_PI);
-         fAngle =  (2.0 * M_PI) * ( x + std::floor(.5-x) );
-         fSin = std::sin(fAngle);
-         fCos = std::cos(fAngle);
+         fAngle =  (2.0 * M_PI) * ( x + math_floor(.5-x) );
+         fSin = math_sin(fAngle);
+         fCos = math_cos(fAngle);
       }
    }
 
@@ -86,8 +88,8 @@ public:
       Set given the angle.
    */
    void SetAngle (Scalar angle) {
-      fSin=std::sin(angle);
-      fCos=std::cos(angle);
+      fSin=math_sin(angle);
+      fCos=math_cos(angle);
       fAngle= angle;
       Rectify();
    }
@@ -96,13 +98,13 @@ public:
    /**
       Get the angle
    */
-   void GetAngle(Scalar &angle) const { using std::atan2; angle = atan2(fSin, fCos); }
+   void GetAngle(Scalar &angle) const { angle = math_atan2(fSin, fCos); }
    void GetComponents ( Scalar & angle ) const { GetAngle(angle); }
 
    /**
       Angle of rotation
    */
-   Scalar Angle() const { using std::atan2; return atan2(fSin, fCos); }
+   Scalar Angle() const { return math_atan2(fSin, fCos); }
 
    /**
       Sine or Cosine of the rotation angle
@@ -196,7 +198,7 @@ public:
    RotationX operator * (const RotationX & r) const {
       RotationX ans;
       double x   = (fAngle + r.fAngle) / (2.0 * M_PI);
-      ans.fAngle = (2.0 * M_PI) * ( x + std::floor(.5-x) );
+      ans.fAngle = (2.0 * M_PI) * ( x + math_floor(.5-x) );
       ans.fSin   = fSin*r.fCos + fCos*r.fSin;
       ans.fCos   = fCos*r.fCos - fSin*r.fSin;
       return ans;
@@ -236,6 +238,8 @@ inline
 typename RotationX::Scalar
 Distance ( const RotationX& r1, const R & r2) {return gv_detail::dist(r1,r2);}
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
+
 /**
    Stream Output and Input
  */
@@ -247,6 +251,7 @@ std::ostream & operator<< (std::ostream & os, const RotationX & r) {
   return os;
 }
 
+#endif
 
 }  // namespace Math
 }  // namespace ROOT

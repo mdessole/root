@@ -29,9 +29,12 @@
 
 #include <cmath>
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
 
 namespace ROOT {
-namespace Math {
+namespace ROOT_MATH_ARCH {
 namespace gv_detail {
 
 

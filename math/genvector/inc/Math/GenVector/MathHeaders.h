@@ -106,6 +106,13 @@ inline Scalar math_log(Scalar x)
    return sycl::log(x);
 }
 
+inline long double math_log(long double x)
+{
+   double castx = x;
+   double castres = sycl::log(castx);
+   return (long double) castres;
+}
+
 template <class Scalar>
 inline Scalar math_tan(Scalar x)
 {
@@ -124,57 +131,57 @@ inline Scalar math_pow(Scalar x, Scalar y)
    return sycl::pow(x, y);
 }
 
-template <class T>
-T etaMax2()
-{
-   return static_cast<T>(22756.0);
-}
+// template <class T>
+// T etaMax2()
+// {
+//    return static_cast<T>(22756.0);
+// }
 
-template <typename Scalar>
-inline Scalar Eta_FromRhoZ(Scalar rho, Scalar z)
-{
-   if (rho > 0) {
-      // value to control Taylor expansion of sqrt
-      // static const Scalar
-      Scalar epsilon = static_cast<Scalar>(2e-16);
-      const Scalar big_z_scaled = sycl::pow(epsilon, static_cast<Scalar>(-.25));
+// template <typename Scalar>
+// inline Scalar Eta_FromRhoZ(Scalar rho, Scalar z)
+// {
+//    if (rho > 0) {
+//       // value to control Taylor expansion of sqrt
+//       // static const Scalar
+//       Scalar epsilon = static_cast<Scalar>(2e-16);
+//       const Scalar big_z_scaled = sycl::pow(epsilon, static_cast<Scalar>(-.25));
 
-      Scalar z_scaled = z / rho;
-      if (sycl::fabs(z_scaled) < big_z_scaled) {
-         return sycl::log(z_scaled + sycl::sqrt(z_scaled * z_scaled + 1.0));
-      } else {
-         // apply correction using first order Taylor expansion of sqrt
-         return z > 0 ? sycl::log(2.0 * z_scaled + 0.5 / z_scaled) : -sycl::log(-2.0 * z_scaled);
-      }
-      return z_scaled;
-   }
-   // case vector has rho = 0
-   else if (z == 0) {
-      return 0;
-   } else if (z > 0) {
-      return z + etaMax2<Scalar>();
-   } else {
-      return z - etaMax2<Scalar>();
-   }
-}
+//       Scalar z_scaled = z / rho;
+//       if (sycl::fabs(z_scaled) < big_z_scaled) {
+//          return sycl::log(z_scaled + sycl::sqrt(z_scaled * z_scaled + 1.0));
+//       } else {
+//          // apply correction using first order Taylor expansion of sqrt
+//          return z > 0 ? sycl::log(2.0 * z_scaled + 0.5 / z_scaled) : -sycl::log(-2.0 * z_scaled);
+//       }
+//       return z_scaled;
+//    }
+//    // case vector has rho = 0
+//    else if (z == 0) {
+//       return 0;
+//    } else if (z > 0) {
+//       return z + etaMax2<Scalar>();
+//    } else {
+//       return z - etaMax2<Scalar>();
+//    }
+// }
 
-/**
-   Implementation of eta from -log(tan(theta/2)).
-   This is convenient when theta is already known (for example in a polar
-   coorindate system)
-*/
-template <typename Scalar>
-inline Scalar Eta_FromTheta(Scalar theta, Scalar r)
-{
-   Scalar tanThetaOver2 = tan(theta / 2.);
-   if (tanThetaOver2 == 0) {
-      return r + etaMax2<Scalar>();
-   } else if (tanThetaOver2 > std::numeric_limits<Scalar>::max()) {
-      return -r - etaMax2<Scalar>();
-   } else {
-      return -log(tanThetaOver2);
-   }
-}
+// /**
+//    Implementation of eta from -log(tan(theta/2)).
+//    This is convenient when theta is already known (for example in a polar
+//    coorindate system)
+// */
+// template <typename Scalar>
+// inline Scalar Eta_FromTheta(Scalar theta, Scalar r)
+// {
+//    Scalar tanThetaOver2 = tan(theta / 2.);
+//    if (tanThetaOver2 == 0) {
+//       return r + etaMax2<Scalar>();
+//    } else if (tanThetaOver2 > std::numeric_limits<Scalar>::max()) {
+//       return -r - etaMax2<Scalar>();
+//    } else {
+//       return -log(tanThetaOver2);
+//    }
+// }
 
 #elif defined(ROOT_MATH_CUDA)
 template <class Scalar>

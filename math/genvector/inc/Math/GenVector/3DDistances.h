@@ -27,8 +27,12 @@
 #include "Math/GenVector/RotationYfwd.h"
 #include "Math/GenVector/RotationZfwd.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
-namespace Math {
+namespace ROOT_MATH_ARCH {
 namespace gv_detail {
 
 // Technical note:

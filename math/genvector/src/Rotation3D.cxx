@@ -20,9 +20,13 @@
 #include "Math/GenVector/Cartesian3D.h"
 #include "Math/GenVector/DisplacementVector3D.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 // ========== Constructors and Assignment =====================
 
@@ -54,12 +58,12 @@ void Rotation3D::Rectify()
 
    // Step 2 -- find lower-triangular U such that U * U.transpose = M
 
-   double u11 = std::sqrt(m11);
+   double u11 = math_sqrt(m11);
    double u21 = m12/u11;
    double u31 = m13/u11;
-   double u22 = std::sqrt(m22-u21*u21);
+   double u22 = math_sqrt(m22-u21*u21);
    double u32 = (m23-m12*m13/m11)/u22;
-   double u33 = std::sqrt(m33 - u31*u31 - u32*u32);
+   double u33 = math_sqrt(m33 - u31*u31 - u32*u32);
 
 
    // Step 3 -- find V such that V*V = U.  U is also lower-triangular
@@ -134,6 +138,8 @@ Rotation3D Rotation3D::operator * (const RotationZYX  & r) const {
    return operator* ( Rotation3D(r) );
 }
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
+
 std::ostream & operator<< (std::ostream & os, const Rotation3D & r) {
    // TODO - this will need changing for machine-readable issues
    //        and even the human readable form needs formatting improvements
@@ -144,6 +150,8 @@ std::ostream & operator<< (std::ostream & os, const Rotation3D & r) {
    os << "\n" << m[6] << "  " << m[7] << "  " << m[8] << "\n";
    return os;
 }
+
+#endif
 
 } //namespace Math
 } //namespace ROOT

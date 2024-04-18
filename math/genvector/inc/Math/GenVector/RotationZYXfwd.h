@@ -4,10 +4,11 @@
 #ifndef ROOT_Math_GenVector_RotationZYXfwd
 #define ROOT_Math_GenVector_RotationZYXfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
   /**
       Class describing a rotation represented by a 3-2-1 (Z-Y-X) Euler angles

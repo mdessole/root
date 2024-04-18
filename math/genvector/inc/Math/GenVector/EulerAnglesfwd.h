@@ -4,10 +4,11 @@
 #ifndef ROOT_Math_GenVector_EulerAnglesfwd
 #define ROOT_Math_GenVector_EulerAnglesfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
   /**
       Class describing a rotation represented

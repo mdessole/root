@@ -27,9 +27,12 @@
 #include <algorithm>
 #include <cassert>
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
 
 namespace ROOT {
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
 //__________________________________________________________________________________________
@@ -336,13 +339,15 @@ Quaternion operator* (RotationX const & r1, Quaternion const & r2);
 Quaternion operator* (RotationY const & r1, Quaternion const & r2);
 Quaternion operator* (RotationZ const & r1, Quaternion const & r2);
 
+
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 /**
    Stream Output and Input
  */
   // TODO - I/O should be put in the manipulator form
 
 std::ostream & operator<< (std::ostream & os, const Quaternion & q);
-
+#endif
 
 }  // namespace Math
 }  // namespace ROOT

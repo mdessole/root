@@ -35,8 +35,12 @@
 #include <cmath>
 #include <limits>
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
-namespace Math {
+namespace ROOT_MATH_ARCH {
 namespace gv_detail {
 
 enum ERotation3DMatrixIndex
@@ -60,9 +64,9 @@ void convert( Rotation3D const & from, AxisAngle   & to)
 
    // in case of rotation of an angle PI, the rotation matrix is symmetric and
    // uX = uY = uZ  = 0. Use then conversion through the quaternion
-   if ( std::fabs( uX ) < 8.*std::numeric_limits<double>::epsilon() &&
-        std::fabs( uY ) < 8.*std::numeric_limits<double>::epsilon() &&
-        std::fabs( uZ ) < 8.*std::numeric_limits<double>::epsilon() ) {
+   if ( math_fabs( uX ) < 8.*std::numeric_limits<double>::epsilon() &&
+        math_fabs( uY ) < 8.*std::numeric_limits<double>::epsilon() &&
+        math_fabs( uZ ) < 8.*std::numeric_limits<double>::epsilon() ) {
       Quaternion tmp;
       convert (from,tmp);
       convert (tmp,to);
@@ -82,7 +86,7 @@ void convert( Rotation3D const & from, AxisAngle   & to)
    } else if (cosdelta < -1.0) {
       angle = pi;
    } else {
-      angle = std::acos( cosdelta );
+      angle = math_acos( cosdelta );
    }
 
 
@@ -120,7 +124,7 @@ void convert( Rotation3D const & from, EulerAngles & to)
    static const double pi = M_PI;
    static const double pi_2 = M_PI_2;
 
-   theta = (std::fabs(r[kZZ]) <= 1.0) ? std::acos(r[kZZ]) :
+   theta = (math_fabs(r[kZZ]) <= 1.0) ? math_acos(r[kZZ]) :
       (r[kZZ]  >  0.0) ?     0            : pi;
 
    double cosTheta = r[kZZ];
@@ -132,20 +136,20 @@ void convert( Rotation3D const & from, EulerAngles & to)
    // is less than 1 in absolute value, different mathematically equivalent
    // expressions are numerically stable.
    if (cosTheta == 1) {
-      psiPlusPhi = atan2 ( r[kXY] - r[kYX], r[kXX] + r[kYY] );
+      psiPlusPhi = math_atan2 ( r[kXY] - r[kYX], r[kXX] + r[kYY] );
       psiMinusPhi = 0;
    } else if (cosTheta >= 0) {
-      psiPlusPhi = atan2 ( r[kXY] - r[kYX], r[kXX] + r[kYY] );
+      psiPlusPhi = math_atan2 ( r[kXY] - r[kYX], r[kXX] + r[kYY] );
       double s = -r[kXY] - r[kYX]; // sin (psi-phi) * (1 - cos theta)
       double c =  r[kXX] - r[kYY]; // cos (psi-phi) * (1 - cos theta)
-      psiMinusPhi = atan2 ( s, c );
+      psiMinusPhi = math_atan2 ( s, c );
    } else if (cosTheta > -1) {
-      psiMinusPhi = atan2 ( -r[kXY] - r[kYX], r[kXX] - r[kYY] );
+      psiMinusPhi = math_atan2 ( -r[kXY] - r[kYX], r[kXX] - r[kYY] );
       double s = r[kXY] - r[kYX]; // sin (psi+phi) * (1 + cos theta)
       double c = r[kXX] + r[kYY]; // cos (psi+phi) * (1 + cos theta)
-      psiPlusPhi = atan2 ( s, c );
+      psiPlusPhi = math_atan2 ( s, c );
    } else { // cosTheta == -1
-      psiMinusPhi = atan2 ( -r[kXY] - r[kYX], r[kXX] - r[kYY] );
+      psiMinusPhi = math_atan2 ( -r[kXY] - r[kYX], r[kXX] - r[kYY] );
       psiPlusPhi = 0;
    }
 
@@ -161,11 +165,11 @@ void convert( Rotation3D const & from, EulerAngles & to)
    w[0] = r[kXZ]; w[1] = r[kZX]; w[2] = r[kYZ]; w[3] = -r[kZY];
 
    // find biggest relevant term, which is the best one to use in correcting.
-   double maxw = std::fabs(w[0]);
+   double maxw = math_fabs(w[0]);
    int imax = 0;
    for (int i = 1; i < 4; ++i) {
-      if (std::fabs(w[i]) > maxw) {
-         maxw = std::fabs(w[i]);
+      if (math_fabs(w[i]) > maxw) {
+         maxw = math_fabs(w[i]);
          imax = i;
       }
    }
@@ -181,12 +185,12 @@ void convert( Rotation3D const & from, EulerAngles & to)
          if (w[1] < 0 && phi > 0)               correctByPi ( psi, phi );
             break;
       case 2:
-         if (w[2] > 0 && std::fabs(psi) > pi_2) correctByPi ( psi, phi );
-         if (w[2] < 0 && std::fabs(psi) < pi_2) correctByPi ( psi, phi );
+         if (w[2] > 0 && math_fabs(psi) > pi_2) correctByPi ( psi, phi );
+         if (w[2] < 0 && math_fabs(psi) < pi_2) correctByPi ( psi, phi );
             break;
       case 3:
-         if (w[3] > 0 && std::fabs(phi) > pi_2) correctByPi ( psi, phi );
-         if (w[3] < 0 && std::fabs(phi) < pi_2) correctByPi ( psi, phi );
+         if (w[3] > 0 && math_fabs(phi) > pi_2) correctByPi ( psi, phi );
+         if (w[3] < 0 && math_fabs(phi) < pi_2) correctByPi ( psi, phi );
             break;
    }
 
@@ -211,7 +215,7 @@ void convert( Rotation3D const & from, Quaternion  & to)
    // choose the largest to avoid dividing two small numbers and losing accuracy.
 
    if ( d0 >= d1 && d0 >= d2 && d0 >= d3 ) {
-      const double q0 = .5*std::sqrt(1+d0);
+      const double q0 = .5*math_sqrt(1+d0);
       const double f  = .25/q0;
       const double q1 = f*(m[kZY]-m[kYZ]);
       const double q2 = f*(m[kXZ]-m[kZX]);
@@ -220,7 +224,7 @@ void convert( Rotation3D const & from, Quaternion  & to)
       to.Rectify();
       return;
    } else if ( d1 >= d2 && d1 >= d3 ) {
-      const double q1 = .5*std::sqrt(1+d1);
+      const double q1 = .5*math_sqrt(1+d1);
       const double f  = .25/q1;
       const double q0 = f*(m[kZY]-m[kYZ]);
       const double q2 = f*(m[kXY]+m[kYX]);
@@ -229,7 +233,7 @@ void convert( Rotation3D const & from, Quaternion  & to)
       to.Rectify();
       return;
    } else if ( d2 >= d3 ) {
-      const double q2 = .5*std::sqrt(1+d2);
+      const double q2 = .5*math_sqrt(1+d2);
       const double f  = .25/q2;
       const double q0 = f*(m[kXZ]-m[kZX]);
       const double q1 = f*(m[kXY]+m[kYX]);
@@ -238,7 +242,7 @@ void convert( Rotation3D const & from, Quaternion  & to)
       to.Rectify();
       return;
    } else {
-      const double q3 = .5*std::sqrt(1+d3);
+      const double q3 = .5*math_sqrt(1+d3);
       const double f  = .25/q3;
       const double q0 = f*(m[kYX]-m[kXY]);
       const double q1 = f*(m[kXZ]+m[kZX]);
@@ -271,7 +275,7 @@ void convert( Rotation3D const & from, RotationZYX  & to)
    double sinTheta =  r[kXZ];
    if ( sinTheta < -1.0) sinTheta = -1.0;
    if ( sinTheta >  1.0) sinTheta =  1.0;
-   theta = std::asin( sinTheta );
+   theta = math_asin( sinTheta );
 
    // compute psi +/- phi
    // Depending on whether cosTheta is positive or negative and whether it
@@ -313,11 +317,11 @@ void convert( Rotation3D const & from, RotationZYX  & to)
    w[0] = -r[kYZ]; w[1] = -r[kXY]; w[2] = r[kZZ]; w[3] = r[kXX];
 
    // find biggest relevant term, which is the best one to use in correcting.
-   double maxw = std::fabs(w[0]);
+   double maxw = math_fabs(w[0]);
    int imax = 0;
    for (int i = 1; i < 4; ++i) {
-      if (std::fabs(w[i]) > maxw) {
-         maxw = std::fabs(w[i]);
+      if (math_fabs(w[i]) > maxw) {
+         maxw = math_fabs(w[i]);
          imax = i;
       }
    }
@@ -334,12 +338,12 @@ void convert( Rotation3D const & from, RotationZYX  & to)
          if (w[1] < 0 && phi > 0)               correctByPi ( psi, phi );
             break;
       case 2:
-         if (w[2] > 0 && std::fabs(psi) > pi_2) correctByPi ( psi, phi );
-         if (w[2] < 0 && std::fabs(psi) < pi_2) correctByPi ( psi, phi );
+         if (w[2] > 0 && math_fabs(psi) > pi_2) correctByPi ( psi, phi );
+         if (w[2] < 0 && math_fabs(psi) < pi_2) correctByPi ( psi, phi );
             break;
       case 3:
-         if (w[3] > 0 && std::fabs(phi) > pi_2) correctByPi ( psi, phi );
-         if (w[3] < 0 && std::fabs(phi) < pi_2) correctByPi ( psi, phi );
+         if (w[3] > 0 && math_fabs(phi) > pi_2) correctByPi ( psi, phi );
+         if (w[3] < 0 && math_fabs(phi) < pi_2) correctByPi ( psi, phi );
             break;
    }
 
@@ -354,8 +358,8 @@ void convert( AxisAngle const & from, Rotation3D  & to)
 {
    // conversion from AxisAngle to Rotation3D
 
-   const double sinDelta = std::sin( from.Angle() );
-   const double cosDelta = std::cos( from.Angle() );
+   const double sinDelta = math_sin( from.Angle() );
+   const double cosDelta = math_cos( from.Angle() );
    const double oneMinusCosDelta = 1.0 - cosDelta;
 
    const AxisAngle::AxisVector & u = from.Axis();
@@ -394,10 +398,10 @@ void convert( AxisAngle const & from, Quaternion  & to)
 {
    // conversion from AxisAngle to Quaternion
 
-   double s = std::sin (from.Angle()/2);
+   double s = math_sin (from.Angle()/2);
    DisplacementVector3D< Cartesian3D<double> > axis = from.Axis();
 
-   to.SetComponents( std::cos(from.Angle()/2),
+   to.SetComponents( math_cos(from.Angle()/2),
                      s*axis.X(),
                      s*axis.Y(),
                      s*axis.Z()
@@ -422,12 +426,12 @@ void convert( EulerAngles const & from, Rotation3D  & to)
    // conversion from EulerAngles to Rotation3D
 
    typedef double Scalar;
-   const Scalar sPhi   = std::sin( from.Phi()   );
-   const Scalar cPhi   = std::cos( from.Phi()   );
-   const Scalar sTheta = std::sin( from.Theta() );
-   const Scalar cTheta = std::cos( from.Theta() );
-   const Scalar sPsi   = std::sin( from.Psi()   );
-   const Scalar cPsi   = std::cos( from.Psi()   );
+   const Scalar sPhi   = math_sin( from.Phi()   );
+   const Scalar cPhi   = math_cos( from.Phi()   );
+   const Scalar sTheta = math_sin( from.Theta() );
+   const Scalar cTheta = math_cos( from.Theta() );
+   const Scalar sPsi   = math_sin( from.Psi()   );
+   const Scalar cPsi   = math_cos( from.Psi()   );
    to.SetComponents
       (  cPsi*cPhi-sPsi*cTheta*sPhi,  cPsi*sPhi+sPsi*cTheta*cPhi, sPsi*sTheta
          , -sPsi*cPhi-cPsi*cTheta*sPhi, -sPsi*sPhi+cPsi*cTheta*cPhi, cPsi*sTheta
@@ -451,12 +455,12 @@ void convert( EulerAngles const & from, Quaternion  & to)
    typedef double Scalar;
    const Scalar plus   = (from.Phi()+from.Psi())/2;
    const Scalar minus  = (from.Phi()-from.Psi())/2;
-   const Scalar sPlus  = std::sin( plus  );
-   const Scalar cPlus  = std::cos( plus  );
-   const Scalar sMinus = std::sin( minus );
-   const Scalar cMinus = std::cos( minus );
-   const Scalar sTheta = std::sin( from.Theta()/2 );
-   const Scalar cTheta = std::cos( from.Theta()/2 );
+   const Scalar sPlus  = math_sin( plus  );
+   const Scalar cPlus  = math_cos( plus  );
+   const Scalar sMinus = math_sin( minus );
+   const Scalar cMinus = math_cos( minus );
+   const Scalar sTheta = math_sin( from.Theta()/2 );
+   const Scalar cTheta = math_cos( from.Theta()/2 );
 
    to.SetComponents ( cTheta*cPlus, -sTheta*cMinus, -sTheta*sMinus, -cTheta*sPlus );
    // TODO -- carefully check that this is correct
@@ -508,13 +512,13 @@ void convert( Quaternion const & from, AxisAngle   & to)
    double u = from.U();
    if ( u >= 0 ) {
       if ( u > 1 ) u = 1;
-      const double angle = 2.0 * std::acos ( from.U() );
+      const double angle = 2.0 * math_acos ( from.U() );
       DisplacementVector3D< Cartesian3D<double> >
          axis (from.I(), from.J(), from.K());
       to.SetComponents ( axis, angle );
    } else {
       if ( u < -1 ) u = -1;
-      const double angle = 2.0 * std::acos ( -from.U() );
+      const double angle = 2.0 * math_acos ( -from.U() );
       DisplacementVector3D< Cartesian3D<double> >
          axis (-from.I(), -from.J(), -from.K());
       to.SetComponents ( axis, angle );
@@ -548,17 +552,17 @@ void convert( RotationZYX const & from, Rotation3D  & to) {
 
    double phi,theta,psi = 0;
    from.GetComponents(phi,theta,psi);
-   to.SetComponents( std::cos(theta)*std::cos(phi),
-                      - std::cos(theta)*std::sin(phi),
-                      std::sin(theta),
+   to.SetComponents( math_cos(theta)*math_cos(phi),
+                      - math_cos(theta)*math_sin(phi),
+                      math_sin(theta),
 
-                      std::cos(psi)*std::sin(phi) + std::sin(psi)*std::sin(theta)*std::cos(phi),
-                      std::cos(psi)*std::cos(phi) - std::sin(psi)*std::sin(theta)*std::sin(phi),
-                      -std::sin(psi)*std::cos(theta),
+                      math_cos(psi)*math_sin(phi) + math_sin(psi)*math_sin(theta)*math_cos(phi),
+                      math_cos(psi)*math_cos(phi) - math_sin(psi)*math_sin(theta)*math_sin(phi),
+                      -math_sin(psi)*math_cos(theta),
 
-                      std::sin(psi)*std::sin(phi) - std::cos(psi)*std::sin(theta)*std::cos(phi),
-                      std::sin(psi)*std::cos(phi) + std::cos(psi)*std::sin(theta)*std::sin(phi),
-                      std::cos(psi)*std::cos(theta)
+                      math_sin(psi)*math_sin(phi) - math_cos(psi)*math_sin(theta)*math_cos(phi),
+                      math_sin(psi)*math_cos(phi) + math_cos(psi)*math_sin(theta)*math_sin(phi),
+                      math_cos(psi)*math_cos(theta)
       );
 
 }
@@ -580,12 +584,12 @@ void convert( RotationZYX const & from, Quaternion  & to) {
    double phi,theta,psi = 0;
    from.GetComponents(phi,theta,psi);
 
-   double sphi2   = std::sin(phi/2);
-   double cphi2   = std::cos(phi/2);
-   double stheta2 = std::sin(theta/2);
-   double ctheta2 = std::cos(theta/2);
-   double spsi2   = std::sin(psi/2);
-   double cpsi2   = std::cos(psi/2);
+   double sphi2   = math_sin(phi/2);
+   double cphi2   = math_cos(phi/2);
+   double stheta2 = math_sin(theta/2);
+   double ctheta2 = math_cos(theta/2);
+   double spsi2   = math_sin(psi/2);
+   double cpsi2   = math_cos(psi/2);
    to.SetComponents(  cphi2 * cpsi2 * ctheta2 - sphi2 * spsi2 * stheta2,
                       sphi2 * cpsi2 * stheta2 + cphi2 * spsi2 * ctheta2,
                       cphi2 * cpsi2 * stheta2 - sphi2 * spsi2 * ctheta2,
@@ -630,7 +634,7 @@ void convert( RotationX const & from, Quaternion  & to)
 {
    // conversion from RotationX to Quaternion
 
-   to.SetComponents (std::cos(from.Angle()/2), std::sin(from.Angle()/2), 0, 0);
+   to.SetComponents (math_cos(from.Angle()/2), math_sin(from.Angle()/2), 0, 0);
 }
 
 void convert( RotationX const & from , RotationZYX & to  )
@@ -683,7 +687,7 @@ void convert( RotationY const & from, Quaternion  & to)
 {
    // conversion from RotationY to Quaternion
 
-   to.SetComponents (std::cos(from.Angle()/2), 0, std::sin(from.Angle()/2), 0);
+   to.SetComponents (math_cos(from.Angle()/2), 0, math_sin(from.Angle()/2), 0);
 }
 
 
@@ -730,7 +734,7 @@ void convert( RotationZ const & from, Quaternion  & to)
 {
    // conversion from RotationZ to Quaternion
 
-   to.SetComponents (std::cos(from.Angle()/2), 0, 0, std::sin(from.Angle()/2));
+   to.SetComponents (math_cos(from.Angle()/2), 0, 0, math_sin(from.Angle()/2));
 }
 
 } //namespace gv_detail

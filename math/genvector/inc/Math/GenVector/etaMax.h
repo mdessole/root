@@ -24,6 +24,11 @@
 #include <limits>
 #include <cmath>
 
+// #if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
+// typedef long double d_type;
+// #else
+// typedef d_type  double ;
+// #endif
 
 namespace ROOT {
 

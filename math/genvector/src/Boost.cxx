@@ -60,9 +60,13 @@
 */
 //#endif
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 void Boost::SetIdentity() {
    // set identity boost
@@ -77,12 +81,14 @@ void Boost::SetComponents (Scalar bx, Scalar by, Scalar bz) {
    // set the boost beta as 3 components
    Scalar bp2 = bx*bx + by*by + bz*bz;
    if (bp2 >= 1) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
       GenVector::Throw (
                               "Beta Vector supplied to set Boost represents speed >= c");
-      // SetIdentity();
+#endif      
+// SetIdentity();
       return;
    }
-   Scalar gamma = 1.0 / std::sqrt(1.0 - bp2);
+   Scalar gamma = 1.0 / math_sqrt(1.0 - bp2);
    Scalar bgamma = gamma * gamma / (1.0 + gamma);
    fM[kXX] = 1.0 + bgamma * bx * bx;
    fM[kYY] = 1.0 + bgamma * by * by;
@@ -127,8 +133,10 @@ void Boost::Rectify() {
    // again.
 
    if (fM[kTT] <= 0) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
       GenVector::Throw (
                               "Attempt to rectify a boost with non-positive gamma");
+#endif
       return;
    }
    DisplacementVector3D< Cartesian3D<Scalar> > beta ( fM[kXT], fM[kYT], fM[kZT] );
@@ -167,7 +175,7 @@ Boost Boost::Inverse() const {
    return tmp;
 }
 
-
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 // ========== I/O =====================
 
 std::ostream & operator<< (std::ostream & os, const Boost & b) {
@@ -181,6 +189,7 @@ std::ostream & operator<< (std::ostream & os, const Boost & b) {
    os << "\n" << "\t"  << "  " << "\t"  << "  " << "\t"  << "  " << m[15] << "\n";
    return os;
 }
+#endif
 
 } //namespace Math
 } //namespace ROOT

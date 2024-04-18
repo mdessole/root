@@ -7,8 +7,14 @@
 #include <iomanip>
 #include <exception>
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
+
 namespace ROOT {
-namespace Math {
+namespace ROOT_MATH_ARCH {
 namespace GenVector_detail {
 
 bool BitReproducible::fgByte_order_known = false;
@@ -78,6 +84,7 @@ void BitReproducible::Fill_byte_order () {
    return;
 }
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 std::string BitReproducible::D2x(double d) {
    // hex conversion
    if ( !fgByte_order_known ) Fill_byte_order ();
@@ -90,6 +97,7 @@ std::string BitReproducible::D2x(double d) {
    }
    return ss.str();
 }
+#endif
 
 void BitReproducible::Dto2longs(double d, unsigned int& i, unsigned int& j) {
    // conversion to 2 longs
@@ -128,3 +136,5 @@ double BitReproducible::Longs2double (unsigned int i, unsigned int j) {
 }  // namespace _GenVector_detail
 }  // namespace Math
 }  // namespace ROOT
+
+#endif

@@ -28,9 +28,13 @@
 
 #include "Math/GenVector/AxisAnglefwd.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 // ========== Constructors and Assignment =====================
 
@@ -87,7 +91,7 @@ RotationZYX RotationZYX::operator * (const RotationZ  & r) const {
    //         the r.Angle() to phi.
    Scalar newPhi = fPhi + r.Angle();
    if ( newPhi <= -Pi()|| newPhi > Pi() ) {
-      newPhi = newPhi - std::floor( newPhi/(2*Pi()) +.5 ) * 2*Pi();
+      newPhi = newPhi - math_floor( newPhi/(2*Pi()) +.5 ) * 2*Pi();
    }
    return RotationZYX ( newPhi, fTheta, fPsi );
 }
@@ -113,7 +117,7 @@ void RotationZYX::Rectify()
 
    Scalar theta2 = fTheta + M_PI_2;
    if ( theta2 < 0 || theta2 > Pi() ) {
-      Scalar t = theta2 - std::floor( theta2/(2*Pi() ) ) * 2*Pi();
+      Scalar t = theta2 - math_floor( theta2/(2*Pi() ) ) * 2*Pi();
       if ( t <= Pi() ) {
          theta2 = t;
       } else {
@@ -126,11 +130,11 @@ void RotationZYX::Rectify()
    }
 
    if ( fPhi <= -Pi()|| fPhi > Pi() ) {
-      fPhi = fPhi - std::floor( fPhi/(2*Pi()) +.5 ) * 2*Pi();
+      fPhi = fPhi - math_floor( fPhi/(2*Pi()) +.5 ) * 2*Pi();
    }
 
    if ( fPsi <= -Pi()|| fPsi > Pi() ) {
-      fPsi = fPsi - std::floor( fPsi/(2*Pi()) +.5 ) * 2*Pi();
+      fPsi = fPsi - math_floor( fPsi/(2*Pi()) +.5 ) * 2*Pi();
    }
 
 } // Rectify()
@@ -145,6 +149,8 @@ void RotationZYX::Invert()
    *this = r;
 }
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
+
 // ========== I/O =====================
 
 std::ostream & operator<< (std::ostream & os, const RotationZYX & e) {
@@ -154,7 +160,7 @@ std::ostream & operator<< (std::ostream & os, const RotationZYX & e) {
    << "   psi(X angle): " << e.Psi() << "}\n";
    return os;
 }
-
+#endif
 
 } //namespace Math
 } //namespace ROOT

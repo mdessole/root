@@ -37,8 +37,12 @@
 #include <iostream>
 
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
 //__________________________________________________________________________________________
@@ -341,9 +345,9 @@ RotationZYX operator* (RotationZ const & r1, RotationZYX const & r2);
    Stream Output and Input
  */
   // TODO - I/O should be put in the manipulator form
-
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 std::ostream & operator<< (std::ostream & os, const RotationZYX & e);
-
+#endif
 
 } // namespace Math
 } // namespace ROOT
