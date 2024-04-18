@@ -39,9 +39,12 @@
 #include <cassert>
 #include <iostream>
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
 
 namespace ROOT {
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
 //__________________________________________________________________________________________
@@ -510,12 +513,15 @@ Rotation3D operator* (RotationY const & r1, RotationZ const & r2);
 Rotation3D operator* (RotationZ const & r1, RotationX const & r2);
 Rotation3D operator* (RotationZ const & r1, RotationY const & r2);
 
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
+
 /**
    Stream Output and Input
  */
   // TODO - I/O should be put in the manipulator form
 
 std::ostream & operator<< (std::ostream & os, const Rotation3D & r);
+#endif
 
 } // namespace Math
 } // namespace ROOT

@@ -7,9 +7,13 @@
 #include "Math/GenVector/RotationY.h"
 #include "Math/GenVector/RotationZ.h"
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 Rotation3D Rotation3D::operator * (const RotationX  & rx) const {
    // combination of a Rotation3D with a RotationX

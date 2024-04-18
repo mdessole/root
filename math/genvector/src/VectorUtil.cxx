@@ -14,9 +14,14 @@
 //
 #include "Math/GenVector/VectorUtil.h"
 
+
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 namespace ROOT {
 
-namespace Math {
+namespace ROOT_MATH_ARCH {
 
 
 double VectorUtil::Phi_0_2pi(double angle) {
