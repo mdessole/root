@@ -36,7 +36,6 @@
 
 #include "Math/GenVector/AccHeaders.h"
 
-using namespace ROOT::ROOT_MATH_ARCH;
 
 namespace ROOT {
 

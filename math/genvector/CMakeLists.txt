@@ -31,59 +31,27 @@ ROOT_LINKER_LIBRARY(GenVector
     MathCore
 )
 
+target_sources(GenVector PRIVATE
+  src/3DConversions.cxx
+  src/3DDistances.cxx
+  src/AxisAngle.cxx
+  src/AxisAngleXother.cxx
+  src/BitReproducible.cxx
+  src/Boost.cxx
+  src/BoostX.cxx
+  src/BoostY.cxx
+  src/BoostZ.cxx
+  src/EulerAngles.cxx
+  src/LorentzRotation.cxx
+  src/Quaternion.cxx
+  src/QuaternionXaxial.cxx
+  src/Rotation3D.cxx
+  src/Rotation3DxAxial.cxx
+  src/RotationZYX.cxx
+  src/VectorUtil.cxx
+)
 
-if (sycl)
-  ROOT_LINKER_LIBRARY(GenVectorSYCL
-      src/3DConversions.cxx
-      src/3DDistances.cxx
-      src/AxisAngle.cxx
-      src/AxisAngleXother.cxx
-      src/BitReproducible.cxx
-      src/Boost.cxx
-      src/BoostX.cxx
-      src/BoostY.cxx
-      src/BoostZ.cxx
-      src/EulerAngles.cxx
-      src/LorentzRotation.cxx
-      src/Quaternion.cxx
-      src/QuaternionXaxial.cxx
-      src/Rotation3D.cxx
-      src/Rotation3DxAxial.cxx
-      src/RotationZYX.cxx
-      src/VectorUtil.cxx
-    DEPENDENCIES
-      Core
-      MathCore
-  )
-
-  target_compile_definitions(GenVectorSYCL PUBLIC ROOT_MATH_SYCL)
-
-  add_sycl_to_root_target(
-    TARGET 
-      GenVectorSYCL 
-    SOURCES 
-      src/3DConversions.cxx
-      src/3DDistances.cxx
-      src/AxisAngle.cxx
-      src/AxisAngleXother.cxx
-      src/BitReproducible.cxx
-      src/Boost.cxx
-      src/BoostX.cxx
-      src/BoostY.cxx
-      src/BoostZ.cxx
-      src/EulerAngles.cxx
-      src/LorentzRotation.cxx
-      src/Quaternion.cxx
-      src/QuaternionXaxial.cxx
-      src/Rotation3D.cxx
-      src/Rotation3DxAxial.cxx
-      src/RotationZYX.cxx
-      src/VectorUtil.cxx
-    COMPILE_DEFINITIONS
-      ROOT_MATH_SYCL
-  )
-
-endif()
+target_compile_options(GenVector PUBLIC -DROOT_MATH_ARCH=Math)
 
 ROOT_GENERATE_DICTIONARY(G__GenVector
     Math/AxisAngle.h
@@ -209,6 +177,8 @@ ROOT_GENERATE_DICTIONARY(G__GenVector
     MathCore
 )
 
+target_compile_options(G__GenVector PUBLIC -DROOT_MATH_ARCH=Math)
+
 ROOT_GENERATE_DICTIONARY(G__GenVector32
     Math/Point2D.h
     Math/Point3D.h
@@ -226,6 +196,59 @@ ROOT_GENERATE_DICTIONARY(G__GenVector32
     Core
     MathCore
 )
+
+target_compile_options(G__GenVector32 PUBLIC -DROOT_MATH_ARCH=Math)
+
+if (sycl)
+  ROOT_LINKER_LIBRARY(XX_SYCL
+      src/3DConversions.cxx
+      src/3DDistances.cxx
+      src/AxisAngle.cxx
+      src/AxisAngleXother.cxx
+      src/BitReproducible.cxx
+      src/Boost.cxx
+      src/BoostX.cxx
+      src/BoostY.cxx
+      src/BoostZ.cxx
+      src/EulerAngles.cxx
+      src/LorentzRotation.cxx
+      src/Quaternion.cxx
+      src/QuaternionXaxial.cxx
+      src/Rotation3D.cxx
+      src/Rotation3DxAxial.cxx
+      src/RotationZYX.cxx
+      src/VectorUtil.cxx
+    DEPENDENCIES
+      Core
+      MathCore
+  )
+  target_compile_definitions(XX_SYCL PUBLIC ROOT_MATH_SYCL)
+  add_sycl_to_root_target(
+    TARGET 
+      XX_SYCL 
+    SOURCES 
+      src/3DConversions.cxx
+      src/3DDistances.cxx
+      src/AxisAngle.cxx
+      src/AxisAngleXother.cxx
+      src/BitReproducible.cxx
+      src/Boost.cxx
+      src/BoostX.cxx
+      src/BoostY.cxx
+      src/BoostZ.cxx
+      src/EulerAngles.cxx
+      src/LorentzRotation.cxx
+      src/Quaternion.cxx
+      src/QuaternionXaxial.cxx
+      src/Rotation3D.cxx
+      src/Rotation3DxAxial.cxx
+      src/RotationZYX.cxx
+      src/VectorUtil.cxx
+     COMPILE_DEFINITIONS
+       ROOT_MATH_SYCL
+  )
+
+endif()
 
 ROOT_ADD_TEST_SUBDIRECTORY(test)
 
