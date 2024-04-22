@@ -51,8 +51,6 @@ target_sources(GenVector PRIVATE
   src/VectorUtil.cxx
 )
 
-target_compile_options(GenVector PUBLIC -DROOT_MATH_ARCH=Math)
-
 ROOT_GENERATE_DICTIONARY(G__GenVector
     Math/AxisAngle.h
     Math/Boost.h
@@ -177,8 +175,6 @@ ROOT_GENERATE_DICTIONARY(G__GenVector
     MathCore
 )
 
-target_compile_options(G__GenVector PUBLIC -DROOT_MATH_ARCH=Math)
-
 ROOT_GENERATE_DICTIONARY(G__GenVector32
     Math/Point2D.h
     Math/Point3D.h
@@ -197,10 +193,8 @@ ROOT_GENERATE_DICTIONARY(G__GenVector32
     MathCore
 )
 
-target_compile_options(G__GenVector32 PUBLIC -DROOT_MATH_ARCH=Math)
-
 if (sycl)
-  ROOT_LINKER_LIBRARY(XX_SYCL
+  ROOT_LINKER_LIBRARY(GenVectorSYCL
       src/3DConversions.cxx
       src/3DDistances.cxx
       src/AxisAngle.cxx
@@ -222,10 +216,10 @@ if (sycl)
       Core
       MathCore
   )
-  target_compile_definitions(XX_SYCL PUBLIC ROOT_MATH_SYCL)
+  target_compile_definitions(GenVectorSYCL PUBLIC ROOT_MATH_SYCL)
   add_sycl_to_root_target(
     TARGET 
-      XX_SYCL 
+      GenVectorSYCL 
     SOURCES 
       src/3DConversions.cxx
       src/3DDistances.cxx
