@@ -31,25 +31,6 @@ ROOT_LINKER_LIBRARY(GenVector
     MathCore
 )
 
-target_sources(GenVector PRIVATE
-  src/3DConversions.cxx
-  src/3DDistances.cxx
-  src/AxisAngle.cxx
-  src/AxisAngleXother.cxx
-  src/BitReproducible.cxx
-  src/Boost.cxx
-  src/BoostX.cxx
-  src/BoostY.cxx
-  src/BoostZ.cxx
-  src/EulerAngles.cxx
-  src/LorentzRotation.cxx
-  src/Quaternion.cxx
-  src/QuaternionXaxial.cxx
-  src/Rotation3D.cxx
-  src/Rotation3DxAxial.cxx
-  src/RotationZYX.cxx
-  src/VectorUtil.cxx
-)
 
 ROOT_GENERATE_DICTIONARY(G__GenVector
     Math/AxisAngle.h
@@ -216,7 +197,7 @@ if (sycl)
       Core
       MathCore
   )
-  target_compile_definitions(GenVectorSYCL PUBLIC ROOT_MATH_SYCL)
+ 
   add_sycl_to_root_target(
     TARGET 
       GenVectorSYCL 
@@ -241,7 +222,8 @@ if (sycl)
      COMPILE_DEFINITIONS
        ROOT_MATH_SYCL
   )
-
+  
+  target_compile_definitions(GenVectorSYCL PUBLIC ROOT_MATH_SYCL)
 endif()
 
 ROOT_ADD_TEST_SUBDIRECTORY(test)
