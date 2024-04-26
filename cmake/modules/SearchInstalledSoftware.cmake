@@ -1626,9 +1626,9 @@ if (oneapi)
       endforeach()
       message(DEBUG "_COMPILE_DEFINITIONS : ${_COMPILE_DEFINITIONS}")
 
-      target_include_directories(${ARG_TARGET} PUBLIC ${SYCL_INCLUDE_DIR} ${SYCL_INCLUDE_DIR}/sycl)
-      target_link_directories(${ARG_TARGET} PUBLIC ${SYCL_LIB_DIR})
-      target_link_libraries(${ARG_TARGET} INTERFACE sycl)
+      target_include_directories(${ARG_TARGET} PRIVATE ${SYCL_INCLUDE_DIR} ${SYCL_INCLUDE_DIR}/sycl)
+      #target_link_directories(${ARG_TARGET} PRIVATE ${SYCL_LIB_DIR})
+      target_link_libraries(${ARG_TARGET} PRIVATE sycl)
 
       # Get include directories for the SYCL target
       get_target_property(_inc_dirs ${ARG_TARGET} INCLUDE_DIRECTORIES)
@@ -1636,6 +1636,9 @@ if (oneapi)
         list(REMOVE_DUPLICATES _inc_dirs)
         list(TRANSFORM _inc_dirs PREPEND -I)
       endif()
+      #list(APPEND _inc_dirs -I${SYCL_INCLUDE_DIR})
+      #list(APPEND _inc_dirs -I${SYCL_INCLUDE_DIR}/sycl)
+      #message(STATUS "_inc_dirs: ${_inc_dirs}")
 
       file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/src)
 
@@ -1652,7 +1655,6 @@ if (oneapi)
                                    ${CMAKE_CURRENT_SOURCE_DIR}/${src}
                            DEPENDS ${_deps}
                            COMMENT "Building SYCL object ${_output_path}"
-                           MAIN_DEPENDENCY ${src}
                            )
         endforeach()
 
@@ -1660,7 +1662,9 @@ if (oneapi)
         list(APPEND _lib_dep_paths "$<TARGET_FILE:${lib}>")
       endforeach()
 
-      set(SYCL_LINKER_FLAGS "-shared -Wl,-soname,$<TARGET_FILE:${_library_name}> -L$ENV{LD_LIBRARY_PATH} ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,$ENV{LD_LIBRARY_PATH}:$<TARGET_FILE_DIR:${_library_name}>")
+      set(prop "$<TARGET_FILE_DIR:${_library_name}>")
+      set(SYCL_LINKER_FLAGS "-shared -Wl,-soname,$<TARGET_FILE:${_library_name}> -L$ENV{LD_LIBRARY_PATH} ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,$ENV{LD_LIBRARY_PATH}$<$<BOOL:${prop}>::${prop}> ")
+
       message(STATUS "SYCL linker flags: ${SYCL_LINKER_FLAGS}")
       separate_arguments(SYCL_LINKER_FLAGS NATIVE_COMMAND ${SYCL_LINKER_FLAGS})
 
@@ -1674,8 +1678,9 @@ if (oneapi)
                                  ${_outputs} ${_lib_dep_paths}
                          DEPENDS ${_deps} ${_outputs} ${_sycl_target}
                          COMMENT "Linking shared library $<TARGET_FILE:${_library_name}>"
-                         MAIN_DEPENDENCY ${ARG_TARGET}
                          )
+
+      set_target_properties(${ARG_TARGET} PROPERTIES INSTALL_RPATH "$ENV{LD_LIBRARY_PATH}$<$<BOOL:${prop}>::${prop}>")                   
     endfunction()
   else()
     if(fail-on-missing)
