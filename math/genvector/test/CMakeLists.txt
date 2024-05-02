@@ -24,3 +24,12 @@ ROOT_ADD_TEST(test-genvector-coordinates3D COMMAND coordinates3D)
 
 ROOT_EXECUTABLE(coordinates4D coordinates4D.cxx LIBRARIES GenVector)
 ROOT_ADD_TEST(test-genvector-coordinates4D COMMAND coordinates4D)
+
+if (sycl)
+    ROOT_EXECUTABLE(testGenvectorSYCL testGenVectorSYCL.cxx) # LIBRARIES GenVectorSYCL)
+    target_link_libraries(testGenvectorSYCL PRIVATE GenVectorSYCL )
+    add_sycl_to_root_target(TARGET testGenvectorSYCL 
+    SOURCES testGenVectorSYCL.cxx 
+    COMPILE_DEFINITIONS ROOT_MATH_SYCL)
+    ROOT_ADD_TEST(test-genvector-genvectorsycl COMMAND testGenvectorSYCL)
+endif()
