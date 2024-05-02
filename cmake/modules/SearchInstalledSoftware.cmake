@@ -1624,10 +1624,8 @@ if (oneapi)
       foreach(comp_def ${ARG_COMPILE_DEFINITIONS})
         list(APPEND _COMPILE_DEFINITIONS -D${comp_def})
       endforeach()
-      message(DEBUG "_COMPILE_DEFINITIONS : ${_COMPILE_DEFINITIONS}")
 
       target_include_directories(${ARG_TARGET} PRIVATE ${SYCL_INCLUDE_DIR} ${SYCL_INCLUDE_DIR}/sycl)
-      #target_link_directories(${ARG_TARGET} PRIVATE ${SYCL_LIB_DIR})
       target_link_libraries(${ARG_TARGET} PRIVATE sycl)
 
       # Get include directories for the SYCL target
@@ -1636,9 +1634,6 @@ if (oneapi)
         list(REMOVE_DUPLICATES _inc_dirs)
         list(TRANSFORM _inc_dirs PREPEND -I)
       endif()
-      #list(APPEND _inc_dirs -I${SYCL_INCLUDE_DIR})
-      #list(APPEND _inc_dirs -I${SYCL_INCLUDE_DIR}/sycl)
-      #message(STATUS "_inc_dirs: ${_inc_dirs}")
 
       file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/src)
 
@@ -1661,7 +1656,7 @@ if (oneapi)
       foreach(lib ${_deps})
         list(APPEND _lib_dep_paths "$<TARGET_FILE:${lib}>")
       endforeach()
-
+      
       set(prop "$<TARGET_FILE_DIR:${_library_name}>")
       set(SYCL_LINKER_FLAGS "-shared -Wl,-soname,$<TARGET_FILE:${_library_name}> -L$ENV{LD_LIBRARY_PATH} ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,$ENV{LD_LIBRARY_PATH}$<$<BOOL:${prop}>::${prop}> ")
 
