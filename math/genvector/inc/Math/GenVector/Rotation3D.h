@@ -39,6 +39,10 @@
 #include <cassert>
 #include <iostream>
 
+#ifdef ROOT_MATH_SYCL
+#include <sycl/sycl.hpp>
+#endif
+
 #include "Math/GenVector/AccHeaders.h"
 
 #include "Math/GenVector/MathHeaders.h"
@@ -500,6 +504,9 @@ Distance ( const Rotation3D& r1, const R & r2) {return gv_detail::dist(r1,r2);}
    Multiplication of an axial rotation by a Rotation3D
  */
 Rotation3D operator* (RotationX const & r1, Rotation3D const & r2);
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL 
+#endif 
 Rotation3D operator* (RotationY const & r1, Rotation3D const & r2);
 Rotation3D operator* (RotationZ const & r1, Rotation3D const & r2);
 
@@ -509,6 +516,9 @@ Rotation3D operator* (RotationZ const & r1, Rotation3D const & r2);
 Rotation3D operator* (RotationX const & r1, RotationY const & r2);
 Rotation3D operator* (RotationX const & r1, RotationZ const & r2);
 
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL 
+#endif 
 Rotation3D operator* (RotationY const & r1, RotationX const & r2);
 Rotation3D operator* (RotationY const & r1, RotationZ const & r2);
 
