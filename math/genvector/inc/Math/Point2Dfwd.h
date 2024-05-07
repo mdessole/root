@@ -16,11 +16,15 @@
 #ifndef ROOT_Math_Point2Dfwd
 #define ROOT_Math_Point2Dfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
+
+#include "Math/GenVector/MathHeaders.h"
+
 // forward declareations of position vectors (Points) and type defs definitions
 
 namespace ROOT {
 
-   namespace Math {
+   namespace ROOT_MATH_ARCH {
 
       template<class CoordSystem, class Tag> class PositionVector2D;
 

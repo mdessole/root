@@ -19,9 +19,11 @@
 
 // forward declareations of position vectors (Points) and type defs definitions
 
+#include "Math/GenVector/AccHeaders.h"
+
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
     template<class CoordSystem, class Tag> class PositionVector3D;
 

@@ -17,11 +17,13 @@
 #ifndef ROOT_Math_Vector3Dfwd
 #define ROOT_Math_Vector3Dfwd  1
 
+#include "Math/GenVector/AccHeaders.h"
+
 // forward declarations of displacement vectors (Vectors) and type defs definitions
 
 namespace ROOT {
 
-  namespace Math {
+  namespace ROOT_MATH_ARCH {
 
 
     template<class CoordSystem, class Tag> class DisplacementVector3D;
