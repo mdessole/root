@@ -43,6 +43,8 @@
 
 #include "Math/GenVector/MathHeaders.h"
 
+using namespace ROOT::ROOT_MATH_ARCH;
+
 namespace ROOT {
 namespace ROOT_MATH_ARCH {
 
