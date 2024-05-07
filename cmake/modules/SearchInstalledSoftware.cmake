@@ -1677,6 +1677,81 @@ if (oneapi)
 
       set_target_properties(${ARG_TARGET} PROPERTIES INSTALL_RPATH "$ENV{LD_LIBRARY_PATH}$<$<BOOL:${prop}>::${prop}>")                   
     endfunction()
+
+    function(add_sycl_to_root_target)
+      CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES;COMPILE_DEFINITIONS;DEPENDENCIES" ${ARGN})
+      get_target_property(_library_name ${ARG_TARGET} OUTPUT_NAME)
+      get_target_property(_deps ${ARG_TARGET} LINK_LIBRARIES)
+
+      foreach(comp_def ${ARG_COMPILE_DEFINITIONS})
+        list(APPEND _COMPILE_DEFINITIONS -D${comp_def})
+      endforeach()
+
+      set(_inc_dirs -I${SYCL_INCLUDE_DIR} -I${SYCL_INCLUDE_DIR}/sycl )
+      message(STATUS ${_inc_dirs})
+      foreach(lib ${_deps})
+        get_target_property(lib_includes ${lib} INCLUDE_DIRECTORIES)
+        foreach(dir ${lib_includes})
+          #string(APPEND _inc_dirs "-I${dir} ")
+          list(APPEND _inc_dirs -I${dir})
+        endforeach()
+        
+      endforeach()
+     
+      file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/src)
+
+      # Compile the sycl source files with the found sycl compiler
+      foreach(src ${ARG_SOURCES})
+        set(_output_path ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/${src}${CMAKE_CXX_OUTPUT_EXTENSION})
+        list(APPEND _outputs ${_output_path})
+
+        add_custom_command(OUTPUT ${_output_path}
+                           COMMAND ${SYCL_COMPILER} ${SYCL_COMPILER_FLAGS} -c
+                                   ${_inc_dirs}
+                                   ${_COMPILE_DEFINITIONS}
+                                   -o ${_output_path}
+                                   ${CMAKE_CURRENT_SOURCE_DIR}/${src}
+                           DEPENDS ${_deps}
+                           COMMENT "Building SYCL object ${_output_path}"
+                           )
+        endforeach()
+
+      foreach(lib ${_deps})
+        list(APPEND _lib_dep_paths "$<TARGET_FILE:${lib}>")
+      endforeach()
+      
+      # set(prop "$<TARGET_FILE_DIR:${_library_name}>")
+      # set(SYCL_LINKER_FLAGS "-shared -Wl,-soname,$<TARGET_FILE:${_library_name}> -L$ENV{LD_LIBRARY_PATH} ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,$ENV{LD_LIBRARY_PATH}$<$<BOOL:${prop}>::${prop}> ")
+
+      # message(STATUS "SYCL linker flags: ${SYCL_LINKER_FLAGS}")
+      # separate_arguments(SYCL_LINKER_FLAGS NATIVE_COMMAND ${SYCL_LINKER_FLAGS})
+
+      set(SYCL_LINKER_FLAGS "-L${SYCL_LIB_DIR}  -Wl,-rpath,${SYCL_LIB_DIR}")
+      foreach(lib ${ARG_DEPENDENCIES})
+        list(APPEND _lib_dep_paths "$<TARGET_FILE:${lib}>")
+        list(APPEND SYCL_LINKER_FLAGS ":$<TARGET_FILE_DIR:${lib}>")
+      endforeach()
+      string(REPLACE ";" "" SYCL_LINKER_FLAGS ${SYCL_LINKER_FLAGS})
+    
+      separate_arguments(SYCL_LINKER_FLAGS NATIVE_COMMAND ${SYCL_LINKER_FLAGS})
+      set_target_properties(${ARG_TARGET} PROPERTIES LINKER_LANGUAGE CXX)
+
+      set_property(TARGET ${ARG_TARGET} PROPERTY SOURCES ${_outputs})  
+      set_property(TARGET ${ARG_TARGET} PROPERTY LINK_DEPENDS ${ARG_DEPENDENCIES})
+
+      # Also use the sycl compiler to create a shared library of sycl objects for linking against other ROOT code.
+      # Unfortunately, this doesn't override the existing rule for building the shared library with the CXX compiler,
+      # but instead
+      set_property(TARGET ${ARG_TARGET} PROPERTY LINK_DEPENDS ${_outputs})
+      add_custom_command(TARGET ${ARG_TARGET}
+                         COMMAND ${SYCL_COMPILER} ${SYCL_COMPILER_FLAGS} ${SYCL_LINKER_FLAGS} ${_COMPILE_DEFINITIONS}
+                                 -o ${ARG_TARGET}
+                                 ${_outputs} ${_lib_dep_paths}
+                         DEPENDS ${_deps} ${_outputs} ${_sycl_target}
+                         COMMENT "Building SYCL executable ${ARG_TARGET}>"
+                         )
+      #set_target_properties(${ARG_TARGET} PROPERTIES INSTALL_RPATH "$ENV{LD_LIBRARY_PATH}$<$<BOOL:${prop}>::${prop}>")                   
+    endfunction()
   else()
     if(fail-on-missing)
       message(FATAL_ERROR "OpenAPI SYCL library not found")
