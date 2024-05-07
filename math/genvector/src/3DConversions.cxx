@@ -32,7 +32,6 @@
 #include "Math/GenVector/RotationY.h"
 #include "Math/GenVector/RotationZ.h"
 
-#include <cmath>
 #include <limits>
 
 #include "Math/GenVector/AccHeaders.h"
