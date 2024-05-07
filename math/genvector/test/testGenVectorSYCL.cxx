@@ -20,15 +20,12 @@
 #include "Math/LorentzRotation.h"
 
 #include "Math/VectorUtil.h"
-#ifndef NO_SMATRIX
-#include "Math/SMatrix.h"
-#endif
 
 #include "Math/GenVector/AccHeaders.h"
 
-#include <vector>
-
 #include <sycl/sycl.hpp>
+
+#include <vector>
 
 using namespace ROOT::ROOT_MATH_ARCH;
 // using namespace ROOT::Math::VectorUtil;
@@ -52,7 +49,7 @@ typedef PositionVector3D<Polar3D<double>, LocalCoordinateSystemTag> LocalPolar3D
 //    sycl::queue queue;
 // };
 
-int compare(double v1, double v2, const std::string &name = "", double scale = 1.0)
+int compare(double v1, double v2, double scale = 1.0)
 {
    //  ntest = ntest + 1;
 
@@ -140,7 +137,7 @@ int testVector3D() // SYCL *syclcontext)
          iret[0] |= compare(r, vg.Mag2());
 
          GlobalXYZVector vcross = vg.Cross(vpg);
-         iret[0] |= compare(vcross.R(), 0.0, "cross", 10);
+         iret[0] |= compare(vcross.R(), 0.0, 10);
 
          //   std::cout << vg.Dot(vpg) << std::endl;
          //   std::cout << vg.Cross(vpg) << std::endl;
@@ -149,7 +146,7 @@ int testVector3D() // SYCL *syclcontext)
          iret[0] |= compare(vg3.R(), 2 * vg.R());
 
          GlobalXYZVector vg4 = vg - vpg;
-         iret[0] |= compare(vg4.R(), 0.0, "diff", 10);
+         iret[0] |= compare(vg4.R(), 0.0, 10);
 
 #ifdef TEST_COMPILE_ERROR
          LocalXYZVector vl;
