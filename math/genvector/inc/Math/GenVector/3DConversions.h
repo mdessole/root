@@ -26,7 +26,6 @@
 #include "Math/GenVector/RotationZfwd.h"
 #include "Math/GenVector/RotationZYXfwd.h"
 
-
 #include "Math/GenVector/AccHeaders.h"
 
 #include "Math/GenVector/MathHeaders.h"
@@ -54,8 +53,17 @@ void convert( R1 const &, R2 const) {
    <A><HREF="http://www.cern.ch/mathlibs/documents/eulerAngleComputation.pdf">here</A>
  */
 
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL
+#endif 
 void convert( Rotation3D const & from, AxisAngle   & to);
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL
+#endif
 void convert( Rotation3D const & from, EulerAngles & to);
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL
+#endif 
 void convert( Rotation3D const & from, Quaternion  & to);
 void convert( Rotation3D const & from, RotationZYX & to);
 
@@ -64,6 +72,9 @@ void convert( Rotation3D const & from, RotationZYX & to);
 // conversions from AxisAngle
 
 void convert( AxisAngle const & from, Rotation3D  & to);
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL
+#endif
 void convert( AxisAngle const & from, EulerAngles & to);
 void convert( AxisAngle const & from, Quaternion  & to);
 void convert( AxisAngle const & from, RotationZYX & to);
@@ -72,6 +83,9 @@ void convert( AxisAngle const & from, RotationZYX & to);
 // ----------------------------------------------------------------------
 // conversions from EulerAngles
 
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL
+#endif
 void convert( EulerAngles const & from, Rotation3D  & to);
 void convert( EulerAngles const & from, AxisAngle   & to);
 void convert( EulerAngles const & from, Quaternion  & to);
@@ -83,6 +97,9 @@ void convert( EulerAngles const & from, RotationZYX & to);
 
 void convert( Quaternion const & from, Rotation3D  & to);
 void convert( Quaternion const & from, AxisAngle   & to);
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL
+#endif
 void convert( Quaternion const & from, EulerAngles & to);
 void convert( Quaternion const & from, RotationZYX & to);
 
@@ -91,6 +108,9 @@ void convert( Quaternion const & from, RotationZYX & to);
 
 void convert( RotationZYX const & from, Rotation3D  & to);
 void convert( RotationZYX const & from, AxisAngle   & to);
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL
+#endif
 void convert( RotationZYX const & from, EulerAngles & to);
 void convert( RotationZYX const & from, Quaternion  & to);
 
@@ -98,9 +118,16 @@ void convert( RotationZYX const & from, Quaternion  & to);
 // ----------------------------------------------------------------------
 // conversions from RotationX
 
+
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL
+#endif 
 void convert( RotationX const & from, Rotation3D  & to);
 void convert( RotationX const & from, RotationZYX & to);
 void convert( RotationX const & from, AxisAngle   & to);
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL
+#endif
 void convert( RotationX const & from, EulerAngles & to);
 void convert( RotationX const & from, Quaternion  & to);
 
@@ -111,6 +138,9 @@ void convert( RotationX const & from, Quaternion  & to);
 void convert( RotationY const & from, Rotation3D  & to);
 void convert( RotationY const & from, RotationZYX & to);
 void convert( RotationY const & from, AxisAngle   & to);
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL
+#endif
 void convert( RotationY const & from, EulerAngles & to);
 void convert( RotationY const & from, Quaternion  & to);
 
@@ -121,6 +151,9 @@ void convert( RotationY const & from, Quaternion  & to);
 void convert( RotationZ const & from, Rotation3D  & to);
 void convert( RotationZ const & from, RotationZYX & to);
 void convert( RotationZ const & from, AxisAngle   & to);
+#ifdef ROOT_MATH_SYCL
+extern SYCL_EXTERNAL
+#endif
 void convert( RotationZ const & from, EulerAngles & to);
 void convert( RotationZ const & from, Quaternion  & to);
 
