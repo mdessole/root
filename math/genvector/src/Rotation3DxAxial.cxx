@@ -15,6 +15,9 @@ namespace ROOT {
 
 namespace ROOT_MATH_ARCH {
 
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D Rotation3D::operator * (const RotationX  & rx) const {
    // combination of a Rotation3D with a RotationX
    Scalar s = rx.SinAngle();
@@ -27,6 +30,9 @@ Rotation3D Rotation3D::operator * (const RotationX  & rx) const {
        );
 }
 
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D Rotation3D::operator * (const RotationY  & ry) const {
    // combination of a Rotation3D with a RotationY
    Scalar s = ry.SinAngle();
@@ -39,7 +45,9 @@ Rotation3D Rotation3D::operator * (const RotationY  & ry) const {
        );
 }
 
-
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D Rotation3D::operator * (const RotationZ  & rz) const {
    // combination of a Rotation3D with a RotationZ
    Scalar s = rz.SinAngle();
@@ -52,18 +60,27 @@ Rotation3D Rotation3D::operator * (const RotationZ  & rz) const {
        );
 }
 
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D operator* (RotationX const & r1, Rotation3D const & r2) {
    // combination of a RotationX with a Rotation3D
    // TODO -- recode for much better efficiency!
    return Rotation3D(r1)*r2;
 }
 
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D operator* (RotationY const & r1, Rotation3D const & r2) {
    // combination of a RotationY with a Rotation3D
    // TODO -- recode for much better efficiency!
    return Rotation3D(r1)*r2;
 }
 
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D operator* (RotationZ const & r1, Rotation3D const & r2) {
    // combination of a RotationZ with a Rotation3D
    // TODO -- recode for much better efficiency!
@@ -73,6 +90,9 @@ Rotation3D operator* (RotationZ const & r1, Rotation3D const & r2) {
 typedef Rotation3D::Scalar Scalar;
 
 // Rx * Ry
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D operator* (RotationX const & rx, RotationY const & ry) {
    Scalar sx = rx.SinAngle();
    Scalar cx = rx.CosAngle();
@@ -85,6 +105,9 @@ Rotation3D operator* (RotationX const & rx, RotationY const & ry) {
 }
 
 // Rx * Rz
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D operator* (RotationX const & rx, RotationZ const & rz) {
    Scalar sx = rx.SinAngle();
    Scalar cx = rx.CosAngle();
@@ -97,6 +120,9 @@ Rotation3D operator* (RotationX const & rx, RotationZ const & rz) {
 }
 
 // Ry * Rx
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D operator* (RotationY const & ry, RotationX const & rx) {
    Scalar sx = rx.SinAngle();
    Scalar cx = rx.CosAngle();
@@ -109,6 +135,9 @@ Rotation3D operator* (RotationY const & ry, RotationX const & rx) {
 }
 
 // Ry * Rz
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D operator* (RotationY const & ry, RotationZ const & rz) {
    Scalar sy = ry.SinAngle();
    Scalar cy = ry.CosAngle();
@@ -121,6 +150,9 @@ Rotation3D operator* (RotationY const & ry, RotationZ const & rz) {
 }
 
 // Rz * Rx
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D operator* (RotationZ const & rz, RotationX const & rx) {
    Scalar sx = rx.SinAngle();
    Scalar cx = rx.CosAngle();
@@ -133,6 +165,9 @@ Rotation3D operator* (RotationZ const & rz, RotationX const & rx) {
 }
 
 // Rz * Ry
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 Rotation3D operator* (RotationZ const & rz, RotationY const & ry) {
    Scalar sy = ry.SinAngle();
    Scalar cy = ry.CosAngle();

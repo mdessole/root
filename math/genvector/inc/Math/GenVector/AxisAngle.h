@@ -193,12 +193,18 @@ public:
       Rotation operation on a cartesian vector
    */
    typedef  DisplacementVector3D<Cartesian3D<double>, DefaultCoordinateSystemTag > XYZVector;
+   #ifdef ROOT_MATH_SYCL
+   SYCL_EXTERNAL 
+   #endif 
    XYZVector operator() (const XYZVector & v) const;
 
    /**
       Rotation operation on a displacement vector in any coordinate system
    */
    template <class CoordSystem, class Tag>
+   #ifdef ROOT_MATH_SYCL
+   SYCL_EXTERNAL 
+   #endif 
    DisplacementVector3D<CoordSystem, Tag>
    operator() (const DisplacementVector3D<CoordSystem, Tag> & v) const {
       DisplacementVector3D< Cartesian3D<double> > xyz(v.X(), v.Y(), v.Z());

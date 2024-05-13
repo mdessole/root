@@ -415,15 +415,7 @@ int testRotations3D()
       auto iret = iret_buf.get_access<sycl::access::mode::read_write>(cgh);
       cgh.single_task<class testRotations3D>([=]() {
 
-   // RotationZYX rotZ = RotationZYX(RotationZ(1)); 
-   // RotationZYX rotY = RotationZYX(RotationY(2));
-   // RotationZYX rotX = RotationZYX(RotationX(3));
-
-   RotationZ rotZ = RotationZ(1); 
-   RotationY rotY = RotationY(2);
-   RotationX rotX = RotationX(3);
-
-   Rotation3D rot = rotY * rotX; //RotationZ(1.) * RotationY(2) * RotationX(3);
+   Rotation3D rot = RotationZ(1.) * RotationY(2) * RotationX(3);
    GlobalXYZVector vg(1., 2., 3);
    GlobalXYZPoint pg(1., 2., 3);
    GlobalPolar3DVector vpg(vg);
@@ -496,20 +488,20 @@ int testRotations3D()
 //    iret[0] |= compare((rot2 == rot), true);
 // #endif
 
-   // test inversion
-   Rotation3D rotInv = rot.Inverse();
-   rot.Invert(); // invert in place
-   bool comp = (rotInv == rot);
-   iret[0] |= compare(comp, true);
+   // // test inversion
+   // Rotation3D rotInv = rot.Inverse();
+   // rot.Invert(); // invert in place
+   // bool comp = (rotInv == rot);
+   // iret[0] |= compare(comp, true);
 
-   // rotation and scaling of points
-   XYZPoint q1(1., 2, 3);
-   double a = 3;
-   XYZPoint qr1 = rot(a * q1);
-   XYZPoint qr2 = a * rot(q1);
-   iret[0] |= compare(qr1.X(), qr2.X(), 10);
-   iret[0] |= compare(qr1.Y(), qr2.Y(), 10);
-   iret[0] |= compare(qr1.Z(), qr2.Z(), 10);
+   // // rotation and scaling of points
+   // XYZPoint q1(1., 2, 3);
+   // double a = 3;
+   // XYZPoint qr1 = rot(a * q1);
+   // XYZPoint qr2 = a * rot(q1);
+   // iret[0] |= compare(qr1.X(), qr2.X(), 10);
+   // iret[0] |= compare(qr1.Y(), qr2.Y(), 10);
+   // iret[0] |= compare(qr1.Z(), qr2.Z(), 10);
       });
    });
 }

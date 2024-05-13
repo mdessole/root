@@ -229,6 +229,9 @@ public:
       Re-adjust components to eliminate small deviations from perfect
       orthonormality.
    */
+   #ifdef ROOT_MATH_SYCL
+   SYCL_EXTERNAL 
+   #endif 
    void Rectify();
 
    // ======== Components ==============
@@ -451,13 +454,34 @@ public:
     */
     // note: cannot have a  template method since it is ambiguous with the operator * on vectors
 
-   Rotation3D operator * (const AxisAngle   & a) const;
-   Rotation3D operator * (const EulerAngles & e) const;
-   Rotation3D operator * (const Quaternion  & q) const;
-   Rotation3D operator * (const RotationZYX & r) const;
-   Rotation3D operator * (const RotationX  & rx) const;
-   Rotation3D operator * (const RotationY  & ry) const;
-   Rotation3D operator * (const RotationZ  & rz) const;
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
+Rotation3D operator * (const AxisAngle   & a) const;
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
+Rotation3D operator * (const EulerAngles & e) const;
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
+Rotation3D operator * (const Quaternion  & q) const;
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
+Rotation3D operator * (const RotationZYX & r) const;
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
+Rotation3D operator * (const RotationX  & rx) const;
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
+Rotation3D operator * (const RotationY  & ry) const;
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
+Rotation3D operator * (const RotationZ  & rz) const;
 
    /**
       Post-Multiply (on right) by another rotation :  T = T*R
