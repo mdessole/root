@@ -38,7 +38,9 @@ Rotation3D::Rotation3D()
    fM[kZX] = 0.0;  fM[kZY] = 0.0; fM[kZZ] = 1.0;
 }
 
-
+#ifdef ROOT_MATH_SYCL
+SYCL_EXTERNAL 
+#endif 
 void Rotation3D::Rectify()
 {
    // rectify rotation matrix (make orthogonal)
