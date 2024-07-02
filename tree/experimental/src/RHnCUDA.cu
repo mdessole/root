@@ -237,7 +237,10 @@ __global__ void HistogramGlobal(T *histogram, double *binEdges, int *binEdgesIdx
 ///////////////////////////////////////////
 /// Statistics calculation kernels
 
-// Nullify weights of under/overflow mask to exclude them from stats
+/// @brief  Nullify weights of under/overflow mask to exclude them from stats
+/// @param mask Mask over the coordinates
+/// @param coords Weights for each coordinate
+/// @param bulkSize Number of coordinates
 template <unsigned int Dim, unsigned int BlockSize>
 __global__ void ExcludeUOverflowKernel(bool *mask, double *weights, size_t bulkSize)
 {
@@ -318,6 +321,8 @@ RHnCUDA<T, Dim, BlockSize>::~RHnCUDA()
    }
 }
 
+/// @brief Fills the current bulk of events into the histogram
+/// @param coords Input coordinates in the form of xxxyyyzzz for multidimensional histograms
 template <typename T, unsigned int Dim, unsigned int BlockSize>
 void RHnCUDA<T, Dim, BlockSize>::Fill(const RVecD &coords)
 {
@@ -325,6 +330,9 @@ void RHnCUDA<T, Dim, BlockSize>::Fill(const RVecD &coords)
    Fill(coords, weights);
 }
 
+/// @brief Fills the current bulk of events into the histogram
+/// @param coords Input coordinates in the form of xxxyyyzzz for multidimensional histograms
+/// @param weights Weights corresponding to each coordinate
 template <typename T, unsigned int Dim, unsigned int BlockSize>
 void RHnCUDA<T, Dim, BlockSize>::Fill(const RVecD &coords, const RVecD &weights)
 {
@@ -349,12 +357,13 @@ unsigned int nextPow2(unsigned int x)
    return ++x;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Compute the number of threads and blocks to use for the given reduction
+/// @brief Compute the number of threads and blocks to use for the given reduction
 // kernel. We set threads / block to the minimum of maxThreads and n/2.
 // We observe the maximum specified number of blocks, because
 // each thread in that kernel can process a variable number of elements.
-////////////////////////////////////////////////////////////////////////////////
+/// @param[in] n Number of values to reduce
+/// @param[out] blocks Computed number of blocks
+/// @param[out] threads Computed number of threads
 template <typename T, unsigned int Dim, unsigned int BlockSize>
 void RHnCUDA<T, Dim, BlockSize>::GetNumBlocksAndThreads(int n, int &blocks, int &threads)
 {
@@ -378,6 +387,8 @@ void RHnCUDA<T, Dim, BlockSize>::GetNumBlocksAndThreads(int n, int &blocks, int 
    blocks = MIN(kMaxBlocks, blocks);
 }
 
+/// @brief Updates the histogram statistics (e.g., mean, standardad deviation, higher momenta) with the current bulk
+/// @param size Number of coordinates in the bulk
 template <typename T, unsigned int Dim, unsigned int BlockSize>
 void RHnCUDA<T, Dim, BlockSize>::GetStats(std::size_t size)
 {
@@ -464,6 +475,8 @@ void RHnCUDA<T, Dim, BlockSize>::GetStats(std::size_t size)
    // printf("\n\n");
 }
 
+/// @brief Executes histogram filling for th ecurrent bulk
+/// @param size Number of coordinates in the bulk
 template <typename T, unsigned int Dim, unsigned int BlockSize>
 void RHnCUDA<T, Dim, BlockSize>::ExecuteCUDAHisto(std::size_t size)
 {
@@ -481,6 +494,9 @@ void RHnCUDA<T, Dim, BlockSize>::ExecuteCUDAHisto(std::size_t size)
    GetStats(size);
 }
 
+/// @brief Transfers the results from the GPU back to the CPU
+/// @param histResult Array on the CPU to copy the resulting histogram to
+/// @param statsResult Array on the CPU to copy the resulting statistics to
 template <typename T, unsigned int Dim, unsigned int BlockSize>
 void RHnCUDA<T, Dim, BlockSize>::RetrieveResults(T *histResult, double *statsResult)
 {

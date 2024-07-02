@@ -9,6 +9,10 @@
 namespace ROOT {
 namespace Experimental {
 
+/// @brief CUDA histogramming class
+/// @tparam T Histogram data type
+/// @tparam Dim Dimensionality of the histogram
+/// @tparam BlockSize CUDA block size to use in the kernels
 template <typename T, unsigned int Dim, unsigned int BlockSize = 256>
 class RHnCUDA {
    // clang-format off
