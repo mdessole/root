@@ -26,7 +26,19 @@ struct RHnCUDA<T, Dim, BlockSize>::CUDAProps {
 
 ////////////////////////////////////////////////////////////////////////////////
 /// CUDA kernels
+////////////////////////////////////////////////////////////////////////////////
 
+///////////////////////////////////////////
+/// Device kernels for incrementing a bin.
+
+/// @brief Get the bin for a specific axis
+/// @param x The input coordinate
+/// @param binEdges Array with edges of the histogram bins per axis
+/// @param binEdgesIdx Index to the start of the edges array for the current axis in binEdges
+/// @param nBins Number of bins for the current axis
+/// @param xMin Minimum value of the histogram edges of the current axis
+/// @param xMax Maximum value of the histogram edges of the current axis
+/// @return The bin for coordinate x
 __device__ inline int FindFixBin(double x, const double *binEdges, int binEdgesIdx, int nBins, double xMin, double xMax)
 {
    int bin;
@@ -47,6 +59,17 @@ __device__ inline int FindFixBin(double x, const double *binEdges, int binEdgesI
 }
 
 // Use Horner's method to calculate the bin in an n-Dimensional array.
+/// @brief Get the bin for each coordinate. Uses Horner's method to calculate the combined bin for the flat histogram
+///        array in case of n-Dimensional arrays.
+/// @param tid Current CUDA thread ID
+/// @param binEdges Array with bin edges per axis, can be length zero if the bins are fixed size instead of variable
+/// @param binEdgesIdx Index to the start of array for each axis in binEdges
+/// @param nBinsAxis Number of bins per axis including under/overflow bins
+/// @param xMin Minimum edge value per axis
+/// @param xMax Maximum edge value per axis
+/// @param coords Input coordinate values, in the form of xxx,yyy,zzz in case of multidimensional histograms
+/// @param bulkSize Number of coordinates
+/// @param mask Mask on input coordinates that are out of bounds
 template <unsigned int Dim>
 __device__ inline int GetBin(size_t tid, double *binEdges, int *binEdgesIdx, int *nBinsAxis, double *xMin, double *xMax,
                              double *coords, size_t bulkSize, bool *mask)
@@ -142,6 +165,19 @@ __device__ inline void AddBinContent(int *histogram, int bin, double weight)
 ///////////////////////////////////////////
 /// Histogram filling kernels
 
+/// @brief Fill the histogram using shared memory. Each block first fills a local histogram and then combines the
+///        results of the local histogram into the final histogram stored in global memory to reduce atomic contention.
+/// @param histogram Result array
+/// @param binEdges Array with bin edges per axis, can be zero length if the bins are fixed size instead of variable
+/// @param binEdgesIdx Index to the start of array for each axis in binEdges
+/// @param nBinsAxis Number of bins per axis including under/overflow bins
+/// @param xMin Minimum edge value per axis
+/// @param xMax Maximum edge value per axis
+/// @param coords Input coordinate values, in the form of xxx,yyy,zzz in case of multidimensional histograms
+/// @param weights Weights that correspond to each coordinate
+/// @param mask Mask for input coordinates for potential filtering TODO: implement this
+/// @param nBins Total number of bins in the histogram
+/// @param bulkSize Number of coordinates
 template <typename T, unsigned int Dim>
 __global__ void HistogramLocal(T *histogram, double *binEdges, int *binEdgesIdx, int *nBinsAxis, double *xMin,
                                double *xMax, double *coords, double *weights, bool *mask, size_t nBins, size_t bulkSize)
@@ -171,8 +207,18 @@ __global__ void HistogramLocal(T *histogram, double *binEdges, int *binEdgesIdx,
    }
 }
 
-// Slower histogramming, but requires less memory.
 // OPTIMIZATION: consider sorting the coords array.
+/// @brief Fill the histogram using only global memory.
+/// @param histogram Result array
+/// @param binEdges Array with bin edges per axis, can be zero length if the bins are fixed size instead of variable
+/// @param binEdgesIdx Index to the start of array for each axis in binEdges
+/// @param nBinsAxis Number of bins per axis including under/overflow bins
+/// @param xMin Minimum edge value per axis
+/// @param xMax Maximum edge value per axis
+/// @param coords Input coordinate values, in the form of xxx,yyy,zzz in case of multidimensional histograms
+/// @param weights Weights that correspond to each coordinate
+/// @param mask Mask for input coordinates for potential filtering TODO: implement this
+/// @param bulkSize Number of coordinates
 template <typename T, unsigned int Dim>
 __global__ void HistogramGlobal(T *histogram, double *binEdges, int *binEdgesIdx, int *nBinsAxis, double *xMin,
                                 double *xMax, double *coords, double *weights, bool *mask, size_t bulkSize)
@@ -362,7 +408,6 @@ void RHnCUDA<T, Dim, BlockSize>::GetStats(std::size_t size)
    CUDAHelpers::TransformReduce(numBlocks, numThreads, size, &resultArray[numBlocks], 0., overwrite,
                                 CUDAHelpers::Plus<double>(), CUDAHelpers::Square{}, fDWeights);
    ERRCHECK(cudaPeekAtLastError());
-
 
    auto offset = 2 * numBlocks;
    for (auto d = 0; d < Dim; d++) {
