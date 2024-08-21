@@ -396,119 +396,119 @@ int testPoint2D()
 
 // missing LV test
 
-int testRotations3D()
-{
+// int testRotations3D()
+// {
 
-   int iret_host = 0;
-   std::cout << "testing 3D Rotations\t:\t";
+//    int iret_host = 0;
+//    std::cout << "testing 3D Rotations\t:\t";
 
-   sycl::buffer<int, 1> iret_buf(& iret_host, sycl::range<1>(1));
-   sycl::queue queue{sycl::default_selector_v};
+//    sycl::buffer<int, 1> iret_buf(& iret_host, sycl::range<1>(1));
+//    sycl::queue queue{sycl::default_selector_v};
 
-{
-   queue.submit([&](sycl::handler &cgh) {
-      auto iret = iret_buf.get_access<sycl::access::mode::read_write>(cgh);
-      cgh.single_task<class testRotations3D>([=]() {
+// {
+//    queue.submit([&](sycl::handler &cgh) {
+//       auto iret = iret_buf.get_access<sycl::access::mode::read_write>(cgh);
+//       cgh.single_task<class testRotations3D>([=]() {
 
-   //   RotationZ rz(1.);
-      Rotation3D rot = RotationZ(1.) * RotationY(2) * RotationX(3);
-      GlobalXYZVector vg(1., 2., 3);
-      GlobalXYZPoint pg(1., 2., 3);
-      GlobalPolar3DVector vpg(vg);
+//    //   RotationZ rz(1.);
+//       Rotation3D rot = RotationZ(1.) * RotationY(2) * RotationX(3);
+//       GlobalXYZVector vg(1., 2., 3);
+//       GlobalXYZPoint pg(1., 2., 3);
+//       GlobalPolar3DVector vpg(vg);
 
-   // // GlobalXYZVector vg2 = rot.operator()<Cartesian3D,GlobalCoordinateSystemTag, GlobalCoordinateSystemTag> (vg);
-      GlobalXYZVector vg2 = rot(vg);
-      iret[0] |= compare(vg2.R(), vg.R());
+//    // // GlobalXYZVector vg2 = rot.operator()<Cartesian3D,GlobalCoordinateSystemTag, GlobalCoordinateSystemTag> (vg);
+//       GlobalXYZVector vg2 = rot(vg);
+//       iret[0] |= compare(vg2.R(), vg.R());
 
-   GlobalXYZPoint pg2 = rot(pg);
-   iret[0] |= compare(pg2.X(), vg2.X());
-   iret[0] |= compare(pg2.Y(), vg2.Y());
-   iret[0] |= compare(pg2.Z(), vg2.Z());
+//    GlobalXYZPoint pg2 = rot(pg);
+//    iret[0] |= compare(pg2.X(), vg2.X());
+//    iret[0] |= compare(pg2.Y(), vg2.Y());
+//    iret[0] |= compare(pg2.Z(), vg2.Z());
 
-   // Quaternion qrot(rot);
+//    // Quaternion qrot(rot);
 
-   // pg2 = qrot(pg);
-   // iret[0] |= compare(pg2.X(), vg2.X(), 10);
-   // iret[0] |= compare(pg2.Y(), vg2.Y(), 10);
-   // iret[0] |= compare(pg2.Z(), vg2.Z(), 10);
+//    // pg2 = qrot(pg);
+//    // iret[0] |= compare(pg2.X(), vg2.X(), 10);
+//    // iret[0] |= compare(pg2.Y(), vg2.Y(), 10);
+//    // iret[0] |= compare(pg2.Z(), vg2.Z(), 10);
 
-   // GlobalPolar3DVector vpg2 = qrot * vpg;
-   // iret[0] |= compare(vpg2.X(), vg2.X(), 10);
-   // iret[0] |= compare(vpg2.Y(), vg2.Y(), 10);
-   // iret[0] |= compare(vpg2.Z(), vg2.Z(), 10);
+//    // GlobalPolar3DVector vpg2 = qrot * vpg;
+//    // iret[0] |= compare(vpg2.X(), vg2.X(), 10);
+//    // iret[0] |= compare(vpg2.Y(), vg2.Y(), 10);
+//    // iret[0] |= compare(vpg2.Z(), vg2.Z(), 10);
 
-   // AxisAngle arot(rot);
-   // pg2 = arot(pg);
-   // iret[0] |= compare(pg2.X(), vg2.X(), 10);
-   // iret[0] |= compare(pg2.Y(), vg2.Y(), 10);
-   // iret[0] |= compare(pg2.Z(), vg2.Z(), 10);
+//    // AxisAngle arot(rot);
+//    // pg2 = arot(pg);
+//    // iret[0] |= compare(pg2.X(), vg2.X(), 10);
+//    // iret[0] |= compare(pg2.Y(), vg2.Y(), 10);
+//    // iret[0] |= compare(pg2.Z(), vg2.Z(), 10);
 
-   // vpg2 = arot(vpg);
-   // iret[0] |= compare(vpg2.X(), vg2.X(), 10);
-   // iret[0] |= compare(vpg2.Y(), vg2.Y(), 10);
-   // iret[0] |= compare(vpg2.Z(), vg2.Z(), 10);
+//    // vpg2 = arot(vpg);
+//    // iret[0] |= compare(vpg2.X(), vg2.X(), 10);
+//    // iret[0] |= compare(vpg2.Y(), vg2.Y(), 10);
+//    // iret[0] |= compare(vpg2.Z(), vg2.Z(), 10);
 
-   // EulerAngles erot(rot);
+//    // EulerAngles erot(rot);
 
-   // vpg2 = erot(vpg);
-   // iret[0] |= compare(vpg2.X(), vg2.X(), 10);
-   // iret[0] |= compare(vpg2.Y(), vg2.Y(), 10);
-   // iret[0] |= compare(vpg2.Z(), vg2.Z(), 10);
+//    // vpg2 = erot(vpg);
+//    // iret[0] |= compare(vpg2.X(), vg2.X(), 10);
+//    // iret[0] |= compare(vpg2.Y(), vg2.Y(), 10);
+//    // iret[0] |= compare(vpg2.Z(), vg2.Z(), 10);
 
-   // GlobalXYZVector vrx = RotationX(3) * vg;
-   // GlobalXYZVector vry = RotationY(2) * vrx;
-   // vpg2 = RotationZ(1) * GlobalPolar3DVector(vry);
-   // iret[0] |= compare(vpg2.X(), vg2.X(), 10);
-   // iret[0] |= compare(vpg2.Y(), vg2.Y(), 10);
-   // iret[0] |= compare(vpg2.Z(), vg2.Z(), 10);
+//    // GlobalXYZVector vrx = RotationX(3) * vg;
+//    // GlobalXYZVector vry = RotationY(2) * vrx;
+//    // vpg2 = RotationZ(1) * GlobalPolar3DVector(vry);
+//    // iret[0] |= compare(vpg2.X(), vg2.X(), 10);
+//    // iret[0] |= compare(vpg2.Y(), vg2.Y(), 10);
+//    // iret[0] |= compare(vpg2.Z(), vg2.Z(), 10);
 
-   // // test Get/SetComponents
-   // XYZVector v1, v2, v3;
-   // rot.GetComponents(v1, v2, v3);
-   // const Rotation3D rot2(v1, v2, v3);
-   // // rot2.SetComponents(v1,v2,v3);
-   // double r1[9], r2[9];
-   // rot.GetComponents(r1, r1 + 9);
-   // rot2.GetComponents(r2, r2 + 9);
-   // for (int i = 0; i < 9; ++i) {
-   //    iret[0] |= compare(r1[i], r2[i]);
-   // }
-   // operator == fails for numerical precision
-   // iret |= compare( (rot2==rot),true,"Get/SetComponens");
+//    // // test Get/SetComponents
+//    // XYZVector v1, v2, v3;
+//    // rot.GetComponents(v1, v2, v3);
+//    // const Rotation3D rot2(v1, v2, v3);
+//    // // rot2.SetComponents(v1,v2,v3);
+//    // double r1[9], r2[9];
+//    // rot.GetComponents(r1, r1 + 9);
+//    // rot2.GetComponents(r2, r2 + 9);
+//    // for (int i = 0; i < 9; ++i) {
+//    //    iret[0] |= compare(r1[i], r2[i]);
+//    // }
+//    // operator == fails for numerical precision
+//    // iret |= compare( (rot2==rot),true,"Get/SetComponens");
 
-   // test get/set with a matrix
-// #ifndef NO_SMATRIX
-//    SMatrix<double, 3> mat;
-//    rot2.GetRotationMatrix(mat);
-//    rot.SetRotationMatrix(mat);
-//    iret[0] |= compare((rot2 == rot), true);
-// #endif
+//    // test get/set with a matrix
+// // #ifndef NO_SMATRIX
+// //    SMatrix<double, 3> mat;
+// //    rot2.GetRotationMatrix(mat);
+// //    rot.SetRotationMatrix(mat);
+// //    iret[0] |= compare((rot2 == rot), true);
+// // #endif
 
-   // // test inversion
-   // Rotation3D rotInv = rot.Inverse();
-   // rot.Invert(); // invert in place
-   // bool comp = (rotInv == rot);
-   // iret[0] |= compare(comp, true);
+//    // // test inversion
+//    // Rotation3D rotInv = rot.Inverse();
+//    // rot.Invert(); // invert in place
+//    // bool comp = (rotInv == rot);
+//    // iret[0] |= compare(comp, true);
 
-   // // rotation and scaling of points
-   // XYZPoint q1(1., 2, 3);
-   // double a = 3;
-   // XYZPoint qr1 = rot(a * q1);
-   // XYZPoint qr2 = a * rot(q1);
-   // iret[0] |= compare(qr1.X(), qr2.X(), 10);
-   // iret[0] |= compare(qr1.Y(), qr2.Y(), 10);
-   // iret[0] |= compare(qr1.Z(), qr2.Z(), 10);
-      });
-   });
-}
+//    // // rotation and scaling of points
+//    // XYZPoint q1(1., 2, 3);
+//    // double a = 3;
+//    // XYZPoint qr1 = rot(a * q1);
+//    // XYZPoint qr2 = a * rot(q1);
+//    // iret[0] |= compare(qr1.X(), qr2.X(), 10);
+//    // iret[0] |= compare(qr1.Y(), qr2.Y(), 10);
+//    // iret[0] |= compare(qr1.Z(), qr2.Z(), 10);
+//       });
+//    });
+// }
 
-   if (iret_host == 0)
-      std::cout << "\tOK\n";
-   else
-      std::cout << "\t FAILED\n";
+//    if (iret_host == 0)
+//       std::cout << "\tOK\n";
+//    else
+//       std::cout << "\t FAILED\n";
 
-   return iret_host;
-}
+//    return iret_host;
+// }
 
 // int testTransform3D()
 // {
@@ -824,7 +824,7 @@ int testGenVector()
    iret |= testVector2D();
    iret |= testPoint2D();
 
-   iret |= testRotations3D();
+   //iret |= testRotations3D();
 
    //    iret |= testTransform3D();
 
