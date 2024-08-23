@@ -268,7 +268,6 @@ public:
 
    SYCLFillHelper(const std::shared_ptr<HIST> &h, std::size_t maxBulkSize)
    {
-      // We ignore nSlots and just create one SYCLHist instance that handles the parallelization.
       fObject = h.get();
       init_SYCL(fObject, 0, maxBulkSize);
    }

@@ -264,9 +264,8 @@ public:
       fCUDAHist = std::make_unique<CUDAHist_t>(maxBulkSize, numBins, ncells, xlow, xHigh, binEdges, binEdgesIdx);
    }
 
-   CUDAFillHelper(const std::shared_ptr<HIST> &h, std::size_t maxBulkSize, const unsigned int nSlots)
+   CUDAFillHelper(const std::shared_ptr<HIST> &h, std::size_t maxBulkSize)
    {
-      // We ignore nSlots and just create one CUDAHist instance that handles the parallelization.
       fObject = h.get();
       init_CUDA(fObject, 0, maxBulkSize);
    }
@@ -402,7 +401,7 @@ public:
       auto &result = *static_cast<std::shared_ptr<H> *>(newResult);
       ResetIfPossible(result.get());
       UnsetDirectoryIfPossible(result.get());
-      return CUDAFillHelper(result, fCUDAHist->GetMaxBulkSize(), 1);
+      return CUDAFillHelper(result, fCUDAHist->GetMaxBulkSize());
    }
 };
 
