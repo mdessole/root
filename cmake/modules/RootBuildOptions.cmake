@@ -444,7 +444,7 @@ include(RootInstallDirs)
 #---RPATH options-------------------------------------------------------------------------------
 
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
 # add to RPATH any directories outside the project that are in the linker search path
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
