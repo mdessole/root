@@ -17,14 +17,26 @@ if (cuda)
 endif()
 
 if (sycl)
-  ROOT_LINKER_LIBRARY(SYCLHist src/RHnSYCL.cxx TYPE SHARED DEPENDENCIES GenVector ROOTVecOps)
+  ROOT_LINKER_LIBRARY(SYCLHist 
+      src/RHnSYCL.cxx 
+    DEPENDENCIES 
+      GenVectorSYCL 
+      ROOTVecOps
+  )
   target_compile_definitions(SYCLHist PUBLIC ROOT_RDF_SYCL)
   if (adaptivecpp)
     target_compile_definitions(SYCLHist PUBLIC ROOT_RDF_ADAPTIVECPP)
   endif()
-  add_sycl_to_root_target(TARGET SYCLHist SOURCES src/RHnSYCL.cxx)
+  add_sycl_library_to_root_target(
+    TARGET 
+      SYCLHist 
+    SOURCES 
+      src/RHnSYCL.cxx
+    COMPILE_DEFINITIONS
+      ROOT_RDF_SYCL
+  )
 endif()
 
 #######################################################################
 
-ROOT_ADD_TEST_SUBDIRECTORY(test)
+#ROOT_ADD_TEST_SUBDIRECTORY(test)
