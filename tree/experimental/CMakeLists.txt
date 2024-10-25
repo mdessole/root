@@ -27,7 +27,7 @@ if (sycl)
   if (adaptivecpp)
     target_compile_definitions(SYCLHist PUBLIC ROOT_RDF_ADAPTIVECPP)
   endif()
-  add_sycl_library_to_root_target(
+  add_sycl_library_to_main_root_target(
     TARGET 
       SYCLHist 
     SOURCES 

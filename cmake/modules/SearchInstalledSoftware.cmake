@@ -1804,6 +1804,67 @@ if (oneapi)
       set_target_properties(${ARG_TARGET} PROPERTIES INSTALL_RPATH "$ENV{LD_LIBRARY_PATH}$<$<BOOL:${prop}>::${prop}>")                   
     endfunction()
 
+    function(add_sycl_library_to_main_root_target)
+    CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES;COMPILE_DEFINITIONS" ${ARGN})
+    get_target_property(_library_name ${ARG_TARGET} OUTPUT_NAME)
+    get_target_property(_deps ${ARG_TARGET} LINK_LIBRARIES)
+
+
+    foreach(comp_def ${ARG_COMPILE_DEFINITIONS})
+      list(APPEND _COMPILE_DEFINITIONS -D${comp_def})
+    endforeach()
+
+    target_include_directories(${ARG_TARGET} PUBLIC ${SYCL_INCLUDE_DIR} ${SYCL_INCLUDE_DIR}/sycl)
+    target_link_directories(${ARG_TARGET} PUBLIC ${SYCL_LIB_DIR})
+    target_link_libraries(${ARG_TARGET} INTERFACE sycl)
+
+    # Get include directories for the SYCL target
+    get_target_property(_inc_dirs ${ARG_TARGET} INCLUDE_DIRECTORIES)
+    if (_inc_dirs)
+      list(REMOVE_DUPLICATES _inc_dirs)
+      list(TRANSFORM _inc_dirs PREPEND -I)
+    endif()
+
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/src)
+
+    # Compile the sycl source files with the found sycl compiler
+    foreach(src ${ARG_SOURCES})
+      set(_output_path ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_library_name}.dir/${src}${CMAKE_CXX_OUTPUT_EXTENSION})
+      list(APPEND _outputs ${_output_path})
+
+      add_custom_command(OUTPUT ${_output_path}
+                         COMMAND ${SYCL_COMPILER} ${SYCL_COMPILER_FLAGS} -c
+                                 ${_inc_dirs} ${_COMPILE_DEFINITIONS}
+                                 -o ${_output_path}
+                                 ${CMAKE_CURRENT_SOURCE_DIR}/${src}
+                         DEPENDS ${_deps}
+                         COMMENT "Building SYCL object ${_output_path}"
+                         MAIN_DEPENDENCY ${src}
+                         )
+      endforeach()
+
+    foreach(lib ${_deps})
+      list(APPEND _lib_dep_paths "$<TARGET_FILE:${lib}>")
+    endforeach()
+
+    set(SYCL_LINKER_FLAGS "-shared -Wl,-soname,$<TARGET_FILE:${_library_name}> -L$ENV{LD_LIBRARY_PATH} ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,$ENV{LD_LIBRARY_PATH}:$<TARGET_FILE_DIR:${_library_name}>")
+    message(STATUS "SYCL linker flags: ${SYCL_LINKER_FLAGS}")
+    separate_arguments(SYCL_LINKER_FLAGS NATIVE_COMMAND ${SYCL_LINKER_FLAGS})
+
+    # Also use the sycl compiler to create a shared library of sycl objects for linking against other ROOT code.
+    # Unfortunately, this doesn't override the existing rule for building the shared library with the CXX compiler,
+    # but instead
+    set_property(TARGET ${ARG_TARGET} PROPERTY LINK_DEPENDS ${_outputs})
+    add_custom_command(TARGET ${ARG_TARGET}
+                       COMMAND ${SYCL_COMPILER} ${SYCL_COMPILER_FLAGS} ${SYCL_LINKER_FLAGS} ${_COMPILE_DEFINITIONS}
+                               -o $<TARGET_FILE:${_library_name}>
+                               ${_outputs} ${_lib_dep_paths}
+                       DEPENDS ${_deps} ${_outputs} ${_sycl_target}
+                       COMMENT "Linking shared library $<TARGET_FILE:${_library_name}>"
+                       MAIN_DEPENDENCY ${ARG_TARGET}
+                       )
+  endfunction()
+
     function(add_sycl_to_root_target)
       CMAKE_PARSE_ARGUMENTS(ARG "" "TARGET" "SOURCES;COMPILE_DEFINITIONS;DEPENDENCIES" ${ARGN})
       get_target_property(_library_name ${ARG_TARGET} OUTPUT_NAME)
