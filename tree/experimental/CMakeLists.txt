@@ -39,4 +39,4 @@ endif()
 
 #######################################################################
 
-#ROOT_ADD_TEST_SUBDIRECTORY(test)
+ROOT_ADD_TEST_SUBDIRECTORY(test)
