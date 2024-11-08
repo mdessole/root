@@ -1735,7 +1735,7 @@ if (oneapi)
       # https://developer.codeplay.com/products/oneapi/nvidia/2023.2.1/guides/troubleshooting.html#opaque-pointers-are-only-supported-in-opaque-pointers-mode
       set(_fsycl_targets "-fsycl-targets=nvptx64-nvidia-cuda,spir64_x86_64,spir64 -Xsycl-target-backend=nvptx64-nvidia-cuda --cuda-gpu-arch=sm_${CMAKE_CUDA_ARCHITECTURES} --cuda-path=${CUDA_TOOLKIT_DIR}")
     else()
-      set(_fsycl_targets "-fsycl-targets=spir64_x86_64,spir64")
+      set(_fsycl_targets "-fsycl-targets=x86_64")
     endif()
 
     set(SYCL_COMPILER_FLAGS "-fPIC -fsycl -fsycl-unnamed-lambda -sycl-std=2020 ${_fsycl_targets} ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${_BUILD_TYPE_UPPER}}")

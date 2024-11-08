@@ -18,3 +18,7 @@ if (sycl OR cuda)
     ROOT_ADD_GTEST(HistoFill histoFill.cxx LIBRARIES ${testLibs} Hist)
     ROOT_ADD_GTEST(HistoRDF histoRDF.cxx LIBRARIES ${testLibs})
 endif()
+
+if(sycl)
+ target_compile_definitions(HistoRDF PUBLIC ROOT_RDF_SYCL)
+endif()
