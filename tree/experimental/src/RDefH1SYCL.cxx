@@ -1,4 +1,4 @@
-#include "RHnSYCL.h"
+#include "RDefH1SYCL.h"
 #include <sycl/sycl.hpp>
 #include <iostream>
 #include <array>
@@ -38,14 +38,14 @@ inline int FindFixBin(double x, const double *binEdges, int binEdgesIdx, int nBi
    return bin;
 }
 
-template <unsigned int Dim>
+template <op Op, unsigned int fDim>
 inline int GetBin(size_t tid, double *binEdges, int *binEdgesIdx, int *nBinsAxis, double *xMin, double *xMax,
-                  double *coords, size_t bulkSize, int *bins)
+                  double *buffer, double *parameters, double *coords, size_t bulkSize, int *bins)
 {
    auto bin = 0;
-   for (int d = Dim - 1; d >= 0; d--) {
-      auto *x = &coords[d * bulkSize];
-      auto binD = FindFixBin(x[tid], binEdges, binEdgesIdx[d], nBinsAxis[d] - 2, xMin[d], xMax[d]);
+   for (int d = fDim - 1; d >= 0; d--) {
+      coords[tid] = Op(&buffer[d * bulkSize],parameters,tid); // Write result for computing statistics, otherwise could be avoided
+      auto binD = FindFixBin(coords[tid], binEdges, binEdgesIdx[d], nBinsAxis[d] - 2, xMin[d], xMax[d]);
       bins[d * bulkSize + tid] = binD;
 
       if (binD < 0) {
@@ -208,15 +208,17 @@ inline void AddBinContent(AccLM<int> histogram, int bin, double weight)
 ///////////////////////////////////////////
 /// Histogram filling kernels
 
-template <typename T, unsigned int Dim>
+template <typename T, op Op, unsigned int Dim>
 class HistogramGlobal {
 public:
    HistogramGlobal(T *_histogram, double *_binEdges, int *_binEdgesIdx, int *_nBinsAxis, double *_xMin, double *_xMax,
-                   double *_coords, double *_weights, int *_bins, std::size_t _bulkSize)
+                   double *_buffer, double *_parameters, double *_coords, double *_weights, int *_bins, std::size_t _bulkSize)
       : histogram(_histogram),
         binEdges(_binEdges),
         xMin(_xMin),
         xMax(_xMax),
+        buffer(_buffer),
+        parameters(_parameters),
         coords(_coords),
         weights(_weights),
         binEdgesIdx(_binEdgesIdx),
@@ -229,7 +231,7 @@ public:
    void operator()(sycl::item<1> item) const
    {
       size_t id = item.get_linear_id();
-      auto bin = GetBin<Dim>(id, binEdges, binEdgesIdx, nBinsAxis, xMin, xMax, coords, bulkSize, bins);
+      auto bin = GetBin<Op,Dim>(id, binEdges, binEdgesIdx, nBinsAxis, xMin, xMax, buffer, parameters, coords, bulkSize, bins);
 
       if (bin >= 0) {
          AddBinContent<sycl::access::address_space::global_space>(histogram, bin, weights[id]);
@@ -238,22 +240,25 @@ public:
 
 private:
    T *histogram;
-   double *binEdges, *xMin, *xMax, *coords, *weights;
+   double *binEdges, *xMin, *xMax, *buffer, *parameters, *coords, *weights;
    int *binEdgesIdx, *bins, *nBinsAxis;
    std::size_t bulkSize;
 };
 
-template <typename T, unsigned int Dim>
+template <typename T, op Op, unsigned int Dim>
 class HistogramLocal {
 public:
    HistogramLocal(AccLM<T> _localMem, T *_histogram, double *_binEdges, int *_binEdgesIdx, int *_nBinsAxis,
-                  double *_xMin, double *_xMax, double *_coords, double *_weights, int *_bins, size_t _nBins,
+                  double *_xMin, double *_xMax, 
+                  double *_buffer, double *_parameters, double *_coords, double *_weights, int *_bins, size_t _nBins,
                   std::size_t _bulkSize)
       : localMem(_localMem),
         histogram(_histogram),
         binEdges(_binEdges),
         xMin(_xMin),
         xMax(_xMax),
+        buffer(_buffer),
+        parameters(_parameters),
         coords(_coords),
         weights(_weights),
         binEdgesIdx(_binEdgesIdx),
@@ -280,7 +285,7 @@ public:
 
       for (auto i = globalId; i < bulkSize; i += stride) {
          // Fill local histogram
-         auto bin = GetBin<Dim>(i, binEdges, binEdgesIdx, nBinsAxis, xMin, xMax, coords, bulkSize, bins);
+         auto bin = GetBin<Op, Dim>(i, binEdges, binEdgesIdx, nBinsAxis, xMin, xMax, buffer, parameters, coords, bulkSize, bins);
 
          if (bin >= 0) {
             AddBinContent<sycl::access::address_space::local_space>(localMem, bin, weights[i]);
@@ -297,7 +302,7 @@ public:
 private:
    AccLM<T> localMem;
    T *histogram;
-   double *binEdges, *xMin, *xMax, *coords, *weights;
+   double *binEdges, *xMin, *xMax, *buffer, *parameters, *coords, *weights;
    int *binEdgesIdx, *bins, *nBinsAxis;
    std::size_t nBins, bulkSize;
 };
@@ -305,7 +310,7 @@ private:
 ///////////////////////////////////////////
 /// Statistics calculation kernels
 
-template <unsigned int Dim>
+template <unsigned int fDim>
 class ExcludeUOverflowKernel {
 public:
    ExcludeUOverflowKernel(int *_bins, double *_weights, int *_nBinsAxis, std::size_t _bulkSize)
@@ -339,13 +344,13 @@ private:
 };
 
 ///////////////////////////////////////////
-/// RHnSYCL
+/// RDefH1SYCL
 
-template <typename T, unsigned int Dim, unsigned int WGroupSize>
-RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(std::size_t maxBulkSize, const std::size_t nBins,
-                                     const std::array<int, Dim> &nBinsAxis, const std::array<double, Dim> &xLow,
-                                     const std::array<double, Dim> &xHigh, const std::vector<double> &binEdges,
-                                     const std::array<int, Dim> &binEdgesIdx)
+template <typename T, op Op, unsigned int nInput, unsigned int WGroupSize>
+RDefH1SYCL<T, Op, nInput, WGroupSize>::RDefH1SYCL(std::size_t maxBulkSize, const std::size_t nBins,
+                                     const std::array<int, fDim> &nBinsAxis, const std::array<double, fDim> &xLow,
+                                     const std::array<double, fDim> &xHigh, const std::vector<double> &binEdges,
+                                     const std::array<int, fDim> &binEdgesIdx, const std::vector<double> &parameters)
    : queue(sycl::default_selector_v),
      kStatsSmemSize((WGroupSize <= 32) ? 2 * WGroupSize * sizeof(double) : WGroupSize * sizeof(double))
 {
@@ -357,18 +362,23 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(std::size_t maxBulkSize, const std::size_t 
 
    // Setup device memory for filling the histogram.
    fDWeights = sycl::malloc_device<double>(fMaxBulkSize, queue);
-   fDCoords = sycl::malloc_device<double>(Dim * fMaxBulkSize, queue);
-   fDBins = sycl::malloc_device<int>(Dim * fMaxBulkSize, queue);
+   fDBuffer = sycl::malloc_device<double>(nInput * fDim * fMaxBulkSize, queue);
+   fDCoords = sycl::malloc_device<double>(fDim * fMaxBulkSize, queue);
+   fDBins = sycl::malloc_device<int>(fDim * fMaxBulkSize, queue);
+
+   // Setup device memory for Op parameters
+   fDParameters = sycl::malloc_device<double>(parameters.size(), queue);
+   queue.memcpy(fDParameters, parameters.data(), parameters.size() * sizeof(double));
 
    // Setup device memory for histogram characteristics
-   fDNBinsAxis = sycl::malloc_device<int>(Dim, queue);
-   queue.memcpy(fDNBinsAxis, nBinsAxis.data(), Dim * sizeof(int));
-   fDMin = sycl::malloc_device<double>(Dim, queue);
-   queue.memcpy(fDMin, xLow.data(), Dim * sizeof(double));
-   fDMax = sycl::malloc_device<double>(Dim, queue);
-   queue.memcpy(fDMax, xHigh.data(), Dim * sizeof(double));
-   fDBinEdgesIdx = sycl::malloc_device<int>(Dim, queue);
-   queue.memcpy(fDBinEdgesIdx, binEdgesIdx.data(), Dim * sizeof(int));
+   fDNBinsAxis = sycl::malloc_device<int>(fDim, queue);
+   queue.memcpy(fDNBinsAxis, nBinsAxis.data(), fDim * sizeof(int));
+   fDMin = sycl::malloc_device<double>(fDim, queue);
+   queue.memcpy(fDMin, xLow.data(), fDim * sizeof(double));
+   fDMax = sycl::malloc_device<double>(fDim, queue);
+   queue.memcpy(fDMax, xHigh.data(), fDim * sizeof(double));
+   fDBinEdgesIdx = sycl::malloc_device<int>(fDim, queue);
+   queue.memcpy(fDBinEdgesIdx, binEdgesIdx.data(), fDim * sizeof(int));
 
    fDBinEdges = NULL;
    if (binEdges.size() > 0) {
@@ -404,21 +414,21 @@ RHnSYCL<T, Dim, WGroupSize>::RHnSYCL(std::size_t maxBulkSize, const std::size_t 
    }
 }
 
-template <typename T, unsigned int Dim, unsigned int WGroupSize>
-void RHnSYCL<T, Dim, WGroupSize>::Fill(const RVecD &coords)
+template <typename T, op Op, unsigned int nInput, unsigned int WGroupSize>
+void RDefH1SYCL<T, Op, nInput, WGroupSize>::Fill(const RVecD &buffer)
 {
-   RVecD weights(coords.size() / Dim, 1);
-   Fill(coords, weights);
+   RVecD weights(buffer.size() / (nInput * fDim), 1);
+   Fill(buffer, weights);
 }
 
-template <typename T, unsigned int Dim, unsigned int WGroupSize>
-void RHnSYCL<T, Dim, WGroupSize>::Fill(const RVecD &coords, const RVecD &weights)
+template <typename T, op Op, unsigned int nInput, unsigned int WGroupSize>
+void RDefH1SYCL<T, Op, nInput, WGroupSize>::Fill(const RVecD &buffer, const RVecD &weights)
 {
    auto bulkSize = weights.size();
 
    // Add the coordinates and weight to the buffers
    std::vector<sycl::event> copyEvents(2);
-   copyEvents[0] = queue.memcpy(fDCoords, coords.begin(), bulkSize * Dim * sizeof(double), prevBulk);
+   copyEvents[0] = queue.memcpy(fDBuffer, buffer.begin(), bulkSize * nInput * fDim * sizeof(double), prevBulk);
    copyEvents[1] = queue.memcpy(fDWeights, weights.begin(), bulkSize * sizeof(double), prevBulk);
 
    fEntries += bulkSize;
@@ -427,14 +437,14 @@ void RHnSYCL<T, Dim, WGroupSize>::Fill(const RVecD &coords, const RVecD &weights
    ExecuteSYCLHisto(bulkSize, copyEvents);
 }
 
-template <typename T, unsigned int Dim, unsigned int WGroupSize>
-void RHnSYCL<T, Dim, WGroupSize>::GetStats(std::size_t size, sycl::event &fillEvent)
+template <typename T, op Op, unsigned int nInput, unsigned int WGroupSize>
+void RDefH1SYCL<T, Op, nInput, WGroupSize>::GetStats(std::size_t size, sycl::event &fillEvent)
 {
    // Set weights of over/underflow bins to zero. Done in separate kernel in case we want to add the option to add
    // under/overflow bins to the statistics.
    auto e = queue.submit([&](sycl::handler &cgh) {
       cgh.depends_on(fillEvent);
-      cgh.parallel_for(sycl::range<1>(size * Dim), ExcludeUOverflowKernel<Dim>(fDBins, fDWeights, fDNBinsAxis, size));
+      cgh.parallel_for(sycl::range<1>(size * fDim), ExcludeUOverflowKernel<fDim>(fDBins, fDWeights, fDNBinsAxis, size));
    });
 
    std::vector<sycl::event> statsReductions;
@@ -459,13 +469,13 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(std::size_t size, sycl::event &fillEv
    }));
 
    auto offset = 2;
-   for (auto d = 0U; d < Dim; d++) {
+   for (auto d = 0U; d < fDim; d++) {
       statsReductions.push_back(queue.submit([&](sycl::handler &cgh) {
          cgh.depends_on(e);
          auto coordsPtr = fDCoords;
          auto weightsPtr = fDWeights;
 
-         // Multiply weight with coordinate of current axis. E.g., for Dim = 2 this computes Tsumwx and Tsumwy
+         // Multiply weight with coordinate of current axis. E.g., for fDim = 2 this computes Tsumwx and Tsumwy
          auto GetSumWAxis = sycl::reduction(&resultBuf[offset++], sycl::plus<double>());
          auto GetSumWAxis2 = sycl::reduction(&resultBuf[offset++], sycl::plus<double>());
 
@@ -484,7 +494,7 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(std::size_t size, sycl::event &fillEv
             auto coordsPtr = fDCoords;
             auto weightsPtr = fDWeights;
 
-            // Multiplies coordinate of current axis with the "previous" axis. E.g., for Dim = 2 this computes
+            // Multiplies coordinate of current axis with the "previous" axis. E.g., for fDim = 2 this computes
             // Tsumwxy
             auto GetSumWAxisAxis = sycl::reduction(&resultBuf[offset++], sycl::plus<double>());
 
@@ -512,8 +522,8 @@ void RHnSYCL<T, Dim, WGroupSize>::GetStats(std::size_t size, sycl::event &fillEv
 #endif
 }
 
-template <typename T, unsigned int Dim, unsigned int WGroupSize>
-void RHnSYCL<T, Dim, WGroupSize>::ExecuteSYCLHisto(std::size_t size, std::vector<sycl::event> &depends)
+template <typename T, op Op, unsigned int nInput,  unsigned int WGroupSize>
+void RDefH1SYCL<T, Op, nInput, WGroupSize>::ExecuteSYCLHisto(std::size_t size, std::vector<sycl::event> &depends)
 {
    // The SYCL specification does not require eager execution, so we need to wait for the copy events to have completed
    // before filling to avoid the overwriting the input values in the host buffer
@@ -527,8 +537,8 @@ void RHnSYCL<T, Dim, WGroupSize>::ExecuteSYCLHisto(std::size_t size, std::vector
          // Partitions the vector pairs over available threads and computes the invariant masses.
          cgh.depends_on(depends);
          cgh.parallel_for(sycl::range<1>(size),
-                          HistogramGlobal<T, Dim>(fDHistogram, fDBinEdges, fDBinEdgesIdx, fDNBinsAxis, fDMin, fDMax,
-                                                  fDCoords, fDWeights, fDBins, size));
+                          HistogramGlobal<T, Op, fDim>(fDHistogram, fDBinEdges, fDBinEdgesIdx, fDNBinsAxis, fDMin, fDMax,
+                                                  fDBuffer, fDParameters, fDCoords, fDWeights, fDBins, size));
       });
    } else {
       fillEvent = queue.submit([&](sycl::handler &cgh) {
@@ -541,16 +551,16 @@ void RHnSYCL<T, Dim, WGroupSize>::ExecuteSYCLHisto(std::size_t size, std::vector
 
          cgh.depends_on(depends);
          cgh.parallel_for(execution_range,
-                          HistogramLocal<T, Dim>(localMem, fDHistogram, fDBinEdges, fDBinEdgesIdx, fDNBinsAxis, fDMin,
-                                                 fDMax, fDCoords, fDWeights, fDBins, fNBins, size));
+                          HistogramLocal<T, Op, fDim>(localMem, fDHistogram, fDBinEdges, fDBinEdgesIdx, fDNBinsAxis, fDMin,
+                                                 fDMax, fDBuffer, fDParameters, fDCoords, fDWeights, fDBins, fNBins, size));
       });
    } // end of scope, ensures data copied back to host
 
    GetStats(size, fillEvent);
 }
 
-template <typename T, unsigned int Dim, unsigned int WGroupSize>
-void RHnSYCL<T, Dim, WGroupSize>::RetrieveResults(T *histResult, double *statsResult)
+template <typename T, op Op, unsigned int nInput,  unsigned int WGroupSize>
+void RDefH1SYCL<T, Op, nInput, WGroupSize>::RetrieveResults(T *histResult, double *statsResult)
 {
    queue.wait();
    queue.memcpy(histResult, fDHistogram, fNBins * sizeof(T));
@@ -558,7 +568,7 @@ void RHnSYCL<T, Dim, WGroupSize>::RetrieveResults(T *histResult, double *statsRe
    queue.wait();
 }
 
-#include "RHnSYCL-impl.cxx"
+#include "RDefH1SYCL-impl.cxx"
 
 } // namespace Experimental
 } // namespace ROOT

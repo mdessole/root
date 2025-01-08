@@ -19,6 +19,7 @@ endif()
 if (sycl)
   ROOT_LINKER_LIBRARY(SYCLHist 
       src/RHnSYCL.cxx 
+      src/RDefH1SYCL.cxx 
     DEPENDENCIES 
       GenVectorSYCL 
       ROOTVecOps
@@ -32,6 +33,7 @@ if (sycl)
       SYCLHist 
     SOURCES 
       src/RHnSYCL.cxx
+      src/RDefH1SYCL.cxx 
     COMPILE_DEFINITIONS
       ROOT_RDF_SYCL
   )

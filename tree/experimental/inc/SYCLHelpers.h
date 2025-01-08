@@ -9,28 +9,6 @@ namespace ROOT {
 namespace Experimental {
 namespace SYCLHelpers {
 
-#define ERRCHECK(code)                                    \
-   {                                                      \
-      try {                                               \
-         code;                                            \
-         queue.wait_and_throw();                          \
-      } catch (sycl::exception const &e) {                \
-         std::cout << "Caught synchronous SYCL exception" \
-                   << " :" << __LINE__ << ":\n"           \
-                   << e.what() << std::endl;              \
-      }                                                   \
-   }
-
-auto exception_handler(sycl::exception_list exceptions)
-{
-   for (std::exception_ptr const &e_ptr : exceptions) {
-      try {
-         std::rethrow_exception(e_ptr);
-      } catch (sycl::exception const &e) {
-         std::cout << "Caught asynchronous SYCL exception:\n" << e.what() << std::endl;
-      }
-   }
-}
 
 template <typename Acc>
 class InitializeToZeroTask {
