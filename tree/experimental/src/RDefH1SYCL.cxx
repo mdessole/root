@@ -44,7 +44,7 @@ inline int GetBin(size_t tid, double *binEdges, int *binEdgesIdx, int *nBinsAxis
 {
    auto bin = 0;
    for (int d = fDim - 1; d >= 0; d--) {
-      coords[tid] = Op(&buffer[d * bulkSize],parameters,tid); // Write result for computing statistics, otherwise could be avoided
+      coords[tid] = Op(&buffer[d * bulkSize],parameters,tid,bulkSize); // Write result for computing statistics, otherwise could be avoided
       auto binD = FindFixBin(coords[tid], binEdges, binEdgesIdx[d], nBinsAxis[d] - 2, xMin[d], xMax[d]);
       bins[d * bulkSize + tid] = binD;
 

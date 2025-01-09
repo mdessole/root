@@ -7,7 +7,7 @@
 #include "AxisDescriptor.h"
 #include "ROOT/RVec.hxx"
 
-typedef double (op)(double*, double*, std::size_t);
+typedef double (op)(double*, double*, std::size_t, std::size_t);
 
 namespace ROOT {
 namespace Experimental {

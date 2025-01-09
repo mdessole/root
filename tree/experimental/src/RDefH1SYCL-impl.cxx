@@ -9,9 +9,9 @@
 /// @brief Return the invariant mass of two particles given their
 /// transverse momentum (pt), rapidity (eta), azimuth (phi) and mass.
 
-double IdentityKernel(double *buffer, double *parameters, std::size_t i)
+double IdentityKernel(double *buffer, double *parameters, std::size_t idx, std::size_t bulksize)
 {
-    return buffer[i];
+    return buffer[idx];
 }
 
 // clang-format off
