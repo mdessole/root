@@ -7,6 +7,9 @@
 #include "AxisDescriptor.h"
 #include "ROOT/RVec.hxx"
 
+#include "Math/GenVector/AccHeaders.h"
+#include "Math/Vector4D.h"
+
 typedef double (op)(double*, double*, std::size_t, std::size_t);
 
 namespace ROOT {
@@ -15,6 +18,13 @@ namespace Experimental {
 double IdentityKernel(double *buffer, double *parameters, std::size_t idx, std::size_t bulksize)
 {
     return buffer[idx];
+}
+
+double InvariantMassesKernel(double *buffer, double *parameters, std::size_t idx, std::size_t bulksize)
+{
+    ROOT::ROOT_MATH_ARCH::PtEtaPhiEVector p1(buffer[idx], buffer[bulksize+idx], buffer[2*bulksize+idx], buffer[3*bulksize+idx]);
+    ROOT::ROOT_MATH_ARCH::PtEtaPhiEVector p2(buffer[4*bulksize+idx], buffer[5*bulksize+idx], buffer[6*bulksize+idx], buffer[7*bulksize+idx]);
+    return (p1+p2).M();
 }
 
 template <typename T, op Op, unsigned int nInput, unsigned int WGroupSize = 256>

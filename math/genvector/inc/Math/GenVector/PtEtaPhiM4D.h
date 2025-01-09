@@ -260,7 +260,9 @@ private:
    inline void RestrictNegMass() {
       if (fM < 0) {
          if (P2() - fM * fM < 0) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
             GenVector::Throw("PtEtaPhiM4D::unphysical value of mass, set to closest physical value");
+#endif
             fM = -P();
          }
       }
@@ -318,7 +320,9 @@ public:
    void Negate( ) {
       fPhi = ( (fPhi > 0) ? fPhi - pi() : fPhi + pi()  );
       fEta = - fEta;
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
       GenVector::Throw ("PtEtaPhiM4D::Negate - cannot negate the energy - can negate only the spatial components");
+#endif
    }
 
    /**

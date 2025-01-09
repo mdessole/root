@@ -25,6 +25,7 @@ if (sycl)
       ROOTVecOps
   )
   target_compile_definitions(SYCLHist PUBLIC ROOT_RDF_SYCL)
+  target_compile_definitions(SYCLHist PUBLIC ROOT_MATH_SYCL)
   if (adaptivecpp)
     target_compile_definitions(SYCLHist PUBLIC ROOT_RDF_ADAPTIVECPP)
   endif()

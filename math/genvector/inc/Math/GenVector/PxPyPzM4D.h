@@ -309,7 +309,9 @@ public :
       fX = -fX;
       fY = -fY;
       fZ = -fZ;
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
       GenVector::Throw ("PxPyPzM4D::Negate - cannot negate the energy - can negate only the spatial components");
+#endif
    }
 
    /**
@@ -364,7 +366,9 @@ private:
    inline void RestrictNegMass() {
       if ( fM >=0 ) return;
       if ( P2() - fM*fM  < 0 ) {
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
          GenVector::Throw("PxPyPzM4D::unphysical value of mass, set to closest physical value");
+#endif
          fM = - P();
       }
       return;
