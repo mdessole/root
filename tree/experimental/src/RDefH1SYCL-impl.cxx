@@ -9,10 +9,6 @@
 /// @brief Return the invariant mass of two particles given their
 /// transverse momentum (pt), rapidity (eta), azimuth (phi) and mass.
 
-double IdentityKernel(double *buffer, double *parameters, std::size_t idx, std::size_t bulksize)
-{
-    return buffer[idx];
-}
 
 // clang-format off
 // template class RDefH1SYCL<char,   IdentityKernel, 1,  64>;

@@ -12,6 +12,11 @@ typedef double (op)(double*, double*, std::size_t, std::size_t);
 namespace ROOT {
 namespace Experimental {
 
+double IdentityKernel(double *buffer, double *parameters, std::size_t idx, std::size_t bulksize)
+{
+    return buffer[idx];
+}
+
 template <typename T, op Op, unsigned int nInput, unsigned int WGroupSize = 256>
 class RDefH1SYCL {
 private:
