@@ -24,8 +24,8 @@ if (sycl)
       GenVectorSYCL 
       ROOTVecOps
   )
-  target_compile_definitions(SYCLHist PUBLIC ROOT_RDF_SYCL)
-  target_compile_definitions(SYCLHist PUBLIC ROOT_MATH_SYCL)
+  
+  target_compile_definitions(SYCLHist PUBLIC ROOT_RDF_SYCL ROOT_MATH_SYCL)
   if (adaptivecpp)
     target_compile_definitions(SYCLHist PUBLIC ROOT_RDF_ADAPTIVECPP)
   endif()
@@ -37,6 +37,7 @@ if (sycl)
       src/RDefH1SYCL.cxx 
     COMPILE_DEFINITIONS
       ROOT_RDF_SYCL
+      ROOT_MATH_SYCL
   )
 endif()
 

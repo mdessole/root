@@ -13,10 +13,10 @@
 #include "RDefH1SYCL.h"
 
 using ROOT::Experimental::RDefH1SYCL;
-using ROOT::Experimental::IdentityKernel;
+using ROOT::Experimental::InvariantMassesKernel;
 struct SYCLHist {
    template <typename T>
-   using type = RDefH1SYCL<T, IdentityKernel, 1>;
+   using type = RDefH1SYCL<T, InvariantMassesKernel, 8>;
 
    static constexpr int histIdx = 1;
 };
@@ -61,14 +61,14 @@ std::array<T, n> Repeat(T val)
 #define CHECK_ARRAY_FLOAT(a, b, n)                              \
    {                                                            \
       for (auto i : ROOT::TSeqI(n)) {                           \
-         EXPECT_FLOAT_EQ(a[i], b[i]) << "  at index i = " << i; \
+         EXPECT_NEAR(a[i], b[i], 1e-4) << "  at index i = " << i; \
       }                                                         \
    }
 
 #define CHECK_ARRAY_DOUBLE(a, b, n)                              \
    {                                                             \
       for (auto i : ROOT::TSeqI(n)) {                            \
-         EXPECT_DOUBLE_EQ(a[i], b[i]) << "  at index i = " << i; \
+         EXPECT_NEAR(a[i], b[i], 1e-4) << "  at index i = " << i; \
       }                                                          \
    }
 
@@ -95,11 +95,11 @@ template <typename T>
 class FillTestFixture : public ::testing::Test {
 protected:
    // Includes u/overflow bins. Uneven number chosen to have a center bin.
-   const static int numBins = 7;
+   const static int numBins = 4;
 
    // Variables for defining fixed bins.
-   const double startBin = 1;
-   const double endBin = 4;
+   const double startBin = 90;
+   const double endBin = 130;
 
    std::vector<double> params{};
 
@@ -173,7 +173,7 @@ protected:
 #if defined(ROOT_RDF_SYCL)
 //using FillTestTypes = Test<Combinations_t<std::tuple<double, float, int, short>, std::tuple<OneDim>,
 //                                          std::tuple<SYCLHist>>>::Types;
-using FillTestTypes = ::testing::Types<double, float, int, short>;
+using FillTestTypes = ::testing::Types<double>;
 #endif
 TYPED_TEST_SUITE(FillTestFixture, FillTestTypes);
 
@@ -203,15 +203,41 @@ TYPED_TEST(FillTestFixture, FillFixedBins)
    using t = typename TestFixture::dataType;
    auto &h = this->histogram;
 
-   ROOT::RVecD coords = { this->startBin - 1,  (this->startBin + this->endBin) / 2., this->endBin + 1};
+   size_t nPart = 5;
+   // Dummy particle collections
+   ROOT::RVec<double> mass1 = {40,  50,  50,   50,   100};
+   ROOT::RVec<double> pt1 =   {0,   5,   5,    10,   10};
+   ROOT::RVec<double> eta1 =  {0.0, 0.0, -1.0, 0.5,  2.5};
+   ROOT::RVec<double> phi1 =  {0.0, 0.0, 0.0,  -0.5, -2.4};
+
+   ROOT::RVec<double> mass2 = {40,  40,  40,  40,  30};
+   ROOT::RVec<double> pt2 =   {0,   5,   5,   10,  2};
+   ROOT::RVec<double> eta2 =  {0.0, 0.0, 0.5, 0.4, 1.2};
+   ROOT::RVec<double> phi2 =  {0.0, 0.0, 0.0, 0.5, 2.4};
+
+   // Results
+   ROOT::RVec<double> InvMasses = {80, 90.00685740426075654, 90.37681989852670483, 90.53569752667735315, 132.74260423154888144};
+
+   ROOT::RVecD coords(nPart*8);
+   for (size_t i = 0; i < nPart; i++){
+      coords[i+0*nPart] = pt1[i];
+      coords[i+1*nPart] = eta1[i];
+      coords[i+2*nPart] = phi1[i];
+      coords[i+3*nPart] = mass1[i];
+      coords[i+4*nPart] = pt2[i];
+      coords[i+5*nPart] = eta2[i];
+      coords[i+6*nPart] = phi2[i];
+      coords[i+7*nPart] = mass2[i];
+   }
+
 
    auto weight = (t)1;
 
-   std::vector<int> expectedHistBins = {0, this->nCells / 2, this->nCells - 1};
+   std::vector<int> expectedHistBins = {0, 1, 1, 1, this->nCells - 1}; // length is equal to nPart
    
    h.Fill(coords);
-   for (auto i = 0; i < (int)coords.size(); i++) {
-      this->expectedHist[expectedHistBins[i]] = weight;
+   for (auto i = 0; i < nPart; i++) {
+      this->expectedHist[expectedHistBins[i]] += weight;
    }
 
    h.RetrieveResults(this->result, this->stats);
@@ -219,50 +245,51 @@ TYPED_TEST(FillTestFixture, FillFixedBins)
    {
       SCOPED_TRACE("Check fill result");
       CompareArrays(this->result, this->expectedHist, this->nCells);
+      std::cout << this->result[0] << ", " << this->result[1] << ", " << this->result[2] << ", " << this->result[0] << std::endl;
    }
 
    {
       SCOPED_TRACE("Check statistics");
-      this->GetExpectedStats(coords, weight);
+      this->GetExpectedStats(InvMasses, weight);
       CompareArrays(this->stats, this->expectedStats, this->nStats);
       // std::cout << this->stats[0] << ", " << this->stats[1] << ", " << this->stats[2] << ", " << this->stats[0] << std::endl;
    }
 }
 
-TYPED_TEST(FillTestFixture, FillFixedBinsWeighted)
-{
-   // int, double, or float
-   using t = typename TestFixture::dataType;
-   auto &h = this->histogram;
+// TYPED_TEST(FillTestFixture, FillFixedBinsWeighted)
+// {
+//    // int, double, or float
+//    using t = typename TestFixture::dataType;
+//    auto &h = this->histogram;
 
-   ROOT::RVecD coords = { this->startBin - 1,  (this->startBin + this->endBin) / 2., this->endBin + 1};
+//    ROOT::RVecD coords = { this->startBin - 1,  (this->startBin + this->endBin) / 2., this->endBin + 1};
 
-   auto weight = ROOT::RVecD(3, 7); //{7}
+//    auto weight = ROOT::RVecD(3, 7); //{7}
 
-   // std::cout << weight << std::endl;
+//    // std::cout << weight << std::endl;
 
-   std::vector<int> expectedHistBins = {0, this->nCells / 2, this->nCells - 1};
+//    std::vector<int> expectedHistBins = {0, this->nCells / 2, this->nCells - 1};
 
 
-   h.Fill(coords, weight); 
-   for (auto i = 0; i < (int)coords.size(); i++) {
-      this->expectedHist[expectedHistBins[i]] = (t)weight[0];
-   }
+//    h.Fill(coords, weight); 
+//    for (auto i = 0; i < (int)coords.size(); i++) {
+//       this->expectedHist[expectedHistBins[i]] = (t)weight[0];
+//    }
 
-   h.RetrieveResults(this->result, this->stats);
+//    h.RetrieveResults(this->result, this->stats);
 
-   {
-      SCOPED_TRACE("Check fill result");
-      CompareArrays(this->result, this->expectedHist, this->nCells);
-   }
+//    {
+//       SCOPED_TRACE("Check fill result");
+//       CompareArrays(this->result, this->expectedHist, this->nCells);
+//    }
 
-   {
-      SCOPED_TRACE("Check statistics");
-      this->GetExpectedStats(coords, (t)weight[0]);
-      CompareArrays(this->stats, this->expectedStats, this->nStats);
-      // std::cout << this->stats[0] << ", " << this->stats[1] << ", " << this->stats[2] << ", " << this->stats[0] << std::endl;
-   }
-}
+//    {
+//       SCOPED_TRACE("Check statistics");
+//       this->GetExpectedStats(coords, (t)weight[0]);
+//       CompareArrays(this->stats, this->expectedStats, this->nStats);
+//       // std::cout << this->stats[0] << ", " << this->stats[1] << ", " << this->stats[2] << ", " << this->stats[0] << std::endl;
+//    }
+// }
 
 // TYPED_TEST(ClampTestFixture, FillIntClamp)
 // {

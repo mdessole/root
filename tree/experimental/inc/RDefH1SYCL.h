@@ -7,6 +7,10 @@
 #include "AxisDescriptor.h"
 #include "ROOT/RVec.hxx"
 
+// #ifndef ROOT_MATH_SYCL
+// #define ROOT_MATH_SYCL
+// #endif
+
 #include "Math/GenVector/AccHeaders.h"
 #include "Math/Vector4D.h"
 

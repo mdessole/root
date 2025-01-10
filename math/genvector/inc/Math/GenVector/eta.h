@@ -54,7 +54,7 @@ namespace ROOT {
            if (rho > 0) {
 
               // value to control Taylor expansion of sqrt
-              static const Scalar big_z_scaled = math_pow(std::numeric_limits<Scalar>::epsilon(), static_cast<Scalar>(-.25));
+              Scalar big_z_scaled = math_pow(std::numeric_limits<Scalar>::epsilon(), static_cast<Scalar>(-.25));
 
               Scalar z_scaled = z/rho;
 
