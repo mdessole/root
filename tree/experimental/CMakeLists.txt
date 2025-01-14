@@ -20,6 +20,7 @@ if (sycl)
   ROOT_LINKER_LIBRARY(SYCLHist 
       src/RHnSYCL.cxx 
       src/RDefH1SYCL.cxx 
+      src/RDefKernel.cxx 
     DEPENDENCIES 
       GenVectorSYCL 
       ROOTVecOps
@@ -35,6 +36,7 @@ if (sycl)
     SOURCES 
       src/RHnSYCL.cxx
       src/RDefH1SYCL.cxx 
+      src/RDefKernel.cxx 
     COMPILE_DEFINITIONS
       ROOT_RDF_SYCL
       ROOT_MATH_SYCL

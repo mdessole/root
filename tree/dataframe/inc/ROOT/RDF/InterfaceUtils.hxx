@@ -33,6 +33,7 @@
 
 #ifdef ROOT_RDF_SYCL
 #include <ROOT/RDF/SYCLFillHelper.hxx>
+#include <ROOT/RDF/SYCLDefFillHelper.hxx>
 #endif
 
 #ifdef ROOT_RDF_CUDA

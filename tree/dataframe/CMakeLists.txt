@@ -160,7 +160,7 @@ if (cuda)
 endif()
 
 if (sycl)
-  target_link_libraries(ROOTDataFrame PRIVATE SYCLHist)
+  target_link_libraries(ROOTDataFrame PRIVATE SYCLHist GenVectorSYCL)
 endif()
 
 if(sqlite)
