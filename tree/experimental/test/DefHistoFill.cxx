@@ -171,35 +171,17 @@ protected:
 
 
 #if defined(ROOT_RDF_SYCL)
-//using FillTestTypes = Test<Combinations_t<std::tuple<double, float, int, short>, std::tuple<OneDim>,
-//                                          std::tuple<SYCLHist>>>::Types;
 using FillTestTypes = ::testing::Types<double, float, int, short>;
 #endif
 TYPED_TEST_SUITE(FillTestFixture, FillTestTypes);
 
-template <class Hist>
-class ClampTestFixture : public ::testing::Test {
-protected:
-   using hist = Hist;
-   ClampTestFixture() {}
-
-   void SetUp() override { EnableGPU(test_environments[Hist::histIdx]); }
-
-   void TearDown() override {}
-};
-
-#if defined(ROOT_RDF_SYCL)
-using ClampTestTypes = ::testing::Types<SYCLHist>;
-#endif
-
-TYPED_TEST_SUITE(ClampTestFixture, ClampTestTypes);
 
 /////////////////////////////////////
 /// Test Cases
 
 TYPED_TEST(FillTestFixture, FillFixedBins)
 {
-   // int, double, or float
+   // double or float
    using t = typename TestFixture::dataType;
    auto &h = this->histogram;
 
@@ -225,21 +207,18 @@ TYPED_TEST(FillTestFixture, FillFixedBins)
       SCOPED_TRACE("Check statistics");
       this->GetExpectedStats(coords, weight);
       CompareArrays(this->stats, this->expectedStats, this->nStats);
-      // std::cout << this->stats[0] << ", " << this->stats[1] << ", " << this->stats[2] << ", " << this->stats[0] << std::endl;
    }
 }
 
 TYPED_TEST(FillTestFixture, FillFixedBinsWeighted)
 {
-   // int, double, or float
+   // double or float
    using t = typename TestFixture::dataType;
    auto &h = this->histogram;
 
    ROOT::RVecD coords = { this->startBin - 1,  (this->startBin + this->endBin) / 2., this->endBin + 1};
 
-   auto weight = ROOT::RVecD(3, 7); //{7}
-
-   // std::cout << weight << std::endl;
+   auto weight = ROOT::RVecD(3, 7); 
 
    std::vector<int> expectedHistBins = {0, this->nCells / 2, this->nCells - 1};
 
@@ -260,57 +239,6 @@ TYPED_TEST(FillTestFixture, FillFixedBinsWeighted)
       SCOPED_TRACE("Check statistics");
       this->GetExpectedStats(coords, (t)weight[0]);
       CompareArrays(this->stats, this->expectedStats, this->nStats);
-      // std::cout << this->stats[0] << ", " << this->stats[1] << ", " << this->stats[2] << ", " << this->stats[0] << std::endl;
    }
 }
 
-// TYPED_TEST(ClampTestFixture, FillIntClamp)
-// {
-//    auto h = typename TestFixture::hist::template type<int>(32768, 6, {6}, {0}, {4}, {}, {-1},{});
-//    h.Fill({0}, {INT_MAX});
-//    h.Fill({3}, {-INT_MAX});
-
-//    for (int i = 0; i < 100; i++) {       // Repeat to test for race conditions
-//       h.Fill({0});                       // Should keep max value
-//       h.Fill({1}, {long(INT_MAX) + 1});  // Clamp positive overflow
-//       h.Fill({2}, {-long(INT_MAX) - 1}); // Clamp negative overflow
-//       h.Fill({3}, {-1});                 // Should keep min value
-//    }
-
-//    int result[6];
-//    double s[4];
-//    h.RetrieveResults(result, s);
-
-//    EXPECT_EQ(result[0], 0);
-//    EXPECT_EQ(result[1], INT_MAX);
-//    EXPECT_EQ(result[2], INT_MAX);
-//    EXPECT_EQ(result[3], -INT_MAX);
-//    EXPECT_EQ(result[4], -INT_MAX);
-//    EXPECT_EQ(result[5], 0);
-// }
-
-// TYPED_TEST(ClampTestFixture, FillShortClamp)
-// {
-//    auto h = typename TestFixture::hist::template type<short>(32768, 10, {10}, {0}, {8}, {}, {-1},{});
-
-//    // Filling short histograms is implemented using atomic operations on integers so we test each case
-//    // twice to test the for correct filling of the lower and upper bits.
-//    for (int offset = 0; offset < 2; offset++) {
-//       h.Fill({0. + offset}, {32767});
-//       h.Fill({2. + offset}, {-32767});
-
-//       for (int i = 0; i < 100; i++) {     // Repeat to test for race conditions
-//          h.Fill({0. + offset});           // Keep max value
-//          h.Fill({2. + offset}, {-1});     // Keep min value
-//          h.Fill({4. + offset}, {32769});  // Clamp positive overflow
-//          h.Fill({6. + offset}, {-32769}); // Clamp negative overflow
-//       }
-//    }
-
-//    short result[10];
-//    double s[4];
-//    h.RetrieveResults(result, s);
-
-//    int expected[10] = {0, 32767, 32767, -32767, -32767, 32767, 32767, -32767, -32767, 0};
-//    CHECK_ARRAY(result, expected, 10);
-// }

@@ -448,7 +448,7 @@ void RDefH1SYCL<T, Op, nInput, WGroupSize>::GetStats(std::size_t size, sycl::eve
    });
 
    std::vector<sycl::event> statsReductions;
-   std::size_t reductionRange = ceil(size / 8.);
+   std::size_t reductionRange = ceil(size / 8.); // each thread/work-item reduces 8 values
    auto resultBuf = fDStats;
 #ifdef ROOT_RDF_ADAPTIVECPP
    resultBuf = fDIntermediateStats;
