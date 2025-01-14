@@ -361,7 +361,7 @@ private:
 
 
 #if defined(__MAKECINT__) || defined(G__DICTIONARY)
-#if defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
+#if !defined(ROOT_MATH_SYCL) && !defined(ROOT_MATH_CUDA)
 // move implementations here to avoid circle dependencies
 
 #include "Math/GenVector/PtEtaPhiE4D.h"
