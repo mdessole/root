@@ -104,7 +104,7 @@ class R__CLING_PTRCHECK(off) SYCLFillHelper : public RActionImpl<SYCLFillHelper<
       RVecD coords;
       coords.reserve(m.Size() * dim);
       [[maybe_unused]] RVecD weights;
-      if constexpr (sizeof...(ValTypes) > dim)
+      if constexpr (sizeof...(ValTypes) > dim) // parameter pack x includes weights too 
          weights.reserve(m.Size());
 
       auto maskedInsert = [&](auto &arr, auto &out) {
@@ -119,7 +119,7 @@ class R__CLING_PTRCHECK(off) SYCLFillHelper : public RActionImpl<SYCLFillHelper<
       // RVec(x1, x2, ... y1, y2, ... z1, x2, ....)
       // The parameter pack x may or may not include a vector containing the weights as the last element
       // which needs to be placed in the weights array.
-      (maskedInsert(x, Is < dim ? coords : weights), ...);
+      (maskedInsert(x, Is < dim ? coords : weights), ...); // fold expression: this is executed for every value of Is
 
       if constexpr (sizeof...(ValTypes) > dim)
          fSYCLHist->Fill(coords, weights);
@@ -293,7 +293,7 @@ public:
 
    // no container arguments
    template <typename... ValTypes, std::enable_if_t<!Disjunction<IsDataContainer<ValTypes>...>::value, int> = 0>
-   auto Exec(unsigned int slot, const ValTypes &...x) -> decltype(fObject->Fill(x...), void())
+   auto Exec(unsigned int slot, const ValTypes &...x) -> decltype(fObject->Fill(x...), void()) // return type is void, used to check that first expression compiles
    {
       fObject->Fill(x...);
    }

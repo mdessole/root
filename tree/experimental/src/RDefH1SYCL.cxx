@@ -408,7 +408,7 @@ RDefH1SYCL<T, Op, nInput, WGroupSize>::RDefH1SYCL(std::size_t maxBulkSize, const
    fMaxSmemSize = has_local_mem ? device.template get_info<sycl::info::device::local_mem_size>() : 0;
 
    if (getenv("DBG")) {
-      std::cout << "Running SYCLHist on " << device.template get_info<sycl::info::device::name>() << "\n";
+      std::cout << "Running SYCLDefHist on " << device.template get_info<sycl::info::device::name>() << "\n";
       printf("USM support: %s\n", device.has(sycl::aspect::usm_device_allocations) ? "yes" : "no");
       printf("Maximum shared memory size: %zu\n", fMaxSmemSize);
    }
