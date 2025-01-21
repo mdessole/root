@@ -1494,6 +1494,23 @@ public:
       return CreateAction<RDFInternal::ActionTags::Histo1D, V>(validatedColumns, h, h, fProxiedPtr);
    }
 
+   template <typename F, typename... ColTypes>
+   RResultPtr<::TH1D> DefHisto1D(F expression, const TH1DModel &model = {"", "", 128u, 0., 0.}, 
+   const ROOT::RDF::ColumnNames_t &columns = {}) //TODO: implement weights std::string_view wName = ""
+   {
+      auto nColumns = columns.size();
+
+      const auto validColumnNames = GetValidatedColumnNames(nColumns, columns);
+      CheckAndFillDSColumns(validColumnNames, TTraits::TypeList<ColTypes...>());
+
+      std::shared_ptr<::TH1D> h(nullptr);
+      {
+         ROOT::Internal::RDF::RIgnoreErrorLevelRAII iel(kError);
+         h = model.GetHistogram();
+      }
+      return CreateAction<RDFInternal::ActionTags::DefHisto1D, ColTypes...>(validColumnNames, h, h, fProxiedPtr);
+   }
+
    ////////////////////////////////////////////////////////////////////////////
    /// \brief Fill and return a one-dimensional histogram with the values of a column (*lazy action*).
    /// \tparam V The type of the column used to fill the histogram.

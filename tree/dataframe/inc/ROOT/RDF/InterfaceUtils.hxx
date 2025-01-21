@@ -99,6 +99,7 @@ public:
 /// This namespace defines types to be used for tag dispatching in RInterface.
 namespace ActionTags {
 struct Histo1D{};
+struct DefHisto1D{};
 struct Histo2D{};
 struct Histo3D{};
 struct HistoND{};
@@ -177,7 +178,7 @@ BuildAction(const ColumnNames_t &bl, const std::shared_ptr<::TH1D> &h, const uns
    auto hasAxisLimits = HistoUtils<::TH1D>::HasAxisLimits(*h);
 #ifdef ROOT_RDF_SYCL
    if (getenv("SYCL_HIST")) {
-      using Helper_t = ROOT::Experimental::SYCLFillHelper<TH1D>;
+      using Helper_t = ROOT::Experimental::SYCLDefFillHelper<TH1D>;
       using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
       return std::make_unique<Action_t>(Helper_t(h, prevNode->GetLoopManagerUnchecked()->GetMaxEventsPerBulk()), bl,
                                         std::move(prevNode), colRegister);
@@ -202,6 +203,24 @@ BuildAction(const ColumnNames_t &bl, const std::shared_ptr<::TH1D> &h, const uns
       using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
       return std::make_unique<Action_t>(Helper_t(h, nSlots), bl, std::move(prevNode), colRegister);
    }
+}
+
+// DefHisto1D filling (must handle the special case of distinguishing FillHelper and BufferedFillHelper
+template <typename... ColTypes, typename PrevNodeType>
+std::unique_ptr<RActionBase>
+BuildAction(const ColumnNames_t &bl, const std::shared_ptr<::TH1D> &h, const unsigned int nSlots,
+            std::shared_ptr<PrevNodeType> prevNode, ActionTags::DefHisto1D, const RColumnRegister &colRegister)
+{
+   auto hasAxisLimits = HistoUtils<::TH1D>::HasAxisLimits(*h);
+
+#ifdef ROOT_RDF_SYCL
+   if (getenv("SYCL_HIST")) {
+      using Helper_t = ROOT::Experimental::SYCLDefFillHelper<TH1D>;
+      using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
+      return std::make_unique<Action_t>(Helper_t(h, prevNode->GetLoopManagerUnchecked()->GetMaxEventsPerBulk()), bl,
+                                        std::move(prevNode), colRegister);
+   }//TODO: raise error message
+#endif
 }
 
 template <typename... ColTypes, typename PrevNodeType>
