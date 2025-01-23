@@ -70,6 +70,7 @@ class R__CLING_PTRCHECK(off) SYCLDefFillHelper : public RActionImpl<SYCLDefFillH
    // clang-format on
 
    static constexpr size_t dim = getHistDim((HIST *)nullptr);
+
    using SYCLHist_t = ROOT::Experimental::RDefH1SYCL<decltype(getHistType((HIST *)nullptr)), ROOT::Experimental::IdentityKernel, 1>;
 
    HIST *fObject;

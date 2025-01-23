@@ -1504,11 +1504,13 @@ public:
       CheckAndFillDSColumns(validColumnNames, TTraits::TypeList<ColTypes...>());
 
       std::shared_ptr<::TH1D> h(nullptr);
+      auto DefHisto1DHelperArgs = std::make_shared<RDFInternal::DefHisto1DHelperArgs>(
+         RDFInternal::DefHisto1DHelperArgs{expression, h});
       {
          ROOT::Internal::RDF::RIgnoreErrorLevelRAII iel(kError);
          h = model.GetHistogram();
       }
-      return CreateAction<RDFInternal::ActionTags::DefHisto1D, ColTypes...>(validColumnNames, h, h, fProxiedPtr);
+      return CreateAction<RDFInternal::ActionTags::DefHisto1D, ColTypes...>(validColumnNames, h, DefHisto1DHelperArgs, fProxiedPtr);
    }
 
    ////////////////////////////////////////////////////////////////////////////
