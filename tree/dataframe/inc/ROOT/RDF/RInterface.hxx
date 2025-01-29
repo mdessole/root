@@ -1494,18 +1494,22 @@ public:
       return CreateAction<RDFInternal::ActionTags::Histo1D, V>(validatedColumns, h, h, fProxiedPtr);
    }
 
-   template <typename F, typename... ColTypes>
-   RResultPtr<::TH1D> DefHisto1D(F expression, const TH1DModel &model = {"", "", 128u, 0., 0.}, 
+
+ 
+   template <typename SYCLHist, typename... ColTypes>
+   RResultPtr<::TH1D> DefHisto1D(const TH1DModel &model = {"", "", 128u, 0., 0.}, 
    const ROOT::RDF::ColumnNames_t &columns = {}) //TODO: implement weights std::string_view wName = ""
    {
       auto nColumns = columns.size();
 
       const auto validColumnNames = GetValidatedColumnNames(nColumns, columns);
       CheckAndFillDSColumns(validColumnNames, TTraits::TypeList<ColTypes...>());
-
+      
       std::shared_ptr<::TH1D> h(nullptr);
-      auto DefHisto1DHelperArgs = std::make_shared<RDFInternal::DefHisto1DHelperArgs>(
-         RDFInternal::DefHisto1DHelperArgs{expression, h});
+      std::shared_ptr<SYCLHist> syclh(nullptr);
+
+      auto DefHisto1DHelperArgs = std::make_shared<RDFInternal::DefHisto1DHelperArgs<SYCLHist>>(
+         RDFInternal::DefHisto1DHelperArgs<SYCLHist>{syclh, h});
       {
          ROOT::Internal::RDF::RIgnoreErrorLevelRAII iel(kError);
          h = model.GetHistogram();

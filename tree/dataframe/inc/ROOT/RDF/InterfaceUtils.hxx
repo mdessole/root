@@ -135,28 +135,27 @@ struct HistoUtils<T, false> {
    static bool HasAxisLimits(T &) { return true; }
 };
 
+template<typename SYCLHist>
 struct DefHisto1DHelperArgs {
-   double (*fExpression)(double*, double*, std::size_t, std::size_t);
+   std::shared_ptr<SYCLHist> &fSYCLHist;
    std::shared_ptr<::TH1D> &fHist;
-   // void (*Fill); // = fHist->Fill
-   // void (*Fill)(double, double) = fHist->Fill(double, double);
-   // void (*Fill)(double) = fHist->Fill(double);
-   // void (*Fill)(const char*, double) = fHist->Fill(const char*, double);
 };
 
+
 // DefHisto1D filling 
-template <typename... ColTypes, typename PrevNodeType>
+template <typename... ColTypes, typename PrevNodeType, typename SYCLHist>
 std::unique_ptr<RActionBase>
-BuildAction(const ColumnNames_t &bl, const std::shared_ptr<DefHisto1DHelperArgs> &defHisto1DHelperArgs, const unsigned int nSlots,
+BuildAction(const ColumnNames_t &bl, const std::shared_ptr<DefHisto1DHelperArgs<SYCLHist>> &defHisto1DHelperArgs, const unsigned int nSlots,
             std::shared_ptr<PrevNodeType> prevNode, ActionTags::DefHisto1D, const RColumnRegister &colRegister)
 {
 #ifdef ROOT_RDF_SYCL
    const auto &h = defHisto1DHelperArgs->fHist;
-   const auto &kernel = defHisto1DHelperArgs->fExpression;
+   const auto &syclh = defHisto1DHelperArgs->fSYCLHist;
+                      
    auto hasAxisLimits = HistoUtils<::TH1D>::HasAxisLimits(*h);
 
    if (getenv("SYCL_HIST")) {
-      using Helper_t = ROOT::Experimental::SYCLDefFillHelper<TH1D>;
+      using Helper_t = ROOT::Experimental::SYCLDefFillHelper<SYCLHist, TH1D>;
       using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
       return std::make_unique<Action_t>(Helper_t(h, prevNode->GetLoopManagerUnchecked()->GetMaxEventsPerBulk()), bl,
                                         std::move(prevNode), colRegister);
@@ -165,7 +164,7 @@ BuildAction(const ColumnNames_t &bl, const std::shared_ptr<DefHisto1DHelperArgs>
 }
 
 // Generic filling (covers Histo2D, Histo3D, HistoND, Profile1D and Profile2D actions, with and without weights)
-template <typename... ColTypes, typename ActionTag, typename ActionResultType, typename PrevNodeType, std::enable_if_t<!std::is_same_v<ActionResultType,DefHisto1DHelperArgs>, int> = 0>
+template <typename... ColTypes, typename ActionTag, typename ActionResultType, typename PrevNodeType, std::enable_if_t<!std::is_same_v<ActionResultType,DefHisto1DHelperArgs<::TH1D>>, int> = 0>
 std::unique_ptr<RActionBase>
 BuildAction(const ColumnNames_t &bl, const std::shared_ptr<ActionResultType> &h, const unsigned int nSlots,
             std::shared_ptr<PrevNodeType> prevNode, ActionTag, const RColumnRegister &colRegister)

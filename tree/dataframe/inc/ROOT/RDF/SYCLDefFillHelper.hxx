@@ -45,8 +45,8 @@ namespace ROOT {
 namespace Experimental {
 using Hist_t = ::TH1D;
 
-template <typename HIST = Hist_t>
-class R__CLING_PTRCHECK(off) SYCLDefFillHelper : public RActionImpl<SYCLDefFillHelper<HIST>> {
+template <typename SYCLHist, typename HIST = Hist_t>
+class R__CLING_PTRCHECK(off) SYCLDefFillHelper : public RActionImpl<SYCLDefFillHelper<SYCLHist, HIST>> {
    // clang-format off
    static constexpr size_t getHistDim(TH3 *) { return 3; }
    static constexpr size_t getHistDim(TH2 *) { return 2; }
@@ -71,7 +71,7 @@ class R__CLING_PTRCHECK(off) SYCLDefFillHelper : public RActionImpl<SYCLDefFillH
 
    static constexpr size_t dim = getHistDim((HIST *)nullptr);
 
-   using SYCLHist_t = ROOT::Experimental::RDefH1SYCL<decltype(getHistType((HIST *)nullptr)), ROOT::Experimental::IdentityKernel, 1>;
+   using SYCLHist_t = SYCLHist;
 
    HIST *fObject;
    std::unique_ptr<SYCLHist_t> fSYCLHist;
@@ -265,6 +265,11 @@ public:
       }
 
       fSYCLHist = std::make_unique<SYCLHist_t>(maxBulkSize, numBins, ncells, xlow, xHigh, binEdges, binEdgesIdx, fParams);
+   }
+
+   SYCLDefFillHelper(){
+      fObject = nullptr;
+      fSYCLHist = nullptr;
    }
 
    SYCLDefFillHelper(const std::shared_ptr<HIST> &h, std::size_t maxBulkSize)
