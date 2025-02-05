@@ -31,13 +31,26 @@ double InvariantMassesKernel(double *buffer, double *parameters, std::size_t idx
 // pt00,pt10,eta00,eta10,phi00,phi10,m00,m10,pt01,pt11,eta01,eta11,phi01,phi10,m01,m11,...,
 // pt0n,pt1n,eta0n,eta1n,phi0n,phi1n,m0n,m1n
 // Unefficient, but often used after flattening a structure of jagged arrays of particles
+// double InvariantMassesTransKernel(double *buffer, double *parameters, std::size_t idx, std::size_t bulksize)
+// {
+//     const std::size_t offset = idx * 8;
+//     ROOT::ROOT_MATH_ARCH::PtEtaPhiMVector p1(buffer[offset+0], buffer[offset+2], buffer[offset+4], buffer[offset+6]);
+//     ROOT::ROOT_MATH_ARCH::PtEtaPhiMVector p2(buffer[offset+1], buffer[offset+3], buffer[offset+5], buffer[offset+7]);
+//     return (p1+p2).M();
+
+// }
+
 double InvariantMassesTransKernel(double *buffer, double *parameters, std::size_t idx, std::size_t bulksize)
 {
-    const std::size_t offset = idx * 8;
-    ROOT::ROOT_MATH_ARCH::PtEtaPhiMVector p1(buffer[offset+0], buffer[offset+2], buffer[offset+4], buffer[offset+6]);
-    ROOT::ROOT_MATH_ARCH::PtEtaPhiMVector p2(buffer[offset+1], buffer[offset+3], buffer[offset+5], buffer[offset+7]);
+    const std::size_t offset = bulksize*2;
+    const std::size_t idx0 = idx*2; //first particle
+    const std::size_t idx1 = idx0+1; //second particle
+    // ROOT::ROOT_MATH_ARCH::PtEtaPhiMVector p1(buffer[offset+0], buffer[offset+2], buffer[offset+4], buffer[offset+6]);
+    // ROOT::ROOT_MATH_ARCH::PtEtaPhiMVector p2(buffer[offset+1], buffer[offset+3], buffer[offset+5], buffer[offset+7]);
+    ROOT::ROOT_MATH_ARCH::PtEtaPhiMVector p1(buffer[idx0+0*offset], buffer[idx0+1*offset], buffer[idx0+2*offset], buffer[idx0+3*offset]);
+    ROOT::ROOT_MATH_ARCH::PtEtaPhiMVector p2(buffer[idx1+0*offset], buffer[idx1+1*offset], buffer[idx1+2*offset], buffer[idx1+3*offset]);
     return (p1+p2).M();
-
+    
 }
 
 }

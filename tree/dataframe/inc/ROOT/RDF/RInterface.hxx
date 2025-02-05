@@ -1498,15 +1498,24 @@ public:
  
    template <typename SYCLHist, typename... ColTypes>
    RResultPtr<::TH1D> DefHisto1D(const TH1DModel &model = {"", "", 128u, 0., 0.}, 
-   const ROOT::RDF::ColumnNames_t &columns = {}) //TODO: implement weights std::string_view wName = ""
+   const ROOT::RDF::ColumnNames_t &columns = {}, const std::string_view wName = "") 
    {
-      auto nColumns = columns.size();
-
-      const auto validColumnNames = GetValidatedColumnNames(nColumns, columns);
-      CheckAndFillDSColumns(validColumnNames, TTraits::TypeList<ColTypes...>());
-      
       std::shared_ptr<::TH1D> h(nullptr);
       std::shared_ptr<SYCLHist> syclh(nullptr);
+
+      auto nColumns = columns.size();
+      auto nInput = syclh->GetnInput();
+      R__ASSERT( nColumns == nInput && "Incorrect number of columns.");
+
+      auto userColumns(columns);
+      if (!wName.empty()) {
+         userColumns.push_back(std::string(wName));
+         nColumns = nColumns+1;
+      }
+
+      const auto validColumnNames = GetValidatedColumnNames(nColumns, userColumns);
+      CheckAndFillDSColumns(validColumnNames, TTraits::TypeList<ColTypes...>());
+   
 
       auto DefHisto1DHelperArgs = std::make_shared<RDFInternal::DefHisto1DHelperArgs<SYCLHist>>(
          RDFInternal::DefHisto1DHelperArgs<SYCLHist>{syclh, h});

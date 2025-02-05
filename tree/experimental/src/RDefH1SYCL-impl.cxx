@@ -78,22 +78,22 @@ template class RDefH1SYCL<double, InvariantMassesKernel, 8,  1024>;
 
 // clang-format off
 // template class RDefH1SYCL<char,   InvariantMassesTransKernel, 8,  64>;
-template class RDefH1SYCL<float,  InvariantMassesTransKernel, 8,  64>;
-template class RDefH1SYCL<double, InvariantMassesTransKernel, 8,  64>;
+template class RDefH1SYCL<float,  InvariantMassesTransKernel, 4,  64>;
+template class RDefH1SYCL<double, InvariantMassesTransKernel, 4,  64>;
 
 // template class RDefH1SYCL<char,   InvariantMassesTransKernel, 8,  128>;
-template class RDefH1SYCL<float,  InvariantMassesTransKernel, 8,  128>;
-template class RDefH1SYCL<double, InvariantMassesTransKernel, 8,  128>;
+template class RDefH1SYCL<float,  InvariantMassesTransKernel, 4,  128>;
+template class RDefH1SYCL<double, InvariantMassesTransKernel, 4,  128>;
 
 // template class RDefH1SYCL<char,   InvariantMassesTransKernel, 8,  256>;
-template class RDefH1SYCL<float,  InvariantMassesTransKernel, 8,  256>;
-template class RDefH1SYCL<double, InvariantMassesTransKernel, 8,  256>;
+template class RDefH1SYCL<float,  InvariantMassesTransKernel, 4,  256>;
+template class RDefH1SYCL<double, InvariantMassesTransKernel, 4,  256>;
 
 // template class RDefH1SYCL<char,   InvariantMassesTransKernel, 8,  512>;
-template class RDefH1SYCL<float,  InvariantMassesTransKernel, 8,  512>;
-template class RDefH1SYCL<double, InvariantMassesTransKernel, 8,  512>;
+template class RDefH1SYCL<float,  InvariantMassesTransKernel, 4,  512>;
+template class RDefH1SYCL<double, InvariantMassesTransKernel, 4,  512>;
 
 // template class RDefH1SYCL<char,   InvariantMassesTransKernel, 8,  1024>;
-template class RDefH1SYCL<float,  InvariantMassesTransKernel, 8,  1024>;
-template class RDefH1SYCL<double, InvariantMassesTransKernel, 8,  1024>;
+template class RDefH1SYCL<float,  InvariantMassesTransKernel, 4,  1024>;
+template class RDefH1SYCL<double, InvariantMassesTransKernel, 4,  1024>;
 // clang-format on

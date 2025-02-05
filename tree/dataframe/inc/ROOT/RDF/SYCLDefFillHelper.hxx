@@ -70,11 +70,12 @@ class R__CLING_PTRCHECK(off) SYCLDefFillHelper : public RActionImpl<SYCLDefFillH
    // clang-format on
 
    static constexpr size_t dim = getHistDim((HIST *)nullptr);
-
+   
    using SYCLHist_t = SYCLHist;
 
    HIST *fObject;
    std::unique_ptr<SYCLHist_t> fSYCLHist;
+   const unsigned int nInput = fSYCLHist->GetnInput();
    std::vector<decltype(getHistType((HIST *)nullptr))> fParams{};
 
    template <typename H = HIST, typename = decltype(std::declval<H>().Reset())>
@@ -103,9 +104,9 @@ class R__CLING_PTRCHECK(off) SYCLDefFillHelper : public RActionImpl<SYCLDefFillH
    void Fill(const ROOT::RDF::Experimental::REventMask &m, std::index_sequence<Is...>, const ValTypes &...x)
    {
       RVecD coords;
-      coords.reserve(m.Size() * dim);
+      coords.reserve(m.Size() * nInput);
       [[maybe_unused]] RVecD weights;
-      if constexpr (sizeof...(ValTypes) > dim)
+      if (sizeof...(ValTypes) > nInput)
          weights.reserve(m.Size());
 
       auto maskedInsert = [&](auto &arr, auto &out) {
@@ -120,12 +121,13 @@ class R__CLING_PTRCHECK(off) SYCLDefFillHelper : public RActionImpl<SYCLDefFillH
       // RVec(x1, x2, ... y1, y2, ... z1, x2, ....)
       // The parameter pack x may or may not include a vector containing the weights as the last element
       // which needs to be placed in the weights array.
-      (maskedInsert(x, Is < dim ? coords : weights), ...);
+      (maskedInsert(x,  Is < nInput ? coords : weights), ...);
 
-      if constexpr (sizeof...(ValTypes) > dim)
+
+      if (sizeof...(ValTypes) > nInput)
          fSYCLHist->Fill(coords, weights);
       else
-         fSYCLHist->Fill(coords);
+      fSYCLHist->Fill(coords);
    }
 
    // Merge overload for types with Merge(TCollection*), like TH1s

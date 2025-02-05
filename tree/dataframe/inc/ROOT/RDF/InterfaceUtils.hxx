@@ -34,6 +34,8 @@
 #ifdef ROOT_RDF_SYCL
 #include <ROOT/RDF/SYCLFillHelper.hxx>
 #include <ROOT/RDF/SYCLDefFillHelper.hxx>
+#include "RDefKernel.h"
+#include "RDefH1SYCL.h"
 #endif
 
 #ifdef ROOT_RDF_CUDA
@@ -150,7 +152,6 @@ BuildAction(const ColumnNames_t &bl, const std::shared_ptr<DefHisto1DHelperArgs<
 {
 #ifdef ROOT_RDF_SYCL
    const auto &h = defHisto1DHelperArgs->fHist;
-   const auto &syclh = defHisto1DHelperArgs->fSYCLHist;
                       
    auto hasAxisLimits = HistoUtils<::TH1D>::HasAxisLimits(*h);
 
@@ -164,7 +165,7 @@ BuildAction(const ColumnNames_t &bl, const std::shared_ptr<DefHisto1DHelperArgs<
 }
 
 // Generic filling (covers Histo2D, Histo3D, HistoND, Profile1D and Profile2D actions, with and without weights)
-template <typename... ColTypes, typename ActionTag, typename ActionResultType, typename PrevNodeType, std::enable_if_t<!std::is_same_v<ActionResultType,DefHisto1DHelperArgs<::TH1D>>, int> = 0>
+template <typename... ColTypes, typename ActionTag, typename ActionResultType, typename PrevNodeType,std::enable_if_t<!std::is_same_v<ActionTag, ActionTags::DefHisto1D>, int> = 0>
 std::unique_ptr<RActionBase>
 BuildAction(const ColumnNames_t &bl, const std::shared_ptr<ActionResultType> &h, const unsigned int nSlots,
             std::shared_ptr<PrevNodeType> prevNode, ActionTag, const RColumnRegister &colRegister)
@@ -206,7 +207,7 @@ BuildAction(const ColumnNames_t &bl, const std::shared_ptr<::TH1D> &h, const uns
    auto hasAxisLimits = HistoUtils<::TH1D>::HasAxisLimits(*h);
 #ifdef ROOT_RDF_SYCL
    if (getenv("SYCL_HIST")) {
-      using Helper_t = ROOT::Experimental::SYCLDefFillHelper<TH1D>;
+      using Helper_t = ROOT::Experimental::SYCLFillHelper<TH1D>;
       using Action_t = RAction<Helper_t, PrevNodeType, TTraits::TypeList<ColTypes...>>;
       return std::make_unique<Action_t>(Helper_t(h, prevNode->GetLoopManagerUnchecked()->GetMaxEventsPerBulk()), bl,
                                         std::move(prevNode), colRegister);

@@ -21,6 +21,7 @@ private:
    // S = SYCL USM shared pointer
    // D = SYCL USM device pointer
 
+   static constexpr unsigned int fnInput = nInput;
    static constexpr unsigned int fDim = 1;
    static constexpr int kNStats = 2 +  fDim * 2 +  fDim * (fDim - 1) / 2; ///< Number of statistics.
 
@@ -85,6 +86,8 @@ public:
    RDefH1SYCL &operator=(const RDefH1SYCL &) = delete;
 
    int GetEntries() const { return fEntries; }
+
+   unsigned int GetnInput() const { return fnInput; }
 
    void RetrieveResults(T *histResult, double *statsResult);
 
