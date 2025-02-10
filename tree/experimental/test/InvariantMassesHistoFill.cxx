@@ -243,7 +243,7 @@ TYPED_TEST(FillTestFixture, FillFixedBinsWeighted)
    using t = typename TestFixture::dataType;
    auto &h = this->histogram;
 
-     size_t nPart = 5;
+   size_t nPart = 5;
    // Dummy particle collections
    ROOT::RVec<double> mass1 = {40,  50,  50,   50,   100};
    ROOT::RVec<double> pt1 =   {0,   5,   5,    10,   10};

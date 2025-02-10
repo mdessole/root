@@ -17,6 +17,14 @@ extern SYCL_EXTERNAL double IdentityKernel(double *buffer, double *parameters, s
 // Efficient when we have 8 vectors on the host side
 extern SYCL_EXTERNAL double InvariantMassesKernel(double *buffer, double *parameters, std::size_t idx, std::size_t bulksize);
 
+// Invariant masses of a sequences of particles 
+// p0i = (pt0i, eta0i, phi0i, m0i), p1i = (pt1i, eta1i, phi1i, m1i), i=0,...,bulksize-1=n
+// Underlying memory is 
+// pt00,pt01,...,p0n,eta00,eta01,...,eta0n,ph00,phi01,...,ph0n,m00,m01,...,m0n
+// Efficient when we have 4 vectors on the host side
+extern SYCL_EXTERNAL double InvariantMassKernel(double *buffer, double *parameters, std::size_t idx, std::size_t bulksize);
+
+
 // Invariant masses of the sum of two sequences of particles 
 // p0i = (pt0i, eta0i, phi0i, m0i), p1i = (pt1i, eta1i, phi1i, m1i), i=0,...,bulksize-1=n
 // Underlying memory is 

@@ -40,6 +40,14 @@ double InvariantMassesKernel(double *buffer, double *parameters, std::size_t idx
 
 // }
 
+
+double InvariantMassKernel(double *buffer, double *parameters, std::size_t idx, std::size_t bulksize)
+{
+    ROOT::ROOT_MATH_ARCH::PtEtaPhiMVector p1(buffer[0*bulksize+idx], buffer[1*bulksize+idx], buffer[2*bulksize+idx], buffer[3*bulksize+idx]);
+    return p1.M();
+    
+}
+
 double InvariantMassesTransKernel(double *buffer, double *parameters, std::size_t idx, std::size_t bulksize)
 {
     const std::size_t offset = bulksize*2;

@@ -21,6 +21,7 @@ if (sycl)
       src/RHnSYCL.cxx 
       src/RDefH1SYCL.cxx 
       src/RDefKernel.cxx 
+      src/RDefSYCL.cxx 
     DEPENDENCIES 
       GenVectorSYCL 
       ROOTVecOps
@@ -37,6 +38,7 @@ if (sycl)
       src/RHnSYCL.cxx
       src/RDefH1SYCL.cxx 
       src/RDefKernel.cxx 
+      src/RDefSYCL.cxx 
     COMPILE_DEFINITIONS
       ROOT_RDF_SYCL
       ROOT_MATH_SYCL
