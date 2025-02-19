@@ -28,6 +28,7 @@ private:
    double                           *fDBuffer;            ///< Pointer to array of inputs for computing coordinates to be filled on the GPU.
  
    std::size_t                       fMaxBulkSize;        ///< Number of coordinates to buffer.
+   std::size_t                       fNParameters;        ///< Number of parameters of the define fucntion of choice.
   
 public:
    RDefSYCL() = delete;
@@ -38,7 +39,8 @@ public:
    ~RDefSYCL()
    {
       sycl::free(fDBuffer, queue);
-      sycl::free(fDParameters, queue);
+      if (fNParameters)
+         sycl::free(fDParameters, queue);
       sycl::free(fDCoords, queue);
    }
 

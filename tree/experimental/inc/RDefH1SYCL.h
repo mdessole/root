@@ -48,6 +48,8 @@ private:
    double                           *fDStats;             ///< Pointer to statistics array on GPU.
    double                           *fDIntermediateStats; ///< Pointer to statistics array on GPU.
 
+   std::size_t                       fNParameters;        ///< Number of parameters of the define fucntion of choice.
+
    // Kernel size parameters
    std::size_t                       fMaxBulkSize;        ///< Number of coordinates to buffer.
    std::size_t                       fMaxSmemSize;        ///< Maximum shared memory size per block on device 0.
@@ -71,7 +73,8 @@ public:
       sycl::free(fDMax, queue);
       sycl::free(fDBinEdgesIdx, queue);
       sycl::free(fDBuffer, queue);
-      sycl::free(fDParameters, queue);
+      if (fNParameters)
+         sycl::free(fDParameters, queue);
       sycl::free(fDCoords, queue);
       sycl::free(fDWeights, queue);
       sycl::free(fDBins, queue);

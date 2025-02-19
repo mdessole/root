@@ -367,8 +367,11 @@ RDefH1SYCL<T, Op, nInput, WGroupSize>::RDefH1SYCL(std::size_t maxBulkSize, const
    fDBins = sycl::malloc_device<int>(fDim * fMaxBulkSize, queue);
 
    // Setup device memory for Op parameters
-   fDParameters = sycl::malloc_device<double>(parameters.size(), queue);
-   queue.memcpy(fDParameters, parameters.data(), parameters.size() * sizeof(double));
+   fNParameters = parameters.size();
+   if (fNParameters){
+      fDParameters = sycl::malloc_device<double>(fNParameters, queue);
+      queue.memcpy(fDParameters, parameters.data(), fNParameters * sizeof(double));
+   }
 
    // Setup device memory for histogram characteristics
    fDNBinsAxis = sycl::malloc_device<int>(fDim, queue);

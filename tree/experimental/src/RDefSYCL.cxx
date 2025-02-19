@@ -58,8 +58,11 @@ RDefSYCL<T, Op, nInput, WGroupSize>::RDefSYCL(std::size_t maxBulkSize, const std
    fDCoords = sycl::malloc_device<double>(fMaxBulkSize, queue);
 
    // Setup device memory for Op parameters
-   fDParameters = sycl::malloc_device<double>(parameters.size(), queue);
-   queue.memcpy(fDParameters, parameters.data(), parameters.size() * sizeof(double));
+   fNParameters = parameters.size();
+   if (fNParameters){
+      fDParameters = sycl::malloc_device<double>(fNParameters, queue);
+      queue.memcpy(fDParameters, parameters.data(), fNParameters * sizeof(double));
+   }
 
    queue.wait();
 
@@ -100,8 +103,7 @@ void RDefSYCL<T, Op, nInput, WGroupSize>::EvalBulkExpr(const RVecD &buffer)
    std::vector<sycl::event> copyEvents(1);
    copyEvents[0] = queue.memcpy(fDBuffer, buffer.begin(), bulkSize * nInput * sizeof(double), prevBulk);
    //copyEvents[1] = queue.memcpy(fDWeights, weights.begin(), bulkSize * sizeof(double), prevBulk);
-
-
+   
    // The histogram kernels execute asynchronously.
    ExecuteSYCLEval(bulkSize, copyEvents);
 }
