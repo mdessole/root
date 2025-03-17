@@ -116,7 +116,7 @@ protected:
 
 public:
    static Int_t FitOptionsMake(Option_t *option, Foption_t &Foption);
-   double tfindbin, tusb, tfill;
+   double tfindbin, tusb, tfill, tgputotal;
    void init_timingstuff();
 
 private:
@@ -387,6 +387,7 @@ public:
    virtual void     SetDirectory(TDirectory *dir);
    virtual void     SetEntries(Double_t n) { fEntries = n; }
    virtual void     SetError(const Double_t *error);
+   virtual void     SetGPUTime(const Double_t GPUTime);
    virtual void     SetHighlight(Bool_t set = kTRUE); // *TOGGLE* *GETTER=IsHighlight
    virtual void     SetLabelColor(Color_t color=1, Option_t *axis="X");
    virtual void     SetLabelFont(Style_t font=62, Option_t *axis="X");

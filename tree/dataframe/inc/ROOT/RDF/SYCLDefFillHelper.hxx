@@ -33,6 +33,10 @@
 #include <string>
 #include <array>
 
+#include <chrono>
+using Clock = std::chrono::steady_clock;
+using fsecs = std::chrono::duration<double, std::chrono::seconds::period>;
+
 using ROOT::Internal::RDF::Disjunction;
 using ROOT::Internal::RDF::FindIdxTrue;
 using ROOT::Internal::RDF::GetNthElement;
@@ -70,13 +74,16 @@ class R__CLING_PTRCHECK(off) SYCLDefFillHelper : public RActionImpl<SYCLDefFillH
    // clang-format on
 
    static constexpr size_t dim = getHistDim((HIST *)nullptr);
-   
+
+   double fGPUtime = 0;
+
    using SYCLHist_t = SYCLHist;
 
    HIST *fObject;
    std::unique_ptr<SYCLHist_t> fSYCLHist;
    const unsigned int nInput = fSYCLHist->GetnInput();
    std::vector<decltype(getHistType((HIST *)nullptr))> fParams{};
+
 
    template <typename H = HIST, typename = decltype(std::declval<H>().Reset())>
    void ResetIfPossible(H *h)
@@ -124,10 +131,13 @@ class R__CLING_PTRCHECK(off) SYCLDefFillHelper : public RActionImpl<SYCLDefFillH
       (maskedInsert(x,  Is < nInput ? coords : weights), ...);
 
 
+      auto start = Clock::now();
       if (sizeof...(ValTypes) > nInput)
          fSYCLHist->Fill(coords, weights);
       else
-      fSYCLHist->Fill(coords);
+         fSYCLHist->Fill(coords);
+      auto end = Clock::now();
+      fGPUtime += std::chrono::duration_cast<fsecs>(end - start).count();
    }
 
    // Merge overload for types with Merge(TCollection*), like TH1s
@@ -266,7 +276,10 @@ public:
             printf("\tdim %d --- nbins: %d xlow: %f xHigh: %f\n", d, ncells[d], xlow[d], xHigh[d]);
       }
 
+      auto start = Clock::now();
       fSYCLHist = std::make_unique<SYCLHist_t>(maxBulkSize, numBins, ncells, xlow, xHigh, binEdges, binEdgesIdx, fParams);
+      auto end = Clock::now();
+      fGPUtime += std::chrono::duration_cast<fsecs>(end - start).count();
    }
 
    SYCLDefFillHelper(){
@@ -350,9 +363,13 @@ public:
       double stats[13];
 
       HIST *h = fObject;
+      auto start = Clock::now();
       fSYCLHist->RetrieveResults(h->GetArray(), stats);
+      auto end = Clock::now();
+      fGPUtime += std::chrono::duration_cast<fsecs>(end - start).count();
       h->PutStats(stats);
       h->SetEntries(fSYCLHist->GetEntries());
+      h->SetGPUTime(fGPUtime);
 
       if (getenv("DBG")) {
          printf("SYCL stats:");
@@ -369,7 +386,6 @@ public:
 
          printf(" %f\n", fObject->GetEntries());
          if (atoi(getenv("DBG")) > 1) {
-
             printf("histogram:");
             for (int j = 0; j < fObject->GetNcells(); ++j) {
                printf("%f ", fObject->GetArray()[j]);

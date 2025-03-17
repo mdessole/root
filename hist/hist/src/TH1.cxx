@@ -55,9 +55,9 @@
 #include "TH1Merger.h"
 
 #include <chrono>
-// #define TIME_FILL
-// #define TIME_STATS
-// #define TIME_FINDBIN
+#define TIME_FILL
+#define TIME_STATS
+#define TIME_FINDBIN
 using Clock = std::chrono::steady_clock;
 using fsecs = std::chrono::duration<double, std::chrono::seconds::period>;
 // #include <likwid-marker.h>
@@ -615,6 +615,7 @@ void TH1::init_timingstuff()
    tusb = 0;
    tfill = 0;
    tfindbin = 0;
+   tgputotal = 0;
 }
 
 TH1::TH1(): TNamed(), TAttLine(), TAttFill(), TAttMarker()
@@ -8881,6 +8882,15 @@ void TH1::SetDirectory(TDirectory *dir)
 void TH1::SetError(const Double_t *error)
 {
    for (Int_t i = 0; i < fNcells; ++i) SetBinError(i, error[i]);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Replace bin errors by values in array error.
+
+void TH1::SetGPUTime(const Double_t GPUTime)
+{
+   tgputotal = GPUTime;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
