@@ -17,6 +17,9 @@
 #include "ROOT/RDF/InterfaceUtils.hxx"
 #include "ROOT/RDF/RColumnRegister.hxx"
 #include "ROOT/RDF/RDefine.hxx"
+#ifdef ROOT_RDF_SYCL
+#include <ROOT/RDF/RDefineSYCL.hxx>
+#endif
 #include "ROOT/RDF/RDefinePerSample.hxx"
 #include "ROOT/RDF/RFilter.hxx"
 #include "ROOT/RDF/RInterfaceBase.hxx"
@@ -340,6 +343,14 @@ public:
       return DefineImpl<F, RDFDetail::ExtraArgsForDefine::None>(name, std::move(expression), columns, "Define");
    }
    // clang-format on
+
+#ifdef ROOT_RDF_SYCL
+   template <typename SYCLDefine, typename F, typename std::enable_if_t<!std::is_convertible<F, std::string>::value, int> = 0>
+   RInterface<Proxied, DS_t> DefineSYCL(std::string_view name, F expression, const ColumnNames_t &columns = {})
+   {
+      return DefineSYCLImpl<SYCLDefine, F, RDFDetail::ExtraArgsForDefine::None>(name, std::move(expression), columns, "Define");
+   }
+#endif
 
    // clang-format off
    ////////////////////////////////////////////////////////////////////////////
@@ -2802,6 +2813,50 @@ public:
    }
 
 private:
+#ifdef ROOT_RDF_SYCL
+template <typename SYCLDefine, typename F, typename DefineType, typename ArgTypes = typename TTraits::CallableTraits<F>::arg_types,
+             typename RetType = typename TTraits::CallableTraits<F>::ret_type,
+             bool IsRetTypeDefConstr = std::is_default_constructible<RetType>::value,
+             bool IsUsingBulkAPI =
+                std::is_same<TTraits::TakeFirstParameter_t<ArgTypes>, ROOT::RDF::Experimental::REventMask>::value>
+   std::enable_if_t<IsRetTypeDefConstr || IsUsingBulkAPI, RInterface<Proxied, DS_t>>
+   DefineSYCLImpl(std::string_view name, F &&expression, const ColumnNames_t &columns, const std::string &where)
+   {
+      if (where.compare(0, 8, "Redefine") != 0) { // not a Redefine
+         RDFInternal::CheckValidCppVarName(name, where);
+         RDFInternal::CheckForRedefinition(where, name, fColRegister, fLoopManager->GetBranchNames(),
+                                           fDataSource ? fDataSource->GetColumnNames() : ColumnNames_t{});
+      }
+
+      using RDefine_t = RDFDetail::RDefineSYCL<SYCLDefine, F, DefineType>;
+      using DefinedColType_t = typename RDefine_t::RetType_t; // it is different from RetType in case of bulk API
+      using ColTypes_t = typename RDefine_t::ColumnTypes_t;
+      constexpr auto nColumns = ColTypes_t::list_size;
+
+      const auto validColumnNames = GetValidatedColumnNames(nColumns, columns);
+      CheckAndFillDSColumns(validColumnNames, ColTypes_t());
+
+      // Declare return type to the interpreter, for future use by jitted actions
+      auto retTypeName = RDFInternal::TypeID2TypeName(typeid(DefinedColType_t));
+      if (retTypeName.empty()) {
+         // The type is not known to the interpreter.
+         // We must not error out here, but if/when this column is used in jitted code
+         const auto demangledType = RDFInternal::DemangleTypeIdName(typeid(DefinedColType_t));
+         retTypeName = "CLING_UNKNOWN_TYPE_" + demangledType;
+      }
+
+      auto newColumn = std::make_shared<RDefine_t>(name, retTypeName, validColumnNames,
+                                                   fColRegister, *fLoopManager);
+
+      RDFInternal::RColumnRegister newCols(fColRegister);
+      newCols.AddDefine(std::move(newColumn));
+
+      RInterface<Proxied> newInterface(fProxiedPtr, *fLoopManager, std::move(newCols));
+
+      return newInterface;
+   }
+#endif
+
    template <typename F, typename DefineType, typename ArgTypes = typename TTraits::CallableTraits<F>::arg_types,
              typename RetType = typename TTraits::CallableTraits<F>::ret_type,
              bool IsRetTypeDefConstr = std::is_default_constructible<RetType>::value,
