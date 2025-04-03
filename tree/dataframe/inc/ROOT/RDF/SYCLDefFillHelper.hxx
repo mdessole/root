@@ -272,8 +272,10 @@ public:
          xHigh[d] = ax->GetXmax();
          numBins *= ncells_d;
 
-         if (getenv("DBG"))
+         if (getenv("DBG")){
             printf("\tdim %d --- nbins: %d xlow: %f xHigh: %f\n", d, ncells[d], xlow[d], xHigh[d]);
+            printf("\tmaxBulkSize: %ld\n", maxBulkSize);
+         }
       }
 
       auto start = Clock::now();
@@ -300,6 +302,7 @@ public:
    template <typename... ValTypes>
    auto Exec(unsigned int slot, const ROOT::RDF::Experimental::REventMask &m, const ValTypes &...x)
    {
+   if (slot == 0){
    if constexpr (std::conjunction_v<std::is_same<ValTypes, RVecD>...>) {
          Fill(m, std::index_sequence_for<ValTypes...>{}, x...);
       } else {
@@ -310,6 +313,7 @@ public:
             }
          }
       }
+   }
    }
 
    // no container arguments
