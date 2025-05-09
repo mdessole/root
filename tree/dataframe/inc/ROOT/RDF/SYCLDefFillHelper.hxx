@@ -130,14 +130,17 @@ class R__CLING_PTRCHECK(off) SYCLDefFillHelper : public RActionImpl<SYCLDefFillH
       // which needs to be placed in the weights array.
       (maskedInsert(x,  Is < nInput ? coords : weights), ...);
 
-
+#ifdef TIMING
       auto start = Clock::now();
+#endif
       if (sizeof...(ValTypes) > nInput)
          fSYCLHist->Fill(coords, weights);
       else
          fSYCLHist->Fill(coords);
+#ifdef TIMING
       auto end = Clock::now();
       fGPUtime += std::chrono::duration_cast<fsecs>(end - start).count();
+#endif
    }
 
    // Merge overload for types with Merge(TCollection*), like TH1s
@@ -278,10 +281,14 @@ public:
          }
       }
 
+#ifdef TIMING
       auto start = Clock::now();
+#endif
       fSYCLHist = std::make_unique<SYCLHist_t>(maxBulkSize, numBins, ncells, xlow, xHigh, binEdges, binEdgesIdx, fParams);
+#ifdef TIMING
       auto end = Clock::now();
       fGPUtime += std::chrono::duration_cast<fsecs>(end - start).count();
+#endif
    }
 
    SYCLDefFillHelper(){
@@ -367,10 +374,14 @@ public:
       double stats[13];
 
       HIST *h = fObject;
+#ifdef TIMING
       auto start = Clock::now();
+#endif
       fSYCLHist->RetrieveResults(h->GetArray(), stats);
+#ifdef TIMING
       auto end = Clock::now();
       fGPUtime += std::chrono::duration_cast<fsecs>(end - start).count();
+#endif
       h->PutStats(stats);
       h->SetEntries(fSYCLHist->GetEntries());
       h->SetGPUTime(fGPUtime);
