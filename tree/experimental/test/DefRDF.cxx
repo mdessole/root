@@ -20,53 +20,8 @@ using ROOT::VecOps::RVec;
 using ROOT::Experimental::RDefSYCL;
 using ROOT::Experimental::InvariantMassesKernel;
 using ROOT::Experimental::IdentityKernel;
-using RDefSYCL_t = RDefSYCL<double, IdentityKernel, 1>;
-
-
-auto bulkReturnX = [](const REventMask &m, ROOT::RVec<double> &output, const ROOT::RVec<ULong64_t> &rdfentries) {
-   // ignoring event mask
-   std::copy(rdfentries.begin(), rdfentries.begin() + m.Size(), output.begin());
-};
-
-class DefIdentityFixture : public testing::TestWithParam<const char *> {
-protected:
-   uint numRows; // -2 to also test filling u/overflow.
-   uint maxBulkSize; // -2 to also test filling u/overflow.
-
-
-   DefIdentityFixture()
-   {
-      numRows = 512;
-      maxBulkSize = 256;
-   }
-
-   auto GetDefineSYCLResult()
-   {
-      auto df = ROOT::RDataFrame(numRows, maxBulkSize); // default maxbulksize = 256
-      auto df2 = df.DefineSYCL<RDefSYCL_t>("id", bulkReturnX, {"rdfentry_"});
-      auto id = df2.Take<double, RVec<double>>("id").GetValue();
-      return id;
-   }
-
-
-   auto GetDefineResult()
-   {
-      auto df = ROOT::RDataFrame(numRows, maxBulkSize);
-      auto df2 = df.Define("id", bulkReturnX, {"rdfentry_"});
-      auto id = df2.Take<double, RVec<double>>("id").GetValue();
-      return id;
-   }
-
-   auto GetExpectedResult()
-   {
-      auto id = std::vector<double>(numRows);    
-      for (size_t i = 0; i < numRows; i++)
-         id[i] = static_cast<double>(i);
-      return id;
-   }
-   
-};
-
+using RDefIdSYCL_t = RDefSYCL<double, IdentityKernel, 1>;
+using RDefIMSYCL_t = RDefSYCL<double, InvariantMassesKernel, 8>;
 
 // Helper functions for element-wise comparison of arrays.
 #define CHECK_ARRAY(a, b, n)                              \
@@ -108,8 +63,92 @@ void CompareArrays(double *result, double *expected, int n)
    CHECK_ARRAY_DOUBLE(result, expected, n)
 }
 
+auto bulkReturnId = [](const REventMask &m, ROOT::RVec<double> &output, const ROOT::RVec<ULong64_t> &rdfentries) {
+   // ignoring event mask
+   std::copy(rdfentries.begin(), rdfentries.begin() + m.Size(), output.begin());
+};
+
+class DefIdentityFixture : public testing::TestWithParam<const char *> {
+protected:
+   uint numRows; // -2 to also test filling u/overflow.
+   uint maxBulkSize; // -2 to also test filling u/overflow.
+
+
+   DefIdentityFixture()
+   {
+      numRows = 512;
+      maxBulkSize = 256;
+   }
+
+   auto GetDefineSYCLResult()
+   {
+      auto df = ROOT::RDataFrame(numRows, maxBulkSize); // default maxbulksize = 256
+      auto df2 = df.DefineSYCL<RDefIdSYCL_t>("id", bulkReturnId, {"rdfentry_"});
+      auto id = df2.Take<double, RVec<double>>("id").GetValue();
+      return id;
+   }
+
+
+   auto GetDefineResult()
+   {
+      auto df = ROOT::RDataFrame(numRows, maxBulkSize);
+      auto df2 = df.Define("id", bulkReturnId, {"rdfentry_"});
+      auto id = df2.Take<double, RVec<double>>("id").GetValue();
+      return id;
+   }
+
+   auto GetExpectedResult()
+   {
+      auto id = std::vector<double>(numRows);    
+      for (size_t i = 0; i < numRows; i++)
+         id[i] = static_cast<double>(i);
+      return id;
+   }
+   
+};
+
+// class DefInvariantMassesFixture : public testing::TestWithParam<const char *> {
+//    protected:
+//       uint numRows; // -2 to also test filling u/overflow.
+//       uint maxBulkSize; // -2 to also test filling u/overflow.
+   
+   
+//       DefInvariantMassesFixture()
+//       {
+//          numRows = 512;
+//          maxBulkSize = 256;
+//       }
+   
+//       auto GetDefineSYCLResult()
+//       {
+//          auto df = ROOT::RDataFrame(numRows, maxBulkSize); // default maxbulksize = 256
+//          auto df2 = df.DefineSYCL<RDefIMSYCL_t>("id", bulkReturnId, {"rdfentry_"});
+//          auto id = df2.Take<double, RVec<double>>("id").GetValue();
+//          return id;
+//       }
+   
+   
+//       auto GetDefineResult()
+//       {
+//          auto df = ROOT::RDataFrame(numRows, maxBulkSize);
+//          auto df2 = df.Define("id", bulkReturnId, {"rdfentry_"});
+//          auto id = df2.Take<double, RVec<double>>("id").GetValue();
+//          return id;
+//       }
+   
+//       auto GetExpectedResult()
+//       {
+//          auto id = std::vector<double>(numRows);    
+//          for (size_t i = 0; i < numRows; i++)
+//             id[i] = static_cast<double>(i);
+//          return id;
+//       }
+      
+//    };
+   
+
 /***
- * Test Define identity
+ * Test Define Identity
  */
 
 TEST_F(DefIdentityFixture, IdentityDefine)
@@ -123,3 +162,20 @@ TEST_F(DefIdentityFixture, IdentityDefine)
    CompareArrays(id1.data(), id2.data(), numRows); 
 }
 
+
+/***
+ * Test Define Invariant Masses
+ */
+
+//  TEST_F(DefInvariantMassesFixture, InvariantMassesDefine)
+//  {
+ 
+//     auto id1 = GetDefineSYCLResult();
+ 
+//     auto id2 = GetDefineResult(); // GetExpectedResult(); 
+ 
+ 
+//     CompareArrays(id1.data(), id2.data(), numRows); 
+//  }
+ 
+ 
