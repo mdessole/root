@@ -309,7 +309,7 @@ public:
    template <typename... ValTypes>
    auto Exec(unsigned int slot, const ROOT::RDF::Experimental::REventMask &m, const ValTypes &...x)
    {
-   if (slot == 0){
+   //if (slot == 0){
    if constexpr (std::conjunction_v<std::is_same<ValTypes, RVecD>...>) {
          Fill(m, std::index_sequence_for<ValTypes...>{}, x...);
       } else {
@@ -320,7 +320,7 @@ public:
             }
          }
       }
-   }
+   //}
    }
 
    // no container arguments
