@@ -55,9 +55,9 @@
 #include "TH1Merger.h"
 
 #include <chrono>
-#define TIME_FILL
-#define TIME_STATS
-#define TIME_FINDBIN
+// #define TIME_FILL
+// #define TIME_STATS
+// #define TIME_FINDBIN
 using Clock = std::chrono::steady_clock;
 using fsecs = std::chrono::duration<double, std::chrono::seconds::period>;
 // #include <likwid-marker.h>
