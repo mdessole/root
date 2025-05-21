@@ -68,6 +68,54 @@ auto bulkReturnId = [](const REventMask &m, ROOT::RVec<double> &output, const RO
    std::copy(rdfentries.begin(), rdfentries.begin() + m.Size(), output.begin());
 };
 
+auto bulkReturnOne = [](const REventMask &m, ROOT::RVec<double> &output) {
+   // ignoring event mask
+   std::fill(output.begin(), output.begin() + m.Size(), 1.);
+};
+
+auto bulkReturnTwo = [](const REventMask &m, ROOT::RVec<double> &output) {
+   // ignoring event mask
+   std::fill(output.begin(), output.begin() + m.Size(), 2.);
+};
+
+auto bulkReturnThree = [](const REventMask &m, ROOT::RVec<double> &output) {
+   // ignoring event mask
+   std::fill(output.begin(), output.begin() + m.Size(), 3.);
+};
+
+auto bulkReturnFour = [](const REventMask &m, ROOT::RVec<double> &output) {
+   // ignoring event mask
+   std::fill(output.begin(), output.begin() + m.Size(), 4.);
+};
+
+auto bulkReturnFive = [](const REventMask &m, ROOT::RVec<double> &output) {
+   // ignoring event mask
+   std::fill(output.begin(), output.begin() + m.Size(), 5.);
+};
+
+auto bulkReturnSix = [](const REventMask &m, ROOT::RVec<double> &output) {
+   // ignoring event mask
+   std::fill(output.begin(), output.begin() + m.Size(), 6.);
+};
+
+auto bulkReturnSeven = [](const REventMask &m, ROOT::RVec<double> &output) {
+   // ignoring event mask
+   std::fill(output.begin(), output.begin() + m.Size(), 7.);
+};
+
+auto bulkReturnEight = [](const REventMask &m, ROOT::RVec<double> &output) {
+   // ignoring event mask
+   std::fill(output.begin(), output.begin() + m.Size(), 8.);
+};
+
+auto bulkReturnIM = [](const REventMask &m, ROOT::RVec<double> &output, 
+   const ROOT::RVec<double> &pt1, const ROOT::RVec<double> &eta1, const ROOT::RVec<double> &phi1, const ROOT::RVec<double> &m1,
+   const ROOT::RVec<double> &pt2, const ROOT::RVec<double> &eta2, const ROOT::RVec<double> &phi2, const ROOT::RVec<double> &m2
+) {
+   // ignoring event mask
+   std::fill(output.begin(), output.begin() + m.Size(), 62.030584);
+};
+
 class DefIdentityFixture : public testing::TestWithParam<const char *> {
 protected:
    uint numRows; // -2 to also test filling u/overflow.
@@ -107,44 +155,58 @@ protected:
    
 };
 
-// class DefInvariantMassesFixture : public testing::TestWithParam<const char *> {
-//    protected:
-//       uint numRows; // -2 to also test filling u/overflow.
-//       uint maxBulkSize; // -2 to also test filling u/overflow.
+class DefInvariantMassesFixture : public testing::TestWithParam<const char *> {
+   protected:
+      uint numRows; // -2 to also test filling u/overflow.
+      uint maxBulkSize; // -2 to also test filling u/overflow.
    
    
-//       DefInvariantMassesFixture()
-//       {
-//          numRows = 512;
-//          maxBulkSize = 256;
-//       }
+      DefInvariantMassesFixture()
+      {
+         numRows = 512;
+         maxBulkSize = 256;
+      }
    
-//       auto GetDefineSYCLResult()
-//       {
-//          auto df = ROOT::RDataFrame(numRows, maxBulkSize); // default maxbulksize = 256
-//          auto df2 = df.DefineSYCL<RDefIMSYCL_t>("id", bulkReturnId, {"rdfentry_"});
-//          auto id = df2.Take<double, RVec<double>>("id").GetValue();
-//          return id;
-//       }
+      auto GetDF()
+      {
+         auto df = ROOT::RDataFrame(numRows, maxBulkSize); // default maxbulksize = 256
+         auto df2 = df.Define("pt1", bulkReturnOne, {});
+         auto df3 = df2.Define("eta1", bulkReturnTwo, {});
+         auto df4 = df3.Define("phi1", bulkReturnThree, {});
+         auto df5 = df4.Define("m1", bulkReturnFour, {});
+         auto df6 = df5.Define("pt2", bulkReturnFive, {});
+         auto df7 = df6.Define("eta2", bulkReturnSix, {});
+         auto df8 = df7.Define("phi2", bulkReturnSeven, {});
+         auto df9 = df8.Define("m2", bulkReturnEight, {});
+         return df9;
+      }
+
+      auto GetDefineSYCLResult(ROOT::RDF::RNode df)
+      {
+         //auto df = ROOT::RDataFrame(numRows, maxBulkSize); // default maxbulksize = 256
+         auto df2 = df.DefineSYCL<RDefIMSYCL_t>("IM", bulkReturnIM, {"pt1", "eta1", "phi1", "m1", "pt2", "eta2", "phi2", "m2"});
+         auto id = df2.Take<double, RVec<double>>("IM").GetValue();
+         return id;
+      }
    
    
-//       auto GetDefineResult()
-//       {
-//          auto df = ROOT::RDataFrame(numRows, maxBulkSize);
-//          auto df2 = df.Define("id", bulkReturnId, {"rdfentry_"});
-//          auto id = df2.Take<double, RVec<double>>("id").GetValue();
-//          return id;
-//       }
+      auto GetDefineResult(ROOT::RDF::RNode df)
+      {
+         //auto df = ROOT::RDataFrame(numRows, maxBulkSize);
+         auto df2 = df.Define("IM", bulkReturnIM, {"pt1", "eta1", "phi1", "m1", "pt2", "eta2", "phi2", "m2"});
+         auto id = df2.Take<double, RVec<double>>("IM").GetValue();
+         return id;
+      }
    
-//       auto GetExpectedResult()
-//       {
-//          auto id = std::vector<double>(numRows);    
-//          for (size_t i = 0; i < numRows; i++)
-//             id[i] = static_cast<double>(i);
-//          return id;
-//       }
+      auto GetExpectedResult()
+      {
+         auto id = std::vector<double>(numRows);    
+         for (size_t i = 0; i < numRows; i++)
+            id[i] = static_cast<double>(i);
+         return id;
+      }
       
-//    };
+   };
    
 
 /***
@@ -158,7 +220,6 @@ TEST_F(DefIdentityFixture, IdentityDefine)
 
    auto id2 = GetDefineResult(); // GetExpectedResult(); 
 
-
    CompareArrays(id1.data(), id2.data(), numRows); 
 }
 
@@ -167,15 +228,17 @@ TEST_F(DefIdentityFixture, IdentityDefine)
  * Test Define Invariant Masses
  */
 
-//  TEST_F(DefInvariantMassesFixture, InvariantMassesDefine)
-//  {
+ TEST_F(DefInvariantMassesFixture, InvariantMassesDefine)
+ {
+
+    auto df = GetDF();
  
-//     auto id1 = GetDefineSYCLResult();
+    auto id2 = GetDefineResult(df); // GetExpectedResult(); 
+
+    auto id1 = GetDefineSYCLResult(df);
+
  
-//     auto id2 = GetDefineResult(); // GetExpectedResult(); 
- 
- 
-//     CompareArrays(id1.data(), id2.data(), numRows); 
-//  }
+    CompareArrays(id1.data(), id2.data(), numRows); 
+ }
  
  
