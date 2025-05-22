@@ -67,7 +67,7 @@ RDefSYCL<T, Op, nInput, WGroupSize>::RDefSYCL(std::size_t maxBulkSize, const std
    queue.wait();
 
    if (getenv("DBG")) {
-      std::cout << "Running SYCLDefHist on " << device.template get_info<sycl::info::device::name>() << "\n";
+      std::cout << "Running SYCLDef on " << device.template get_info<sycl::info::device::name>() << "\n";
       printf("USM support: %s\n", device.has(sycl::aspect::usm_device_allocations) ? "yes" : "no");
    }
 }

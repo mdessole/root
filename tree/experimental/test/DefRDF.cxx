@@ -64,47 +64,38 @@ void CompareArrays(double *result, double *expected, int n)
 }
 
 auto bulkReturnId = [](const REventMask &m, ROOT::RVec<double> &output, const ROOT::RVec<ULong64_t> &rdfentries) {
-   // ignoring event mask
    std::copy(rdfentries.begin(), rdfentries.begin() + m.Size(), output.begin());
 };
 
 auto bulkReturnOne = [](const REventMask &m, ROOT::RVec<double> &output) {
-   // ignoring event mask
    std::fill(output.begin(), output.begin() + m.Size(), 1.);
 };
 
 auto bulkReturnTwo = [](const REventMask &m, ROOT::RVec<double> &output) {
-   // ignoring event mask
    std::fill(output.begin(), output.begin() + m.Size(), 2.);
 };
 
 auto bulkReturnThree = [](const REventMask &m, ROOT::RVec<double> &output) {
-   // ignoring event mask
    std::fill(output.begin(), output.begin() + m.Size(), 3.);
 };
 
 auto bulkReturnFour = [](const REventMask &m, ROOT::RVec<double> &output) {
-   // ignoring event mask
    std::fill(output.begin(), output.begin() + m.Size(), 4.);
 };
 
 auto bulkReturnFive = [](const REventMask &m, ROOT::RVec<double> &output) {
-   // ignoring event mask
    std::fill(output.begin(), output.begin() + m.Size(), 5.);
 };
 
 auto bulkReturnSix = [](const REventMask &m, ROOT::RVec<double> &output) {
-   // ignoring event mask
    std::fill(output.begin(), output.begin() + m.Size(), 6.);
 };
 
 auto bulkReturnSeven = [](const REventMask &m, ROOT::RVec<double> &output) {
-   // ignoring event mask
    std::fill(output.begin(), output.begin() + m.Size(), 7.);
 };
 
 auto bulkReturnEight = [](const REventMask &m, ROOT::RVec<double> &output) {
-   // ignoring event mask
    std::fill(output.begin(), output.begin() + m.Size(), 8.);
 };
 
@@ -112,14 +103,17 @@ auto bulkReturnIM = [](const REventMask &m, ROOT::RVec<double> &output,
    const ROOT::RVec<double> &pt1, const ROOT::RVec<double> &eta1, const ROOT::RVec<double> &phi1, const ROOT::RVec<double> &m1,
    const ROOT::RVec<double> &pt2, const ROOT::RVec<double> &eta2, const ROOT::RVec<double> &phi2, const ROOT::RVec<double> &m2
 ) {
-   // ignoring event mask
+   // Result cross-validated using:
+   // TLorentzVector t1, t2;
+   // t1.SetPtEtaPhiM(1,2,3,4); t2.SetPtEtaPhiM(5,6,7,8);
+   // (t1+t2).M()
    std::fill(output.begin(), output.begin() + m.Size(), 62.030584);
 };
 
 class DefIdentityFixture : public testing::TestWithParam<const char *> {
 protected:
-   uint numRows; // -2 to also test filling u/overflow.
-   uint maxBulkSize; // -2 to also test filling u/overflow.
+   uint numRows;
+   uint maxBulkSize; 
 
 
    DefIdentityFixture()
@@ -130,7 +124,7 @@ protected:
 
    auto GetDefineSYCLResult()
    {
-      auto df = ROOT::RDataFrame(numRows, maxBulkSize); // default maxbulksize = 256
+      auto df = ROOT::RDataFrame(numRows, maxBulkSize);
       auto df2 = df.DefineSYCL<RDefIdSYCL_t>("id", bulkReturnId, {"rdfentry_"});
       auto id = df2.Take<double, RVec<double>>("id").GetValue();
       return id;
@@ -157,8 +151,8 @@ protected:
 
 class DefInvariantMassesFixture : public testing::TestWithParam<const char *> {
    protected:
-      uint numRows; // -2 to also test filling u/overflow.
-      uint maxBulkSize; // -2 to also test filling u/overflow.
+      uint numRows;
+      uint maxBulkSize; 
    
    
       DefInvariantMassesFixture()
@@ -169,7 +163,7 @@ class DefInvariantMassesFixture : public testing::TestWithParam<const char *> {
    
       auto GetDF()
       {
-         auto df = ROOT::RDataFrame(numRows, maxBulkSize); // default maxbulksize = 256
+         auto df = ROOT::RDataFrame(numRows, maxBulkSize); 
          auto df2 = df.Define("pt1", bulkReturnOne, {});
          auto df3 = df2.Define("eta1", bulkReturnTwo, {});
          auto df4 = df3.Define("phi1", bulkReturnThree, {});
@@ -183,7 +177,6 @@ class DefInvariantMassesFixture : public testing::TestWithParam<const char *> {
 
       auto GetDefineSYCLResult(ROOT::RDF::RNode df)
       {
-         //auto df = ROOT::RDataFrame(numRows, maxBulkSize); // default maxbulksize = 256
          auto df2 = df.DefineSYCL<RDefIMSYCL_t>("IM", bulkReturnIM, {"pt1", "eta1", "phi1", "m1", "pt2", "eta2", "phi2", "m2"});
          auto id = df2.Take<double, RVec<double>>("IM").GetValue();
          return id;
@@ -192,7 +185,6 @@ class DefInvariantMassesFixture : public testing::TestWithParam<const char *> {
    
       auto GetDefineResult(ROOT::RDF::RNode df)
       {
-         //auto df = ROOT::RDataFrame(numRows, maxBulkSize);
          auto df2 = df.Define("IM", bulkReturnIM, {"pt1", "eta1", "phi1", "m1", "pt2", "eta2", "phi2", "m2"});
          auto id = df2.Take<double, RVec<double>>("IM").GetValue();
          return id;
@@ -218,7 +210,7 @@ TEST_F(DefIdentityFixture, IdentityDefine)
 
    auto id1 = GetDefineSYCLResult();
 
-   auto id2 = GetDefineResult(); // GetExpectedResult(); 
+   auto id2 = GetDefineResult(); 
 
    CompareArrays(id1.data(), id2.data(), numRows); 
 }
@@ -233,7 +225,7 @@ TEST_F(DefIdentityFixture, IdentityDefine)
 
     auto df = GetDF();
  
-    auto id2 = GetDefineResult(df); // GetExpectedResult(); 
+    auto id2 = GetDefineResult(df); 
 
     auto id1 = GetDefineSYCLResult(df);
 
